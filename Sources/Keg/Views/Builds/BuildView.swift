@@ -10,6 +10,8 @@ struct BuildView: View {
     @State private var isBuilding = false
     @State private var output = ""
     @State private var errorMessage: String?
+    @State private var showContextPicker = false
+    @State private var showFilePicker = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -22,12 +24,7 @@ struct BuildView: View {
                     TextField("Context Directory", text: $contextDir, prompt: Text("."))
                         .textFieldStyle(.roundedBorder)
                     Button("Browse") {
-                        let panel = NSOpenPanel()
-                        panel.canChooseDirectories = true
-                        panel.canChooseFiles = false
-                        if panel.runModal() == .OK, let url = panel.url {
-                            contextDir = url.path
-                        }
+                        showContextPicker = true
                     }
                     .controlSize(.small)
                 }
@@ -36,13 +33,7 @@ struct BuildView: View {
                     TextField("Dockerfile", text: $dockerfile, prompt: Text("Dockerfile"))
                         .textFieldStyle(.roundedBorder)
                     Button("Browse") {
-                        let panel = NSOpenPanel()
-                        panel.canChooseFiles = true
-                        panel.canChooseDirectories = false
-                        panel.allowedContentTypes = [.item]
-                        if panel.runModal() == .OK, let url = panel.url {
-                            dockerfile = url.path
-                        }
+                        showFilePicker = true
                     }
                     .controlSize(.small)
                 }
@@ -104,6 +95,16 @@ struct BuildView: View {
             .padding(16)
         }
         .navigationTitle("Builds")
+        .fileImporter(isPresented: $showContextPicker, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
+            if case .success(let urls) = result, let url = urls.first {
+                contextDir = url.path
+            }
+        }
+        .fileImporter(isPresented: $showFilePicker, allowedContentTypes: [.item], allowsMultipleSelection: false) { result in
+            if case .success(let urls) = result, let url = urls.first {
+                dockerfile = url.path
+            }
+        }
     }
 
     private func startBuild() {

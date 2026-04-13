@@ -102,7 +102,7 @@ final class AppState {
     }
 }
 
-enum NavigationSection: String, CaseIterable, Identifiable {
+enum NavigationSection: String, CaseIterable, Identifiable, Hashable {
     case containers = "Containers"
     case images = "Images"
     case builds = "Builds"

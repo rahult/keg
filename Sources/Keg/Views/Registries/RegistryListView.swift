@@ -136,30 +136,32 @@ struct RegistryLoginView: View {
         isLoggingIn = true
         errorMessage = nil
 
-        let process = Process()
-        let pipe = Pipe()
-        process.executableURL = URL(filePath: "/usr/bin/env")
-        process.arguments = ["container", "registry", "login", registryURL]
-        process.standardOutput = pipe
-        process.standardError = pipe
+        Task {
+            let process = Process()
+            let pipe = Pipe()
+            process.executableURL = URL(filePath: "/usr/bin/env")
+            process.arguments = ["container", "registry", "login", registryURL]
+            process.standardOutput = pipe
+            process.standardError = pipe
 
-        // Pass credentials via stdin
-        let inputPipe = Pipe()
-        process.standardInput = inputPipe
-        let credentials = "\(username)\n\(password)\n"
-        inputPipe.fileHandleForWriting.write(credentials.data(using: .utf8)!)
-        try? inputPipe.fileHandleForWriting.close()
+            // Pass credentials via stdin
+            let inputPipe = Pipe()
+            process.standardInput = inputPipe
+            let credentials = "\(username)\n\(password)\n"
+            inputPipe.fileHandleForWriting.write(credentials.data(using: .utf8)!)
+            try? inputPipe.fileHandleForWriting.close()
 
-        try? process.run()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
+            try? process.run()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
 
-        if process.terminationStatus == 0 {
-            onLogin(registryURL)
-            dismiss()
-        } else {
-            errorMessage = String(data: data, encoding: .utf8) ?? "Login failed"
+            if process.terminationStatus == 0 {
+                onLogin(registryURL)
+                dismiss()
+            } else {
+                errorMessage = String(data: data, encoding: .utf8) ?? "Login failed"
+            }
+            isLoggingIn = false
         }
-        isLoggingIn = false
     }
 }
