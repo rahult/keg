@@ -6,6 +6,7 @@ BUILD_DIR  := .build/release
 MACOS_DIR  := $(APP_NAME)/Contents/MacOS
 RES_DIR    := $(APP_NAME)/Contents/Resources
 PLIST      := $(APP_NAME)/Contents/Info.plist
+ICON_FILE  := Resources/Keg.icns
 
 .PHONY: all build app open run test clean
 
@@ -17,6 +18,7 @@ build:
 app: build
 	@mkdir -p $(MACOS_DIR) $(RES_DIR)
 	@cp $(BUILD_DIR)/$(BINARY) $(MACOS_DIR)/$(BINARY)
+	@cp $(ICON_FILE) $(RES_DIR)/Keg.icns
 	@echo '<?xml version="1.0" encoding="UTF-8"?>'                                         > $(PLIST)
 	@echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"'                           >> $(PLIST)
 	@echo '  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">'                            >> $(PLIST)
@@ -25,6 +27,7 @@ app: build
 	@echo '  <key>CFBundleIdentifier</key>            <string>$(BUNDLE_ID)</string>'        >> $(PLIST)
 	@echo '  <key>CFBundleName</key>                  <string>$(BINARY)</string>'           >> $(PLIST)
 	@echo '  <key>CFBundleDisplayName</key>           <string>$(BINARY)</string>'           >> $(PLIST)
+	@echo '  <key>CFBundleIconFile</key>              <string>Keg.icns</string>'            >> $(PLIST)
 	@echo '  <key>CFBundlePackageType</key>           <string>APPL</string>'                >> $(PLIST)
 	@echo '  <key>CFBundleShortVersionString</key>   <string>$(VERSION)</string>'           >> $(PLIST)
 	@echo '  <key>CFBundleVersion</key>               <string>1</string>'                   >> $(PLIST)
