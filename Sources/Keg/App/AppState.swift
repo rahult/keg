@@ -11,6 +11,10 @@ enum SystemStatus: Sendable {
 @Observable
 @MainActor
 final class AppState {
+    // Docker API server
+    private var dockerServerTask: Task<Void, Never>?
+    var isDockerAPIRunning = false
+    var dockerSocketPath: String { DockerAPIServer.socketPath() }
     var systemStatus: SystemStatus = .stopped
     var selectedSection: NavigationSection = .containers
     var selectedContainerID: String?
@@ -80,6 +84,25 @@ final class AppState {
         }
     }
 
+    func startDockerAPI() {
+        guard dockerServerTask == nil else { return }
+        dockerServerTask = Task.detached {
+            let server = DockerAPIServer()
+            do {
+                try await server.start()
+            } catch {
+                // Server stopped
+            }
+        }
+        isDockerAPIRunning = true
+    }
+
+    func stopDockerAPI() {
+        dockerServerTask?.cancel()
+        dockerServerTask = nil
+        isDockerAPIRunning = false
+    }
+
     func startRefreshing() {
         guard refreshTimer == nil else { return }
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
@@ -106,9 +129,11 @@ enum NavigationSection: String, CaseIterable, Identifiable, Hashable {
     case containers = "Containers"
     case images = "Images"
     case builds = "Builds"
+    case compose = "Compose"
     case networks = "Networks"
     case volumes = "Volumes"
     case registries = "Registries"
+    case kubernetes = "Kubernetes"
     case settings = "Settings"
 
     var id: String { rawValue }
@@ -118,9 +143,11 @@ enum NavigationSection: String, CaseIterable, Identifiable, Hashable {
         case .containers: return "cube.box"
         case .images: return "photo.stack"
         case .builds: return "hammer"
+        case .compose: return "doc.text"
         case .networks: return "network"
         case .volumes: return "externaldrive"
         case .registries: return "globe"
+        case .kubernetes: return "helm"
         case .settings: return "gearshape"
         }
     }

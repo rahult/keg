@@ -55,10 +55,42 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Docker API") {
+                HStack {
+                    Circle().fill(appState.isDockerAPIRunning ? Color.green : Color.gray).frame(width: 10, height: 10)
+                    VStack(alignment: .leading) {
+                        Text(appState.isDockerAPIRunning ? "Running" : "Stopped")
+                            .font(.headline)
+                        Text("Socket: \(appState.dockerSocketPath)")
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                        Text("Use: export DOCKER_HOST=unix://\(appState.dockerSocketPath)")
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                            .textSelection(.enabled)
+                    }
+                    Spacer()
+                    if appState.isDockerAPIRunning {
+                        Button("Stop") {
+                            appState.stopDockerAPI()
+                        }
+                        .controlSize(.small)
+                    } else {
+                        Button("Start") {
+                            appState.startDockerAPI()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
+                }
+            }
+
             Section("About") {
                 LabeledContent("App", value: "Keg")
-                LabeledContent("Description", value: "Native macOS container manager using Apple's container framework")
+                LabeledContent("Description", value: "Docker Desktop replacement for macOS — native containers, Docker API, Compose, and Kubernetes")
+                LabeledContent("Runtime", value: "Apple Containerization")
                 LabeledContent("Requirements", value: "macOS 26+, Apple Silicon, Apple container CLI")
+                LabeledContent("License", value: "Apache 2.0")
             }
         }
         .formStyle(.grouped)

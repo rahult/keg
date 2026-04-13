@@ -65,12 +65,16 @@ struct DetailView: View {
                 ImageListView()
             case .builds:
                 BuildView()
+            case .compose:
+                ComposeView()
             case .networks:
                 NetworkListView()
             case .volumes:
                 VolumeListView()
             case .registries:
                 RegistryListView()
+            case .kubernetes:
+                KubernetesView()
             case .settings:
                 SettingsView()
             }
