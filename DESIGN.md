@@ -1,0 +1,504 @@
+# Keg — UX Design Guide
+
+macOS developer-tool conventions we follow. Reference when building or reviewing any view.
+
+---
+
+## 1. Toolbar vs Inline HStack
+
+**Always use `.toolbar` with `ToolbarItem` placements.** Never hand-roll an HStack toolbar with `.background(.bar)`.
+
+```swift
+// ✅ Correct
+.toolbar {
+    ToolbarItem(placement: .primaryAction) {
+        Button("Run...") { showRunSheet = true }
+    }
+    ToolbarItem(placement: .automatic) {
+        Button { refresh() } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+            .keyboardShortcut("r", modifiers: .command)
+    }
+}
+
+// ❌ Wrong
+VStack(spacing: 0) {
+    HStack {
+        Button("Run") { ... }
+        Spacer()
+    }
+    .padding(.horizontal, 16)
+    .padding(.vertical, 8)
+    .background(.bar)   // hand-rolled toolbar
+    Divider()
+    // content...
+}
+```
+
+**Why:** `.toolbar` integrates with the window title bar, supports customization, appears in View → Customize Toolbar, and handles spacing/alignment automatically.
+
+### Toolbar Placement Cheat Sheet
+
+| Placement | Use For |
+|-----------|---------|
+| `.primaryAction` | Primary action (Run, Pull, Create, Build) |
+| `.cancellationAction` | Cancel buttons |
+| `.confirmationAction` | Confirm/Save |
+| `.automatic` | Secondary actions (Refresh, Filter) |
+| `.principal` | Centered picker/segmented control |
+| `.navigation` | Back/forward, sidebar toggle |
+| `.status` | Status indicators on trailing edge |
+
+### Toolbar Button Style Conventions
+
+- Primary actions: `.buttonStyle(.borderedProminent)`
+- Destructive actions: `Button("Delete", role: .destructive)`
+- Secondary actions: default style (no `.buttonStyle`)
+- Always add `Label` (icon + text) for accessibility
+
+---
+
+## 2. Search
+
+**Use `.searchable()` on list/table views.** Never use a manual `TextField` for search.
+
+```swift
+// ✅ Correct
+.searchable(text: $searchText, prompt: "Search containers")
+.onChange(of: searchText) { vm.searchText = searchText }
+
+// ❌ Wrong
+HStack {
+    TextField("Search...", text: $searchText)
+        .textFieldStyle(.roundedBorder)
+        .frame(width: 200)
+}
+```
+
+**Binding pattern:** SwiftUI's `.searchable` manages its own state. Sync to VM via `.onChange`:
+
+```swift
+@State private var searchText = ""
+
+.searchable(text: $searchText, prompt: "Search")
+.onChange(of: searchText) { vm.searchText = searchText }
+```
+
+The VM still owns filtering logic. The view just syncs the text.
+
+---
+
+## 3. Context Menus
+
+**Every table must have a context menu.** Developers right-click everything.
+
+```swift
+.tableStyle(.inset(alternatesRowBackgrounds: true))
+.contextMenu(forSelectionType: String.self) { ids in
+    if let id = ids.first {
+        ContainerContextMenu(id: id, vm: vm)
+    }
+}
+```
+
+### Context Menu Structure
+
+Follow this order (top to bottom):
+1. **Actions** — Start, Stop, Restart
+2. **Divider**
+3. **Navigation** — View Logs, Exec Shell
+4. **Divider**
+5. **Copy** — Copy ID, Copy Reference
+6. **Divider**
+7. **Destructive** — Delete (with `role: .destructive`)
+
+```swift
+struct ContainerContextMenu: View {
+    let id: String
+    let vm: ContainersVM
+
+    var body: some View {
+        Button("Stop") { Task { await vm.stop(id: id) } }
+        Divider()
+        Button("View Logs") { /* open logs */ }
+        Divider()
+        Button("Copy ID") {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(String(id.prefix(12)), forType: .string)
+        }
+        Divider()
+        Button("Delete", role: .destructive) { Task { await vm.delete(id: id) } }
+    }
+}
+```
+
+---
+
+## 4. Copy to Clipboard
+
+**Developer tools need one-click copy on IDs, paths, and commands.**
+
+### Inline Copy Button
+
+Use a small `doc.on.doc` button next to copyable text:
+
+```swift
+HStack(spacing: 4) {
+    Text("/path/to/kubeconfig")
+        .font(.system(.caption, design: .monospaced))
+        .textSelection(.enabled)
+    Button {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(value, forType: .string)
+    } label: {
+        Image(systemName: "doc.on.doc")
+    }
+    .buttonStyle(.borderless)
+    .controlSize(.small)
+}
+```
+
+### Reusable Component
+
+```swift
+struct CopyableRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack(spacing: 4) {
+                Text(value)
+                    .font(.system(.caption, design: .monospaced))
+                    .textSelection(.enabled)
+                Spacer()
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(value, forType: .string)
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+            }
+        }
+    }
+}
+```
+
+**Pattern:** Always pair `textSelection(.enabled)` with a copy button. `textSelection` lets users select+Cmd+C, the button is for one-click.
+
+---
+
+## 5. Tables
+
+**Use `Table` for structured data.** Use `List` only for simple single-column content.
+
+### Table Anatomy
+
+```swift
+Table(items, selection: $selectedID) {
+    TableColumn("Name") { item in
+        Text(item.name)
+    }
+    .width(min: 120)
+
+    TableColumn("Status") { item in
+        StatusBadge(status: item.status)
+    }
+    .width(min: 80, max: 120)
+
+    TableColumn("ID") { item in
+        Text(String(item.id.prefix(12)))     // short IDs
+            .font(.system(.body, design: .monospaced))
+            .foregroundStyle(.secondary)
+            .textSelection(.enabled)
+    }
+    .width(min: 90, max: 120)
+}
+.tableStyle(.inset(alternatesRowBackgrounds: true))
+```
+
+### Table Rules
+
+- **Always** `.width(min:)` on every column — prevents layout collapse
+- **Short IDs** — show 12 chars in tables, full ID via copy
+- **Monospaced** — IDs, digests, paths, ports, IPs get `.monospaced`
+- **Secondary color** — metadata (dates, sizes, types) get `.foregroundStyle(.secondary)`
+- **Alternating rows** — always `.inset(alternatesRowBackgrounds: true)`
+- **Identifiable** — items must conform to `Identifiable`. Wrap external types:
+
+```swift
+// External types (from container framework) may not be Identifiable
+struct IdentifiableNetwork: Identifiable {
+    let id: String
+    let network: NetworkState
+
+    init(_ network: NetworkState) {
+        self.id = network.id
+        self.network = network
+    }
+}
+```
+
+---
+
+## 6. Sidebar
+
+**Group into semantic sections.** Flat lists are disorienting.
+
+```swift
+List(selection: $selectedSection) {
+    Section("Workloads") {
+        ForEach([.containers, .compose]) { section in
+            Label(section.rawValue, systemImage: section.iconName)
+                .tag(section)
+        }
+    }
+    Section("Content") { /* images, builds */ }
+    Section("Networking") { /* networks, registries */ }
+    Section("Storage") { /* volumes */ }
+    Section("Tools") { /* terminal, kubernetes */ }
+    Section("System") { /* settings */ }
+}
+.listStyle(.sidebar)
+.navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 320)
+```
+
+### Sidebar Rules
+
+- Section names are short nouns: "Workloads", "Content", "Tools"
+- Icons use SF Symbols that match the concept
+- Always constrain column width with `.navigationSplitViewColumnWidth`
+- Tags must be unique per section item
+
+---
+
+## 7. Error Display
+
+**Overlay banners, not inline toolbars.** Errors in toolbars break the toolbar layout.
+
+```swift
+.overlay(alignment: .bottom) {
+    if let error = vm.errorMessage {
+        HStack {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            Text(error)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Button("Dismiss") { vm.errorMessage = nil }
+                .controlSize(.small)
+            Spacer()
+        }
+        .padding(8)
+        .background(.bar, in: RoundedRectangle(cornerRadius: 6))
+        .padding(12)
+    }
+}
+```
+
+**Why overlay:** Keeps the toolbar clean, dismissable, doesn't steal vertical space from content.
+
+---
+
+## 8. Empty States
+
+**Use `ContentUnavailableView`** for zero-data states.
+
+```swift
+ContentUnavailableView(
+    "No Running Containers",
+    systemImage: "cube.box",
+    description: Text("Run a container to get started")
+)
+```
+
+Rules:
+- Title describes what's missing
+- Icon matches the section's SF Symbol
+- Description tells the user what to do next
+- Dynamic: change title when filter is active ("No Running Containers" vs "No Containers")
+
+---
+
+## 9. Keyboard Shortcuts
+
+### Standard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd+R` | Refresh current view |
+| `Cmd+N` | New/Create |
+| `Cmd+,` | Settings (automatic with `Settings` scene) |
+| `Esc` | Dismiss sheet/popover (automatic) |
+| `Return` | Confirm default action in dialogs |
+
+### Dialog Shortcuts
+
+Every sheet/dialog needs these:
+
+```swift
+Button("Cancel") { dismiss() }
+    .keyboardShortcut(.cancelAction)   // Esc
+
+Button("Save") { save() }
+    .buttonStyle(.borderedProminent)
+    .keyboardShortcut(.defaultAction)  // Return
+```
+
+### Adding Shortcuts to Toolbar
+
+```swift
+ToolbarItem(placement: .automatic) {
+    Button { refresh() } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+        .keyboardShortcut("r", modifiers: .command)
+}
+```
+
+---
+
+## 10. Inspector Pattern
+
+**Use `.inspector` for detail panels** (right sidebar). Not sheets.
+
+```swift
+.inspector(isPresented: .init(
+    get: { selectedID != nil },
+    set: { if !$0 { selectedID = nil } }
+)) {
+    if let id = selectedID {
+        DetailView(id: id)
+    }
+}
+```
+
+Inspector rules:
+- Opens when a table row is selected
+- Closes when selection is cleared
+- Width constrained with `.inspectorColumnWidth(min: 280, ideal: 320)`
+
+---
+
+## 11. Sheet Sizing
+
+Sheets need explicit width for forms:
+
+```swift
+.sheet(isPresented: $showSheet) {
+    FormView()
+        .padding(20)
+        .frame(width: 400)  // or 500 for complex forms
+}
+```
+
+| Content | Width |
+|---------|-------|
+| Simple form (1-2 fields) | 400 |
+| Medium form (3-6 fields) | 500 |
+| Complex form (7+ fields) | 600 |
+
+---
+
+## 12. Monospaced Text
+
+Use `.monospaced` for anything a developer would copy or grep:
+
+```swift
+// IDs
+.font(.system(.body, design: .monospaced))
+
+// Code/commands
+.font(.system(.caption, design: .monospaced))
+
+// Terminal output
+.font(.system(.caption, design: .monospaced))
+```
+
+**When to use monospaced:**
+- Container/image IDs
+- Digests
+- Image references
+- IP addresses
+- Port mappings
+- File paths
+- CLI commands
+- Environment variables
+- URLs
+- Terminal output
+
+**When NOT to use monospaced:**
+- Status labels ("Running", "Stopped")
+- Column headers
+- Button labels
+- Section titles
+
+---
+
+## 13. StatusBadge
+
+Consistent status indicator across all views:
+
+```swift
+struct StatusBadge: View {
+    let status: String
+
+    private var color: Color {
+        switch status.lowercased() {
+        case "running": .green
+        case "stopped", "exited": .red
+        case "created": .blue
+        case "paused": .yellow
+        default: .gray
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text(status).font(.caption).foregroundStyle(.secondary)
+        }
+    }
+}
+```
+
+---
+
+## 14. Color Conventions
+
+| Element | Color |
+|---------|-------|
+| Primary content | `.primary` (default) |
+| Secondary/metadata | `.secondary` |
+| Tertiary/hints | `.tertiary` |
+| Status: running | `.green` |
+| Status: stopped/errored | `.red` |
+| Status: created/pending | `.blue` |
+| Status: paused | `.yellow` |
+| Destructive actions | `role: .destructive` (auto red) |
+| Warning icon | `.orange` |
+
+**Never hardcode colors.** Use semantic colors that adapt to light/dark mode.
+
+---
+
+## Quick Reference: File Checklist
+
+Before submitting a new view, verify:
+
+- [ ] `.toolbar` (not inline HStack)
+- [ ] `.searchable()` on list/table views
+- [ ] `.contextMenu` on table rows
+- [ ] Short IDs (12 chars) in tables
+- [ ] `.textSelection(.enabled)` on copyable text
+- [ ] Copy buttons on IDs/paths/commands
+- [ ] Monospaced font on technical values
+- [ ] `.keyboardShortcut(.defaultAction/.cancelAction)` on dialog buttons
+- [ ] `.tableStyle(.inset(alternatesRowBackgrounds: true))` on tables
+- [ ] `ContentUnavailableView` for empty states
+- [ ] Overlay error banners (not toolbar errors)
+- [ ] `.foregroundStyle(.secondary)` on metadata
+- [ ] Destructive buttons use `role: .destructive`
