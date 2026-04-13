@@ -1,8 +1,15 @@
+import AppKit
 import SwiftUI
 
 @main
 struct KegApp: App {
     @State private var appState = AppState()
+
+    init() {
+        if let icon = KegIcon.image {
+            NSApplication.shared.applicationIconImage = icon
+        }
+    }
 
     var body: some Scene {
         // Main window
@@ -16,9 +23,18 @@ struct KegApp: App {
         .defaultSize(width: 1100, height: 700)
 
         // Menu bar
-        MenuBarExtra("Keg", systemImage: "keg") {
+        MenuBarExtra {
             MenuBarPopover()
                 .environment(appState)
+        } label: {
+            if let icon = KegIcon.image {
+                Image(nsImage: icon)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 16, height: 16)
+            } else {
+                Image(systemName: "shippingbox.fill")
+            }
         }
         .menuBarExtraStyle(.window)
 
@@ -28,6 +44,11 @@ struct KegApp: App {
                 .environment(appState)
         }
     }
+}
+
+private enum KegIcon {
+    static let image = Bundle.main.url(forResource: "Keg", withExtension: "icns")
+        .flatMap(NSImage.init(contentsOf:))
 }
 
 struct MainView: View {
@@ -67,6 +88,8 @@ struct DetailView: View {
                 BuildView()
             case .compose:
                 ComposeView()
+            case .terminal:
+                QuickTerminalView()
             case .networks:
                 NetworkListView()
             case .volumes:

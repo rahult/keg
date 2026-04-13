@@ -8,7 +8,7 @@ final class ContainersVM {
     var containers: [ContainerSnapshot] = []
     var isLoading = false
     var errorMessage: String?
-    var showOnlyRunning = true
+    var showOnlyRunning = false
     var searchText = ""
 
     private let client = ContainerClient()
@@ -33,10 +33,8 @@ final class ContainersVM {
         isLoading = true
         defer { isLoading = false }
         do {
-            let filters: ContainerListFilters = showOnlyRunning
-                ? ContainerListFilters(status: .running)
-                : .all
-            containers = try await client.list(filters: filters)
+            // Always fetch all containers, filter in filteredContainers
+            containers = try await client.list(filters: .all)
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
