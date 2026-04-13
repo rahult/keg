@@ -26,6 +26,7 @@ final class DockerAPIServer: Sendable {
         let bridge = self.bridge
 
         let router = Router()
+        router.middlewares.add(DockerVersionStripMiddleware())
 
         // MARK: - System Routes
         router.get("/_ping") { _, _ in
@@ -171,6 +172,11 @@ final class DockerAPIServer: Sendable {
             return Response(status: .ok, body: .init(byteBuffer: ByteBuffer(string: "")))
         }
 
+        // Catch-all for unmatched routes
+        router.get("/**") { request, _ in
+            return Response(status: .notFound, body: .init(byteBuffer: ByteBuffer(string: "{}")))
+        }
+
         let app = Application(
             router: router,
             configuration: .init(address: .unixDomainSocket(path: socketPath))
@@ -189,4 +195,27 @@ final class DockerAPIServer: Sendable {
 private func JSONResponse<T: Encodable>(_ value: T, status: HTTPResponse.Status = .ok) throws -> Response {
     let data = try JSONEncoder().encode(value)
     return Response(status: status, body: .init(byteBuffer: ByteBuffer(data: data)))
+}
+
+// MARK: - Docker Version Strip Middleware
+
+/// Strips /v1.XX prefix from request URI before routing.
+/// Docker CLI sends `/v1.54/containers/json` but routes are at `/containers/json`.
+struct DockerVersionStripMiddleware<Context: RequestContext>: RouterMiddleware {
+    public func handle(_ request: Request, context: Context, next: (Request, Context) async throws -> Response) async throws -> Response {
+        let path = request.uri.path
+        // Match /v1.XX/... → /...
+        guard path.hasPrefix("/v1.") else {
+            return try await next(request, context)
+        }
+        // Find the slash after the version number
+        let afterPrefix = path.index(path.startIndex, offsetBy: 4) // after "/v1."
+        guard let slashIdx = path[afterPrefix...].firstIndex(of: "/") else {
+            return try await next(request, context)
+        }
+        let newPath = String(path[slashIdx...]) // includes leading /
+        let query = request.uri.query.map { "?\($0)" } ?? ""
+        let newRequest = Request(head: .init(method: request.head.method, url: URL(string: (newPath + query).addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? newPath)!, headerFields: request.head.headerFields), body: request.body)
+        return try await next(newRequest, context)
+    }
 }
