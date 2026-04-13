@@ -61,13 +61,35 @@ struct SettingsView: View {
                     VStack(alignment: .leading) {
                         Text(appState.isDockerAPIRunning ? "Running" : "Stopped")
                             .font(.headline)
-                        Text("Socket: \(appState.dockerSocketPath)")
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                        Text("Use: export DOCKER_HOST=unix://\(appState.dockerSocketPath)")
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(.tertiary)
-                            .textSelection(.enabled)
+                        HStack(spacing: 4) {
+                            Text(appState.dockerSocketPath)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                            Button {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(appState.dockerSocketPath, forType: .string)
+                            } label: {
+                                Image(systemName: "doc.on.doc")
+                            }
+                            .buttonStyle(.borderless)
+                            .controlSize(.small)
+                        }
+                        HStack(spacing: 4) {
+                            Text("export DOCKER_HOST=unix://\(appState.dockerSocketPath)")
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.tertiary)
+                                .textSelection(.enabled)
+                            Button {
+                                let cmd = "export DOCKER_HOST=unix://\(appState.dockerSocketPath)"
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(cmd, forType: .string)
+                            } label: {
+                                Image(systemName: "doc.on.doc")
+                            }
+                            .buttonStyle(.borderless)
+                            .controlSize(.small)
+                        }
                     }
                     Spacer()
                     if appState.isDockerAPIRunning {

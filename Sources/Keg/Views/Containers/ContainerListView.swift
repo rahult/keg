@@ -6,46 +6,14 @@ struct ContainerListView: View {
     @State private var vm = ContainersVM()
     @State private var selectedContainerID: String?
     @State private var showRunSheet = false
+    @State private var searchText = ""
 
     private var wrappedContainers: [IdentifiableContainer] {
         vm.filteredContainers.map { IdentifiableContainer($0) }
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Toolbar
-            HStack {
-                Toggle("Running Only", isOn: $vm.showOnlyRunning)
-                    .toggleStyle(.checkbox)
-                    .controlSize(.small)
-
-                TextField("Search containers...", text: $vm.searchText)
-                    .textFieldStyle(.roundedBorder)
-                    .controlSize(.small)
-                    .frame(width: 200)
-
-                Spacer()
-
-                Button {
-                    showRunSheet = true
-                } label: {
-                    Label("Run", systemImage: "plus")
-                }
-                .controlSize(.small)
-
-                Button {
-                    Task { await vm.refresh() }
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-                .controlSize(.small)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(.bar)
-
-            Divider()
-
+        Group {
             if vm.isLoading && vm.containers.isEmpty {
                 ProgressView("Loading containers...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -57,16 +25,16 @@ struct ContainerListView: View {
                 )
             } else {
                 Table(wrappedContainers, selection: $selectedContainerID) {
-                    TableColumn("ID") { item in
-                        Text(item.snapshot.id)
-                            .font(.system(.body, design: .monospaced))
+                    TableColumn("Name") { item in
+                        Text(containerName(item.snapshot))
                             .lineLimit(1)
                             .truncationMode(.tail)
                     }
-                    .width(min: 100, max: 200)
+                    .width(min: 120)
 
                     TableColumn("Image") { item in
                         Text(item.snapshot.configuration.image.reference)
+                            .font(.system(.body, design: .monospaced))
                             .lineLimit(1)
                             .truncationMode(.middle)
                     }
@@ -77,21 +45,21 @@ struct ContainerListView: View {
                     }
                     .width(min: 80, max: 120)
 
-                    TableColumn("IP Address") { item in
-                        Text(item.snapshot.networks.map(\.ipv4Address.description).joined(separator: ", "))
+                    TableColumn("ID") { item in
+                        Text(String(item.snapshot.id.prefix(12)))
                             .font(.system(.body, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
+                    .width(min: 90, max: 120)
+
+                    TableColumn("IP") { item in
+                        let ip = item.snapshot.networks.map(\.ipv4Address.description).joined(separator: ", ")
+                        Text(ip)
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundStyle(ip.isEmpty ? .tertiary : .primary)
                     }
                     .width(min: 100, max: 150)
-
-                    TableColumn("CPUs") { item in
-                        Text("\(item.snapshot.configuration.resources.cpus)")
-                    }
-                    .width(50)
-
-                    TableColumn("Memory") { item in
-                        Text(ByteCountFormatter.string(fromByteCount: Int64(item.snapshot.configuration.resources.memoryInBytes), countStyle: .memory))
-                    }
-                    .width(min: 80, max: 100)
 
                     TableColumn("Ports") { item in
                         Text(item.snapshot.configuration.publishedPorts.map { "\($0.hostPort):\($0.containerPort)" }.joined(separator: ", "))
@@ -100,9 +68,17 @@ struct ContainerListView: View {
                     }
                     .width(min: 80)
 
+                    TableColumn("CPU / Mem") { item in
+                        Text("\(item.snapshot.configuration.resources.cpus) × \(ByteCountFormatter.string(fromByteCount: Int64(item.snapshot.configuration.resources.memoryInBytes), countStyle: .memory))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .width(min: 80, max: 120)
+
                     TableColumn("Started") { item in
                         if let date = item.snapshot.startedDate {
                             Text(date, format: .dateTime.month(.abbreviated).day().hour().minute())
+                                .foregroundStyle(.secondary)
                         }
                     }
                     .width(min: 100)
@@ -110,17 +86,46 @@ struct ContainerListView: View {
                 .tableStyle(.inset(alternatesRowBackgrounds: true))
                 .contextMenu(forSelectionType: String.self) { ids in
                     if let id = ids.first {
-                        ContainerContextMenu(id: id, vm: vm)
+                        ContainerContextMenu(id: id, container: vm.containers.first(where: { $0.id == id }), vm: vm)
                     }
                 }
             }
         }
         .navigationTitle("Containers")
+        .searchable(text: $searchText, prompt: "Search containers")
+        .onChange(of: searchText) { vm.searchText = searchText }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showRunSheet = true
+                } label: {
+                    Label("Run...", systemImage: "plus")
+                }
+            }
+
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    vm.showOnlyRunning.toggle()
+                    Task { await vm.refresh() }
+                } label: {
+                    Label(
+                        vm.showOnlyRunning ? "Show All" : "Running Only",
+                        systemImage: vm.showOnlyRunning ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle"
+                    )
+                }
+            }
+
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    Task { await vm.refresh() }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .keyboardShortcut("r", modifiers: .command)
+            }
+        }
         .task {
             await vm.refresh()
-        }
-        .onChange(of: vm.showOnlyRunning) {
-            Task { await vm.refresh() }
         }
         .sheet(isPresented: $showRunSheet) {
             RunContainerView()
@@ -134,15 +139,48 @@ struct ContainerListView: View {
             }
         }
     }
+
+    private func containerName(_ snapshot: ContainerSnapshot) -> String {
+        // Check labels for a name
+        if let name = snapshot.configuration.labels["name"], !name.isEmpty {
+            return name
+        }
+        // Fallback to short ID
+        return String(snapshot.id.prefix(12))
+    }
 }
 
 struct ContainerContextMenu: View {
     let id: String
+    let container: ContainerSnapshot?
     let vm: ContainersVM
 
+    private var isRunning: Bool {
+        container?.status == .running
+    }
+
     var body: some View {
-        Button("Stop") { Task { await vm.stop(id: id) } }
-        Button("Kill") { Task { await vm.kill(id: id) } }
+        if isRunning {
+            Button("Stop") { Task { await vm.stop(id: id) } }
+        } else {
+            Button("Start") { /* TODO: implement start */ }
+        }
+        Button("Restart") { /* TODO: implement restart */ }
+        Divider()
+        Button("View Logs") { /* TODO: open logs in inspector/tab */ }
+        Button("Exec Shell") { /* TODO: open terminal */ }
+        Divider()
+        Button("Copy ID") {
+            let short = id.prefix(12)
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(String(short), forType: .string)
+        }
+        if let ref = container?.configuration.image.reference {
+            Button("Copy Image Reference") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(ref, forType: .string)
+            }
+        }
         Divider()
         Button("Delete", role: .destructive) { Task { await vm.delete(id: id) } }
     }

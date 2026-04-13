@@ -161,123 +161,159 @@ struct KubernetesView: View {
     @State private var vm = KubernetesVM()
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Toolbar
-            HStack {
-                // Status
-                StatusBadge(status: vm.clusterStatus == "Running" ? "running" : vm.clusterStatus == "Creating..." ? "created" : "stopped")
-
-                TextField("Cluster name", text: $vm.clusterName)
-                    .textFieldStyle(.roundedBorder)
-                    .controlSize(.small)
-                    .frame(width: 200)
-                    .disabled(vm.isCreating || vm.clusterStatus == "Running")
-
-                TextField("Node image", text: $vm.nodeImage)
-                    .textFieldStyle(.roundedBorder)
-                    .controlSize(.small)
-                    .frame(width: 350)
-                    .disabled(vm.isCreating || vm.clusterStatus == "Running")
-
-                Spacer()
-
-                if vm.clusterStatus == "Running" {
-                    Button("Delete Cluster") {
-                        Task { await vm.deleteCluster() }
-                    }
-                    .controlSize(.small)
-                } else if vm.clusterStatus == "Not Created" {
-                    Button("Create Cluster") {
-                        Task { await vm.createCluster() }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .disabled(vm.isCreating)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(.bar)
-
-            Divider()
-
-            // Content
+        Group {
             if vm.isCreating {
-                ProgressView("Creating Kubernetes cluster (~60s)...")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-
-            if !vm.output.isEmpty {
-                ScrollView {
-                    Text(vm.output)
-                        .font(.system(.caption, design: .monospaced))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(8)
-                }
-                .background(Color(nsColor: .textBackgroundColor))
-            }
-
-            if vm.clusterStatus == "Running" {
-                VStack(alignment: .leading, spacing: 12) {
-                    if let kcPath = vm.kubeconfigPath {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Kubeconfig")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(kcPath)
+                VStack(spacing: 16) {
+                    ProgressView("Creating Kubernetes cluster (~60s)...")
+                    if !vm.output.isEmpty {
+                        ScrollView {
+                            Text(vm.output)
                                 .font(.system(.caption, design: .monospaced))
                                 .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(8)
                         }
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Connect")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("export KUBECONFIG=\"\(kcPath)\"")
-                                .font(.system(.caption, design: .monospaced))
-                                .textSelection(.enabled)
-                        }
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Quick Commands")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("kubectl get nodes")
-                                .font(.system(.caption, design: .monospaced))
-                                .textSelection(.enabled)
-                            Text("kubectl get pods -A")
-                                .font(.system(.caption, design: .monospaced))
-                                .textSelection(.enabled)
-                        }
+                        .background(Color(nsColor: .textBackgroundColor))
+                        .frame(maxHeight: .infinity)
                     }
                 }
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if vm.clusterStatus == "Running" {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        // Output log
+                        if !vm.output.isEmpty {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Cluster Output")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(vm.output)
+                                    .font(.system(.caption, design: .monospaced))
+                                    .textSelection(.enabled)
+                                    .padding(8)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
+                            }
+                        }
 
-            if vm.clusterStatus == "Not Created" && vm.output.isEmpty {
+                        // Connection info
+                        if let kcPath = vm.kubeconfigPath {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Connection")
+                                    .font(.headline)
+
+                                CopyableRow(label: "Kubeconfig", value: kcPath)
+
+                                CopyableRow(
+                                    label: "Connect",
+                                    value: "export KUBECONFIG=\"\(kcPath)\""
+                                )
+
+                                CopyableRow(
+                                    label: "Get Nodes",
+                                    value: "kubectl get nodes"
+                                )
+
+                                CopyableRow(
+                                    label: "Get Pods",
+                                    value: "kubectl get pods -A"
+                                )
+                            }
+                        }
+                    }
+                    .padding(16)
+                }
+            } else if vm.clusterStatus == "Not Created" && vm.output.isEmpty {
                 ContentUnavailableView(
                     "No Kubernetes Cluster",
                     systemImage: "helm",
                     description: Text("Create a single-node Kubernetes cluster using Apple Containers")
                 )
             }
-
-            if let errorMessage = vm.errorMessage {
+        }
+        .overlay(alignment: .bottom) {
+            if let error = vm.errorMessage {
                 HStack {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text(error)
                         .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Button("Dismiss") { vm.errorMessage = nil }
+                        .controlSize(.small)
                     Spacer()
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 4)
+                .padding(8)
+                .background(.bar, in: RoundedRectangle(cornerRadius: 6))
+                .padding(12)
             }
         }
         .navigationTitle("Kubernetes")
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                HStack(spacing: 8) {
+                    TextField("Cluster", text: $vm.clusterName)
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                        .frame(width: 140)
+                        .disabled(vm.isCreating || vm.clusterStatus == "Running")
+
+                    TextField("Node image", text: $vm.nodeImage)
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                        .frame(width: 280)
+                        .disabled(vm.isCreating || vm.clusterStatus == "Running")
+                }
+            }
+
+            ToolbarItem(placement: .primaryAction) {
+                HStack(spacing: 8) {
+                    StatusBadge(status: vm.clusterStatus == "Running" ? "running" : vm.clusterStatus == "Creating..." ? "created" : "stopped")
+
+                    if vm.clusterStatus == "Running" {
+                        Button("Delete Cluster", role: .destructive) {
+                            Task { await vm.deleteCluster() }
+                        }
+                    } else if vm.clusterStatus == "Not Created" {
+                        Button("Create Cluster") {
+                            Task { await vm.createCluster() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(vm.isCreating)
+                    }
+                }
+            }
+        }
         .task {
             await vm.checkClusterStatus()
+        }
+    }
+}
+
+struct CopyableRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack(spacing: 4) {
+                Text(value)
+                    .font(.system(.caption, design: .monospaced))
+                    .textSelection(.enabled)
+                Spacer()
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(value, forType: .string)
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+            }
         }
     }
 }

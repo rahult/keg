@@ -65,13 +65,25 @@ struct MenuBarPopover: View {
 
     private var runningContainersSection: some View {
         Group {
-            Text("Running Containers")
+            Text("Quick Access")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            // TODO: Add running containers list when ContainersVM is connected
-            Text("No containers running")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Image(systemName: "terminal")
+                        .frame(width: 16)
+                    Text("Terminal")
+                        .font(.caption)
+                    Spacer()
+                }
+                HStack {
+                    Image(systemName: "cube.box")
+                        .frame(width: 16)
+                    Text("Containers")
+                        .font(.caption)
+                    Spacer()
+                }
+            }
         }
     }
 }

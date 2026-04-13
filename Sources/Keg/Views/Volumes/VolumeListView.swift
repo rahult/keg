@@ -32,62 +32,93 @@ final class VolumesVM {
 
 struct VolumeListView: View {
     @State private var vm = VolumesVM()
+    @State private var selectedVolumeName: String?
 
     var body: some View {
-        VStack(spacing: 0) {
-            toolbar
-            Divider()
-
+        Group {
             if vm.isLoading && vm.volumes.isEmpty {
                 ProgressView("Loading volumes...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if vm.volumes.isEmpty {
                 ContentUnavailableView("No Volumes", systemImage: "externaldrive")
             } else {
-                Table(vm.volumes, selection: .constant(nil)) {
+                Table(vm.volumes, selection: $selectedVolumeName) {
                     TableColumn("Name") { volume in
                         Text(volume.name)
                             .font(.system(.body, design: .monospaced))
+                            .textSelection(.enabled)
                     }
                     .width(min: 150)
 
                     TableColumn("Driver") { volume in
                         Text(volume.driver)
+                            .foregroundStyle(.secondary)
                     }
                     .width(min: 80)
 
                     TableColumn("Created") { volume in
                         Text(volume.createdAt, format: .dateTime.month(.abbreviated).day().year())
+                            .foregroundStyle(.secondary)
                     }
                     .width(min: 100)
                 }
                 .tableStyle(.inset(alternatesRowBackgrounds: true))
-                .contextMenu(forSelectionType: String.self) { _ in }
+                .contextMenu(forSelectionType: String.self) { names in
+                    if let name = names.first {
+                        VolumeContextMenu(name: name, vm: vm)
+                    }
+                }
             }
         }
         .navigationTitle("Volumes")
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    Task { await vm.refresh() }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .keyboardShortcut("r", modifiers: .command)
+            }
+        }
+        .overlay {
+            if let error = vm.errorMessage {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Dismiss") { vm.errorMessage = nil }
+                            .controlSize(.small)
+                        Spacer()
+                    }
+                    .padding(8)
+                    .background(.bar, in: RoundedRectangle(cornerRadius: 6))
+                    .padding(12)
+                }
+            }
+        }
         .task {
             await vm.refresh()
         }
     }
+}
 
-    private var toolbar: some View {
-        HStack {
-            if let errorMessage = vm.errorMessage {
-                Text(errorMessage)
-                    .foregroundStyle(.red)
-                    .font(.caption)
-            }
-            Spacer()
-            Button {
-                Task { await vm.refresh() }
-            } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
-            }
-            .controlSize(.small)
+struct VolumeContextMenu: View {
+    let name: String
+    let vm: VolumesVM
+
+    var body: some View {
+        Button("Copy Name") {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(name, forType: .string)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(.bar)
+        Divider()
+        Button("Delete", role: .destructive) {
+            Task { await vm.delete(name: name) }
+        }
     }
 }

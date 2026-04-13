@@ -27,13 +27,13 @@ struct KegApp: App {
             MenuBarPopover()
                 .environment(appState)
         } label: {
-            if let icon = KegIcon.image {
+            if let icon = KegIcon.menuBarImage {
                 Image(nsImage: icon)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 16, height: 16)
+                    .renderingMode(.template)
+                    .accessibilityLabel("Keg")
             } else {
                 Image(systemName: "shippingbox.fill")
+                    .accessibilityLabel("Keg")
             }
         }
         .menuBarExtraStyle(.window)
@@ -49,6 +49,16 @@ struct KegApp: App {
 private enum KegIcon {
     static let image = Bundle.main.url(forResource: "Keg", withExtension: "icns")
         .flatMap(NSImage.init(contentsOf:))
+
+    static let menuBarImage: NSImage? = {
+        guard let image = Bundle.main.url(forResource: "KegMenuBarTemplate", withExtension: "png")
+            .flatMap(NSImage.init(contentsOf:)) else {
+            return nil
+        }
+        image.isTemplate = true
+        image.size = NSSize(width: 18, height: 18)
+        return image
+    }()
 }
 
 struct MainView: View {

@@ -6,10 +6,7 @@ struct RegistryListView: View {
     @State private var showLoginSheet = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            toolbar
-            Divider()
-
+        Group {
             if isLoading {
                 ProgressView("Loading registries...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -18,21 +15,44 @@ struct RegistryListView: View {
             } else {
                 List(registries, id: \.self) { registry in
                     HStack {
-                        Image(systemName: "globe")
+                        Image(systemName: "lock.shield")
                             .foregroundStyle(.secondary)
+                            .frame(width: 16)
                         Text(registry)
                             .font(.system(.body, design: .monospaced))
                         Spacer()
-                        Button("Logout") {
+                    }
+                    .contextMenu {
+                        Button("Copy URL") {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(registry, forType: .string)
+                        }
+                        Divider()
+                        Button("Logout", role: .destructive) {
                             logout(registry: registry)
                         }
-                        .controlSize(.small)
                     }
                 }
                 .listStyle(.inset(alternatesRowBackgrounds: true))
             }
         }
         .navigationTitle("Registries")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("Login...") {
+                    showLoginSheet = true
+                }
+            }
+
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    Task { await loadRegistries() }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .keyboardShortcut("r", modifiers: .command)
+            }
+        }
         .task {
             await loadRegistries()
         }
@@ -41,25 +61,6 @@ struct RegistryListView: View {
                 Task { await loadRegistries() }
             }
         }
-    }
-
-    private var toolbar: some View {
-        HStack {
-            Spacer()
-            Button("Login") {
-                showLoginSheet = true
-            }
-            .controlSize(.small)
-            Button {
-                Task { await loadRegistries() }
-            } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
-            }
-            .controlSize(.small)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(.bar)
     }
 
     private func loadRegistries() async {
@@ -121,11 +122,13 @@ struct RegistryLoginView: View {
             HStack {
                 Spacer()
                 Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
                 Button("Login") {
                     login()
                 }
                 .disabled(registryURL.isEmpty || username.isEmpty || isLoggingIn)
                 .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
             }
         }
         .padding(20)

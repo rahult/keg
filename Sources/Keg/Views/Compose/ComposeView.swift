@@ -70,53 +70,24 @@ final class ComposeVM {
     }
 }
 
+struct ComposeServiceRow: Identifiable {
+    let id: String
+    let name: String
+    let service: String
+    let state: String
+}
+
 struct ComposeView: View {
     @State private var vm = ComposeVM()
     @State private var showFilePicker = false
+    @State private var selectedServiceID: String?
+
+    private var composeServices: [ComposeServiceRow] {
+        vm.services.map { ComposeServiceRow(id: $0.name, name: $0.name, service: $0.service, state: $0.state) }
+    }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Toolbar
-            HStack {
-                TextField("Compose file path...", text: $vm.composeFilePath)
-                    .textFieldStyle(.roundedBorder)
-                    .controlSize(.small)
-                Button("Browse") {
-                    showFilePicker = true
-                }
-                .controlSize(.small)
-
-                TextField("Project", text: $vm.projectName, prompt: Text("project-name"))
-                    .textFieldStyle(.roundedBorder)
-                    .controlSize(.small)
-                    .frame(width: 150)
-
-                Spacer()
-
-                Button("Up") {
-                    Task { await vm.up() }
-                }
-                .controlSize(.small)
-                .buttonStyle(.borderedProminent)
-
-                Button("Down") {
-                    Task { await vm.down() }
-                }
-                .controlSize(.small)
-
-                Button {
-                    Task { await vm.refreshPS() }
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-                .controlSize(.small)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(.bar)
-
-            Divider()
-
+        Group {
             if vm.isRunning {
                 ProgressView("Running compose...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -127,48 +98,125 @@ struct ComposeView: View {
                     description: Text("Select a docker-compose.yml file to get started")
                 )
             } else {
-                if !vm.services.isEmpty {
-                    List(vm.services, id: \.name) { item in
-                        HStack {
-                            StatusBadge(status: item.state)
-                            Text(item.service)
-                                .font(.system(.body, design: .monospaced))
-                            Text(item.name)
-                                .font(.system(.caption, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                            Spacer()
+                VStack(spacing: 0) {
+                    if !composeServices.isEmpty {
+                        Table(composeServices, selection: $selectedServiceID) {
+                            TableColumn("Service") { item in
+                                Text(item.service)
+                                    .font(.system(.body, design: .monospaced))
+                            }
+                            .width(min: 120)
+
+                            TableColumn("Name") { item in
+                                Text(item.name)
+                                    .font(.system(.caption, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .width(min: 100)
+
+                            TableColumn("State") { item in
+                                StatusBadge(status: item.state)
+                            }
+                            .width(min: 80, max: 120)
+                        }
+                        .tableStyle(.inset(alternatesRowBackgrounds: true))
+                        .contextMenu(forSelectionType: String.self) { ids in
+                            if let id = ids.first, let svc = composeServices.first(where: { $0.id == id }) {
+                                ComposeRowContextMenu(service: svc)
+                            }
                         }
                     }
-                    .listStyle(.inset(alternatesRowBackgrounds: true))
-                }
 
-                if !vm.output.isEmpty {
-                    ScrollView {
-                        Text(vm.output)
-                            .font(.system(.caption, design: .monospaced))
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(8)
+                    if !vm.output.isEmpty {
+                        Divider()
+                        ScrollView {
+                            Text(vm.output)
+                                .font(.system(.caption, design: .monospaced))
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(8)
+                        }
                     }
                 }
             }
-
-            if let errorMessage = vm.errorMessage {
+        }
+        .overlay(alignment: .bottom) {
+            if let error = vm.errorMessage {
                 HStack {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text(error)
                         .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Button("Dismiss") { vm.errorMessage = nil }
+                        .controlSize(.small)
                     Spacer()
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 4)
+                .padding(8)
+                .background(.bar, in: RoundedRectangle(cornerRadius: 6))
+                .padding(12)
             }
         }
         .navigationTitle("Compose")
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                HStack(spacing: 8) {
+                    TextField("Compose file...", text: $vm.composeFilePath)
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                        .frame(width: 200)
+                    Button("Browse") {
+                        showFilePicker = true
+                    }
+                    .controlSize(.small)
+
+                    TextField("Project", text: $vm.projectName, prompt: Text("project-name"))
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                        .frame(width: 120)
+                }
+            }
+
+            ToolbarItem(placement: .primaryAction) {
+                HStack(spacing: 8) {
+                    Button("Up") {
+                        Task { await vm.up() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(vm.composeFilePath.isEmpty)
+
+                    Button("Down") {
+                        Task { await vm.down() }
+                    }
+                    .disabled(vm.composeFilePath.isEmpty)
+
+                    Button {
+                        Task { await vm.refreshPS() }
+                    } label: {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                    }
+                    .keyboardShortcut("r", modifiers: .command)
+                }
+            }
+        }
         .fileImporter(isPresented: $showFilePicker, allowedContentTypes: [.yaml, .item], allowsMultipleSelection: false) { result in
             if case .success(let urls) = result, let url = urls.first {
                 vm.composeFilePath = url.path
             }
         }
+    }
+}
+
+struct ComposeRowContextMenu: View {
+    let service: ComposeServiceRow
+
+    var body: some View {
+        Button("Copy Service Name") {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(service.service, forType: .string)
+        }
+        Divider()
+        Button("View Logs") { /* TODO: open logs */ }
+        Button("Restart") { /* TODO: restart service */ }
     }
 }

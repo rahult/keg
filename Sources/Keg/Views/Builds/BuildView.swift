@@ -14,47 +14,7 @@ struct BuildView: View {
     @State private var showFilePicker = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Form
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Build Image")
-                    .font(.title2)
-
-                HStack {
-                    TextField("Context Directory", text: $contextDir, prompt: Text("."))
-                        .textFieldStyle(.roundedBorder)
-                    Button("Browse") {
-                        showContextPicker = true
-                    }
-                    .controlSize(.small)
-                }
-
-                HStack {
-                    TextField("Dockerfile", text: $dockerfile, prompt: Text("Dockerfile"))
-                        .textFieldStyle(.roundedBorder)
-                    Button("Browse") {
-                        showFilePicker = true
-                    }
-                    .controlSize(.small)
-                }
-
-                TextField("Tags (comma separated)", text: $tags, prompt: Text("my-image:latest"))
-                    .textFieldStyle(.roundedBorder)
-
-                HStack {
-                    TextField("Build Args (KEY=VALUE, comma separated)", text: $buildArgs, prompt: Text("VERSION=1.0"))
-                        .textFieldStyle(.roundedBorder)
-                    TextField("Platform", text: $platform, prompt: Text("linux/arm64"))
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 150)
-                    Toggle("No Cache", isOn: $noCache)
-                }
-            }
-            .padding(16)
-
-            Divider()
-
-            // Build output
+        Group {
             if isBuilding || !output.isEmpty {
                 ScrollView {
                     Text(output)
@@ -64,37 +24,85 @@ struct BuildView: View {
                         .padding(8)
                 }
                 .background(Color(nsColor: .textBackgroundColor))
-                .frame(minHeight: 200, maxHeight: .infinity)
             } else {
-                Spacer()
+                ContentUnavailableView(
+                    "No Build Output",
+                    systemImage: "hammer",
+                    description: Text("Configure build settings and click Build")
+                )
             }
-
-            Divider()
-
-            // Action bar
-            HStack {
-                if let errorMessage {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
+        }
+        .overlay(alignment: .bottom) {
+            if let error = errorMessage {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text(error)
                         .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Button("Dismiss") { errorMessage = nil }
+                        .controlSize(.small)
+                    Spacer()
                 }
-                Spacer()
+                .padding(8)
+                .background(.bar, in: RoundedRectangle(cornerRadius: 6))
+                .padding(12)
+            }
+        }
+        .navigationTitle("Builds")
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
                 if isBuilding {
                     Button("Cancel Build") {
                         // TODO: Cancel the build process
                     }
-                    .controlSize(.small)
+                } else {
+                    Button("Build") {
+                        startBuild()
+                    }
+                    .disabled(contextDir.isEmpty)
+                    .buttonStyle(.borderedProminent)
                 }
-                Button("Build") {
-                    startBuild()
-                }
-                .disabled(contextDir.isEmpty || isBuilding)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
             }
-            .padding(16)
+
+            ToolbarItemGroup(placement: .automatic) {
+                HStack(spacing: 8) {
+                    TextField("Context", text: $contextDir, prompt: Text("."))
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                        .frame(width: 140)
+                    Button("...") { showContextPicker = true }
+                        .controlSize(.small)
+
+                    TextField("Dockerfile", text: $dockerfile, prompt: Text("Dockerfile"))
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                        .frame(width: 100)
+                    Button("...") { showFilePicker = true }
+                        .controlSize(.small)
+
+                    TextField("Tags", text: $tags, prompt: Text("my-image:latest"))
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                        .frame(width: 120)
+
+                    TextField("Args", text: $buildArgs, prompt: Text("KEY=VALUE"))
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                        .frame(width: 120)
+
+                    TextField("Platform", text: $platform, prompt: Text("linux/arm64"))
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                        .frame(width: 100)
+                }
+            }
+
+            ToolbarItemGroup(placement: .automatic) {
+                Toggle("No Cache", isOn: $noCache)
+                    .controlSize(.small)
+            }
         }
-        .navigationTitle("Builds")
         .fileImporter(isPresented: $showContextPicker, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
             if case .success(let urls) = result, let url = urls.first {
                 contextDir = url.path

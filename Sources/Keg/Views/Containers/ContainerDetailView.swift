@@ -83,8 +83,16 @@ struct ContainerDetailView: View {
                     // Header
                     HStack {
                         StatusBadge(status: container.status.rawValue)
-                        Text(container.id)
+                        Text(String(container.id.prefix(12)))
                             .font(.title3.monospaced())
+                        Button {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(container.id, forType: .string)
+                        } label: {
+                            Image(systemName: "doc.on.doc")
+                        }
+                        .buttonStyle(.borderless)
+                        .controlSize(.small)
                         Spacer()
                         if container.status == .running {
                             Button("Stop") { Task { await vm.stop() } }

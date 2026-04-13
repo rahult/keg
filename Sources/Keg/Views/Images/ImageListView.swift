@@ -5,42 +5,14 @@ struct ImageListView: View {
     @State private var vm = ImagesVM()
     @State private var selectedImageRef: String?
     @State private var showPullSheet = false
+    @State private var searchText = ""
 
     private var wrappedImages: [IdentifiableImage] {
         vm.filteredImages.map { IdentifiableImage($0) }
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Toolbar
-            HStack {
-                TextField("Search images...", text: $vm.searchText)
-                    .textFieldStyle(.roundedBorder)
-                    .controlSize(.small)
-                    .frame(width: 200)
-
-                Spacer()
-
-                Button {
-                    showPullSheet = true
-                } label: {
-                    Label("Pull", systemImage: "arrow.down.circle")
-                }
-                .controlSize(.small)
-
-                Button {
-                    Task { await vm.refresh() }
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-                .controlSize(.small)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(.bar)
-
-            Divider()
-
+        Group {
             if vm.isLoading && vm.images.isEmpty {
                 ProgressView("Loading images...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -64,32 +36,68 @@ struct ImageListView: View {
                         Text(String(item.image.digest.prefix(19)))
                             .font(.system(.caption, design: .monospaced))
                             .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
                     }
                     .width(min: 120)
 
                     TableColumn("Size") { item in
                         Text(vm.imageSizes[item.image.reference] ?? "Calculating...")
+                            .foregroundStyle(.secondary)
                     }
                     .width(min: 80, max: 120)
                 }
                 .tableStyle(.inset(alternatesRowBackgrounds: true))
                 .contextMenu(forSelectionType: String.self) { refs in
                     if let ref = refs.first {
-                        Button("Delete") {
-                            Task {
-                                try? await vm.delete(reference: ref)
-                            }
-                        }
+                        ImageContextMenu(ref: ref, vm: vm)
                     }
                 }
             }
         }
         .navigationTitle("Images")
+        .searchable(text: $searchText, prompt: "Search images")
+        .onChange(of: searchText) { vm.searchText = searchText }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showPullSheet = true
+                } label: {
+                    Label("Pull...", systemImage: "arrow.down.circle")
+                }
+            }
+
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    Task { await vm.refresh() }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .keyboardShortcut("r", modifiers: .command)
+            }
+        }
         .task {
             await vm.refresh()
         }
         .sheet(isPresented: $showPullSheet) {
             PullImageView(vm: vm)
+        }
+    }
+}
+
+struct ImageContextMenu: View {
+    let ref: String
+    let vm: ImagesVM
+
+    var body: some View {
+        Button("Copy Reference") {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(ref, forType: .string)
+        }
+        Divider()
+        Button("Delete", role: .destructive) {
+            Task {
+                try? await vm.delete(reference: ref)
+            }
         }
     }
 }
@@ -122,11 +130,13 @@ struct PullImageView: View {
             HStack {
                 Spacer()
                 Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
                 Button("Pull") {
                     pullImage()
                 }
                 .disabled(reference.isEmpty || isPulling)
                 .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
             }
         }
         .padding(20)
