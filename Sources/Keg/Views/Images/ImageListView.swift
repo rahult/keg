@@ -1,0 +1,149 @@
+import SwiftUI
+import ContainerAPIClient
+
+struct ImageListView: View {
+    @State private var vm = ImagesVM()
+    @State private var selectedImageRef: String?
+    @State private var showPullSheet = false
+
+    private var wrappedImages: [IdentifiableImage] {
+        vm.filteredImages.map { IdentifiableImage($0) }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Toolbar
+            HStack {
+                TextField("Search images...", text: $vm.searchText)
+                    .textFieldStyle(.roundedBorder)
+                    .controlSize(.small)
+                    .frame(width: 200)
+
+                Spacer()
+
+                Button {
+                    showPullSheet = true
+                } label: {
+                    Label("Pull", systemImage: "arrow.down.circle")
+                }
+                .controlSize(.small)
+
+                Button {
+                    Task { await vm.refresh() }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .controlSize(.small)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(.bar)
+
+            Divider()
+
+            if vm.isLoading && vm.images.isEmpty {
+                ProgressView("Loading images...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if wrappedImages.isEmpty {
+                ContentUnavailableView(
+                    "No Images",
+                    systemImage: "photo.stack",
+                    description: Text("Pull an image to get started")
+                )
+            } else {
+                Table(wrappedImages, selection: $selectedImageRef) {
+                    TableColumn("Reference") { item in
+                        Text(item.image.reference)
+                            .font(.system(.body, design: .monospaced))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    .width(min: 200)
+
+                    TableColumn("Digest") { item in
+                        Text(String(item.image.digest.prefix(19)))
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                    .width(min: 120)
+
+                    TableColumn("Size") { item in
+                        Text(vm.imageSizes[item.image.reference] ?? "Calculating...")
+                    }
+                    .width(min: 80, max: 120)
+                }
+                .tableStyle(.inset(alternatesRowBackgrounds: true))
+                .contextMenu(forSelectionType: String.self) { refs in
+                    if let ref = refs.first {
+                        Button("Delete") {
+                            Task {
+                                try? await vm.delete(reference: ref)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Images")
+        .task {
+            await vm.refresh()
+        }
+        .sheet(isPresented: $showPullSheet) {
+            PullImageView(vm: vm)
+        }
+    }
+}
+
+struct PullImageView: View {
+    @Environment(\.dismiss) private var dismiss
+    let vm: ImagesVM
+    @State private var reference = ""
+    @State private var isPulling = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Pull Image")
+                .font(.headline)
+
+            TextField("Image reference", text: $reference, prompt: Text("nginx:latest"))
+                .textFieldStyle(.roundedBorder)
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .foregroundStyle(.red)
+                    .font(.caption)
+            }
+
+            if isPulling {
+                ProgressView("Pulling \(reference)...")
+            }
+
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }
+                Button("Pull") {
+                    pullImage()
+                }
+                .disabled(reference.isEmpty || isPulling)
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(20)
+        .frame(width: 400)
+    }
+
+    private func pullImage() {
+        isPulling = true
+        errorMessage = nil
+        Task {
+            do {
+                try await vm.pull(reference: reference)
+                dismiss()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isPulling = false
+        }
+    }
+}
