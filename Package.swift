@@ -22,5 +22,13 @@ let package = Package(
                 .swiftLanguageMode(.v6),
             ]
         ),
+        .testTarget(
+            name: "KegTests",
+            dependencies: [
+                .product(name: "ContainerAPIClient", package: "container"),
+                .product(name: "ContainerResource", package: "container"),
+            ],
+            path: "Tests/KegTests"
+        ),
     ]
 )
