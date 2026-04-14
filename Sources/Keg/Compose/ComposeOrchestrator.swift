@@ -253,82 +253,15 @@ actor ComposeOrchestrator {
         for serviceName in orderedServices {
             guard let service = file.services[serviceName] else { continue }
             await emit("\n==> Service: \(serviceName)", to: progress)
-
-            let resolvedImage: String
-            if let image = service.image, !image.isEmpty {
-                resolvedImage = image
-                await emit("Using image: \(image)", to: progress)
-            } else if let build = service.build {
-                resolvedImage = try await buildServiceImage(
-                    serviceName: serviceName,
-                    build: build,
-                    projectName: name,
-                    composeDir: composeDir,
-                    progress: progress
-                )
-            } else {
-                throw ComposeError.missingImage(serviceName)
-            }
-
-            let containerName = service.containerName ?? "\(name)-\(serviceName)-1"
-            var args = ["container", "run"]
-            if detached {
-                args.append("-d")
-            }
-            args += ["--name", containerName]
-
-            if let env = service.environment {
-                for e in env {
-                    args += ["-e", e]
-                }
-            }
-
-            if let ports = service.ports {
-                for p in ports {
-                    args += ["-p", p]
-                }
-            }
-
-            if let vols = service.volumes {
-                for volume in vols {
-                    let resolved = resolveVolume(volume, projectName: name, composeDir: composeDir, declaredVolumes: declaredVolumes)
-                    args += ["-v", resolved]
-                }
-            }
-
-            if let networks = service.networks {
-                for n in networks {
-                    args += ["--network", "\(name)-\(n)"]
-                }
-            }
-
-            if let labels = service.labels {
-                for (k, v) in labels.sorted(by: { $0.key < $1.key }) {
-                    args += ["-l", "\(k)=\(v)"]
-                }
-            }
-            args += ["-l", "com.docker.compose.project=\(name)"]
-            args += ["-l", "com.docker.compose.service=\(serviceName)"]
-
-            if let wd = service.workingDir {
-                args += ["-w", wd]
-            }
-
-            if let deploy = service.deploy, let limits = deploy.resources?.limits {
-                if let cpus = limits.cpus { args += ["--cpus", cpus] }
-                if let memory = limits.memory { args += ["--memory", memory] }
-            }
-
-            args.append(resolvedImage)
-
-            if let cmd = service.command {
-                args += ["sh", "-lc", cmd]
-            }
-
-            let (code, output) = try await runLogged(args, progress: progress)
-            if code != 0 {
-                throw ComposeError.runFailed(serviceName, output)
-            }
+            try await runService(
+                serviceName: serviceName,
+                service: service,
+                projectName: name,
+                composeDir: composeDir,
+                declaredVolumes: declaredVolumes,
+                detached: detached,
+                progress: progress
+            )
         }
 
         await emit("\nCompose up finished.", to: progress)
@@ -391,6 +324,92 @@ actor ComposeOrchestrator {
         return volume
     }
 
+    private func runService(
+        serviceName: String,
+        service: ComposeService,
+        projectName: String,
+        composeDir: String,
+        declaredVolumes: Set<String>,
+        detached: Bool,
+        progress: ProgressHandler?
+    ) async throws {
+        let resolvedImage: String
+        if let image = service.image, !image.isEmpty {
+            resolvedImage = image
+            await emit("Using image: \(image)", to: progress)
+        } else if let build = service.build {
+            resolvedImage = try await buildServiceImage(
+                serviceName: serviceName,
+                build: build,
+                projectName: projectName,
+                composeDir: composeDir,
+                progress: progress
+            )
+        } else {
+            throw ComposeError.missingImage(serviceName)
+        }
+
+        let containerName = service.containerName ?? "\(projectName)-\(serviceName)-1"
+        var args = ["container", "run"]
+        if detached {
+            args.append("-d")
+        }
+        args += ["--name", containerName]
+
+        if let env = service.environment {
+            for e in env {
+                args += ["-e", e]
+            }
+        }
+
+        if let ports = service.ports {
+            for p in ports {
+                args += ["-p", p]
+            }
+        }
+
+        if let vols = service.volumes {
+            for volume in vols {
+                let resolved = resolveVolume(volume, projectName: projectName, composeDir: composeDir, declaredVolumes: declaredVolumes)
+                args += ["-v", resolved]
+            }
+        }
+
+        if let networks = service.networks {
+            for n in networks {
+                args += ["--network", "\(projectName)-\(n)"]
+            }
+        }
+
+        if let labels = service.labels {
+            for (k, v) in labels.sorted(by: { $0.key < $1.key }) {
+                args += ["-l", "\(k)=\(v)"]
+            }
+        }
+        args += ["-l", "com.docker.compose.project=\(projectName)"]
+        args += ["-l", "com.docker.compose.service=\(serviceName)"]
+
+        if let wd = service.workingDir {
+            args += ["-w", wd]
+        }
+
+        if let deploy = service.deploy, let limits = deploy.resources?.limits {
+            if let cpus = limits.cpus { args += ["--cpus", cpus] }
+            if let memory = limits.memory { args += ["--memory", memory] }
+        }
+
+        args.append(resolvedImage)
+
+        if let cmd = service.command {
+            args += ["sh", "-lc", cmd]
+        }
+
+        let (code, output) = try await runLogged(args, progress: progress)
+        if code != 0 {
+            throw ComposeError.runFailed(serviceName, output)
+        }
+    }
+
     // MARK: - Down
 
     func down(filePath: String, projectName: String?, progress: ProgressHandler? = nil) async throws {
@@ -420,6 +439,31 @@ actor ComposeOrchestrator {
         await emit("\nCompose down finished.", to: progress)
     }
 
+    func restart(filePath: String, projectName: String?, serviceName: String, progress: ProgressHandler? = nil) async throws {
+        let file = try parse(filePath: filePath)
+        let name = projectName ?? URL(fileURLWithPath: filePath).deletingPathExtension().lastPathComponent
+        let composeDir = URL(fileURLWithPath: filePath).deletingLastPathComponent().path
+        let declaredVolumes = Set(file.volumes?.map { $0.key } ?? [])
+
+        guard let service = file.services[serviceName] else {
+            throw ComposeError.serviceNotFound(serviceName)
+        }
+
+        await emit("Restart service: \(serviceName)", to: progress)
+        let containerName = service.containerName ?? "\(name)-\(serviceName)-1"
+        let _ = try? await runLogged(["container", "delete", "-f", containerName], progress: progress)
+        try await runService(
+            serviceName: serviceName,
+            service: service,
+            projectName: name,
+            composeDir: composeDir,
+            declaredVolumes: declaredVolumes,
+            detached: true,
+            progress: progress
+        )
+        await emit("\nRestart finished for \(serviceName).", to: progress)
+    }
+
     // MARK: - PS
 
     func ps(filePath: String, projectName: String?) async throws -> [(name: String, service: String, state: String)] {
@@ -442,19 +486,20 @@ actor ComposeOrchestrator {
 
     // MARK: - Logs
 
-    func logs(filePath: String, projectName: String?, tail: Int?) async throws -> [(service: String, logs: String)] {
+    func logs(filePath: String, projectName: String?, serviceName: String? = nil, tail: Int?) async throws -> [(service: String, logs: String)] {
         let file = try parse(filePath: filePath)
         let name = projectName ?? URL(fileURLWithPath: filePath).deletingPathExtension().lastPathComponent
 
         var results: [(service: String, logs: String)] = []
-        for (serviceName, service) in file.services {
-            let containerName = service.containerName ?? "\(name)-\(serviceName)-1"
+        for (currentServiceName, service) in file.services.sorted(by: { $0.key < $1.key }) {
+            guard serviceName == nil || serviceName == currentServiceName else { continue }
+            let containerName = service.containerName ?? "\(name)-\(currentServiceName)-1"
             var args = ["container", "logs"]
             if let tail = tail { args += ["-n", "\(tail)"] }
             args.append(containerName)
             let (code, output) = try await bridge.runCLI(args)
             if code == 0 {
-                results.append((service: serviceName, logs: output))
+                results.append((service: currentServiceName, logs: output))
             }
         }
         return results
@@ -527,6 +572,7 @@ enum ComposeError: Error, CustomStringConvertible {
     case runFailed(String, String)
     case circularDependency(String)
     case parseFailed(String)
+    case serviceNotFound(String)
 
     var description: String {
         switch self {
@@ -534,6 +580,7 @@ enum ComposeError: Error, CustomStringConvertible {
         case .runFailed(let s, let m): return "Service '\(s)' failed: \(m)"
         case .circularDependency(let s): return "Circular dependency detected: \(s)"
         case .parseFailed(let m): return "Parse error: \(m)"
+        case .serviceNotFound(let s): return "Service '\(s)' not found in compose file"
         }
     }
 }

@@ -3,14 +3,30 @@ import SwiftUI
 @Observable
 @MainActor
 final class ComposeVM {
-    var composeFilePath = ""
-    var projectName = ""
+    private static let composeFilePathDefaultsKey = "compose.filePath"
+    private static let projectNameDefaultsKey = "compose.projectName"
+
+    var composeFilePath = "" {
+        didSet {
+            UserDefaults.standard.set(composeFilePath, forKey: Self.composeFilePathDefaultsKey)
+        }
+    }
+    var projectName = "" {
+        didSet {
+            UserDefaults.standard.set(projectName, forKey: Self.projectNameDefaultsKey)
+        }
+    }
     var isRunning = false
     var output = ""
     var errorMessage: String?
     var services: [(name: String, service: String, state: String)] = []
 
     private let orchestrator = ComposeOrchestrator()
+
+    init() {
+        composeFilePath = UserDefaults.standard.string(forKey: Self.composeFilePathDefaultsKey) ?? ""
+        projectName = UserDefaults.standard.string(forKey: Self.projectNameDefaultsKey) ?? ""
+    }
 
     func up(detached: Bool = true) async {
         guard !composeFilePath.isEmpty else {
@@ -71,6 +87,56 @@ final class ComposeVM {
         } catch {
             errorMessage = describe(error)
         }
+    }
+
+    func selectComposeFile(_ path: String) async {
+        composeFilePath = path
+        await refreshPS()
+    }
+
+    func showLogs(for service: String) async {
+        guard !composeFilePath.isEmpty else { return }
+        isRunning = true
+        errorMessage = nil
+        do {
+            let logs = try await orchestrator.logs(
+                filePath: composeFilePath,
+                projectName: projectName.isEmpty ? nil : projectName,
+                serviceName: service,
+                tail: 200
+            )
+            if let entry = logs.first {
+                let body = entry.logs.isEmpty ? "No logs available" : entry.logs
+                output = "==> Logs: \(entry.service)\n\n\(body)"
+            } else {
+                output = "==> Logs: \(service)\n\nNo logs available"
+            }
+        } catch {
+            errorMessage = describe(error)
+        }
+        isRunning = false
+    }
+
+    func restart(service: String) async {
+        guard !composeFilePath.isEmpty else { return }
+        isRunning = true
+        output = ""
+        errorMessage = nil
+
+        do {
+            try await orchestrator.restart(
+                filePath: composeFilePath,
+                projectName: projectName.isEmpty ? nil : projectName,
+                serviceName: service,
+                progress: { [self] line in
+                    appendOutput(line)
+                }
+            )
+            await refreshPS()
+        } catch {
+            errorMessage = describe(error)
+        }
+        isRunning = false
     }
 
     private func appendOutput(_ line: String) {
@@ -180,7 +246,15 @@ struct ComposeView: View {
                         .tableStyle(.inset(alternatesRowBackgrounds: true))
                         .contextMenu(forSelectionType: String.self) { ids in
                             if let id = ids.first, let svc = composeServices.first(where: { $0.id == id }) {
-                                ComposeRowContextMenu(service: svc)
+                                ComposeRowContextMenu(
+                                    service: svc,
+                                    onViewLogs: {
+                                        Task { await vm.showLogs(for: svc.service) }
+                                    },
+                                    onRestart: {
+                                        Task { await vm.restart(service: svc.service) }
+                                    }
+                                )
                             }
                         }
                     }
@@ -256,9 +330,14 @@ struct ComposeView: View {
             }
         }
         .toolbarRole(.editor)
+        .task {
+            if !vm.composeFilePath.isEmpty {
+                await vm.refreshPS()
+            }
+        }
         .fileImporter(isPresented: $showFilePicker, allowedContentTypes: [.yaml, .item], allowsMultipleSelection: false) { result in
             if case .success(let urls) = result, let url = urls.first {
-                vm.composeFilePath = url.path
+                Task { await vm.selectComposeFile(url.path) }
             }
         }
     }
@@ -266,6 +345,8 @@ struct ComposeView: View {
 
 struct ComposeRowContextMenu: View {
     let service: ComposeServiceRow
+    let onViewLogs: () -> Void
+    let onRestart: () -> Void
 
     var body: some View {
         Button("Copy Service Name") {
@@ -273,7 +354,7 @@ struct ComposeRowContextMenu: View {
             NSPasteboard.general.setString(service.service, forType: .string)
         }
         Divider()
-        Button("View Logs") { /* TODO: open logs */ }
-        Button("Restart") { /* TODO: restart service */ }
+        Button("View Logs", action: onViewLogs)
+        Button("Restart", action: onRestart)
     }
 }
