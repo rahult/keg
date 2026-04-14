@@ -87,38 +87,77 @@ struct ComposeView: View {
     }
 
     var body: some View {
-        Group {
-            if vm.isRunning {
-                ProgressView("Running compose...")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if vm.services.isEmpty && vm.output.isEmpty {
-                ContentUnavailableView(
-                    "No Compose Project",
-                    systemImage: "doc.text",
-                    description: Text("Select a docker-compose.yml file to get started")
-                )
-            } else {
-                VStack(spacing: 0) {
-                    if !composeServices.isEmpty {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                GroupBox("Compose Configuration") {
+                    Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 12) {
+                        GridRow {
+                            Text("Compose File")
+                                .foregroundStyle(.secondary)
+                            HStack(spacing: 8) {
+                                TextField("/path/to/docker-compose.yml", text: $vm.composeFilePath)
+                                    .textFieldStyle(.roundedBorder)
+                                Button("Browse…") {
+                                    showFilePicker = true
+                                }
+                            }
+                        }
+
+                        GridRow {
+                            Text("Project")
+                                .foregroundStyle(.secondary)
+                            TextField("project-name (optional)", text: $vm.projectName)
+                                .textFieldStyle(.roundedBorder)
+                        }
+
+                        GridRow {
+                            Text("Status")
+                                .foregroundStyle(.secondary)
+                            if vm.isRunning {
+                                Label("Running…", systemImage: "arrow.triangle.2.circlepath")
+                                    .foregroundStyle(.secondary)
+                            } else if composeServices.isEmpty {
+                                Text("No services running")
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("\(composeServices.count) services")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .padding(.top, 4)
+                }
+
+                GroupBox("Services") {
+                    if composeServices.isEmpty {
+                        ContentUnavailableView(
+                            "No Compose Project",
+                            systemImage: "doc.text",
+                            description: Text("Choose a compose file and run Up from toolbar.")
+                        )
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 24)
+                    } else {
                         Table(composeServices, selection: $selectedServiceID) {
                             TableColumn("Service") { item in
                                 Text(item.service)
                                     .font(.system(.body, design: .monospaced))
                             }
-                            .width(min: 120)
+                            .width(min: 140)
 
-                            TableColumn("Name") { item in
+                            TableColumn("Container") { item in
                                 Text(item.name)
                                     .font(.system(.caption, design: .monospaced))
                                     .foregroundStyle(.secondary)
                             }
-                            .width(min: 100)
+                            .width(min: 120)
 
                             TableColumn("State") { item in
                                 StatusBadge(status: item.state)
                             }
                             .width(min: 80, max: 120)
                         }
+                        .frame(minHeight: 180)
                         .tableStyle(.inset(alternatesRowBackgrounds: true))
                         .contextMenu(forSelectionType: String.self) { ids in
                             if let id = ids.first, let svc = composeServices.first(where: { $0.id == id }) {
@@ -126,19 +165,31 @@ struct ComposeView: View {
                             }
                         }
                     }
+                }
 
-                    if !vm.output.isEmpty {
-                        Divider()
+                GroupBox("Output") {
+                    if vm.isRunning || !vm.output.isEmpty {
                         ScrollView {
-                            Text(vm.output)
+                            Text(vm.output.isEmpty ? "Working…" : vm.output)
                                 .font(.system(.caption, design: .monospaced))
                                 .textSelection(.enabled)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(8)
                         }
+                        .frame(minHeight: 220, alignment: .top)
+                        .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
+                    } else {
+                        ContentUnavailableView(
+                            "No Output",
+                            systemImage: "text.alignleft",
+                            description: Text("Compose command output appears here.")
+                        )
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 24)
                     }
                 }
             }
+            .padding(20)
         }
         .overlay(alignment: .bottom) {
             if let error = vm.errorMessage {
@@ -158,47 +209,34 @@ struct ComposeView: View {
             }
         }
         .navigationTitle("Compose")
-        .toolbar {
-            ToolbarItem(placement: .automatic) {
-                HStack(spacing: 8) {
-                    TextField("Compose file...", text: $vm.composeFilePath)
-                        .textFieldStyle(.roundedBorder)
-                        .controlSize(.small)
-                        .frame(width: 200)
-                    Button("Browse") {
-                        showFilePicker = true
-                    }
-                    .controlSize(.small)
-
-                    TextField("Project", text: $vm.projectName, prompt: Text("project-name"))
-                        .textFieldStyle(.roundedBorder)
-                        .controlSize(.small)
-                        .frame(width: 120)
+        .toolbar(id: "compose-toolbar") {
+            ToolbarItem(id: "up", placement: .primaryAction) {
+                Button("Up") {
+                    Task { await vm.up() }
                 }
+                .buttonStyle(.borderedProminent)
+                .disabled(vm.composeFilePath.isEmpty || vm.isRunning)
+                .keyboardShortcut(.defaultAction)
             }
 
-            ToolbarItem(placement: .primaryAction) {
-                HStack(spacing: 8) {
-                    Button("Up") {
-                        Task { await vm.up() }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(vm.composeFilePath.isEmpty)
-
-                    Button("Down") {
-                        Task { await vm.down() }
-                    }
-                    .disabled(vm.composeFilePath.isEmpty)
-
-                    Button {
-                        Task { await vm.refreshPS() }
-                    } label: {
-                        Label("Refresh", systemImage: "arrow.clockwise")
-                    }
-                    .keyboardShortcut("r", modifiers: .command)
+            ToolbarItem(id: "down", placement: .automatic) {
+                Button("Down") {
+                    Task { await vm.down() }
                 }
+                .disabled(vm.composeFilePath.isEmpty || vm.isRunning)
+            }
+
+            ToolbarItem(id: "refresh", placement: .automatic) {
+                Button {
+                    Task { await vm.refreshPS() }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .disabled(vm.composeFilePath.isEmpty || vm.isRunning)
+                .keyboardShortcut("r", modifiers: .command)
             }
         }
+        .toolbarRole(.editor)
         .fileImporter(isPresented: $showFilePicker, allowedContentTypes: [.yaml, .item], allowsMultipleSelection: false) { result in
             if case .success(let urls) = result, let url = urls.first {
                 vm.composeFilePath = url.path
