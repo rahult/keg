@@ -100,12 +100,18 @@ struct DetailView: View {
                 ComposeView()
             case .terminal:
                 QuickTerminalView()
+            case .ports:
+                PortDashboardView()
             case .networks:
                 NetworkListView()
             case .volumes:
                 VolumeListView()
             case .registries:
                 RegistryListView()
+            case .health:
+                HealthDashboardView()
+            case .devcontainers:
+                DevContainerView()
             case .kubernetes:
                 KubernetesView()
             case .settings:

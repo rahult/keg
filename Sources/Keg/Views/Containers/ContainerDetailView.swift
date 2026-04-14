@@ -12,6 +12,7 @@ final class ContainerDetailVM {
 
     private let client = ContainerClient()
     private var statsTask: Task<Void, Never>?
+    private var onStatsUpdate: ((ContainerStats) -> Void)?
 
     var id: String
 
@@ -31,11 +32,13 @@ final class ContainerDetailVM {
         }
     }
 
-    func startStatsPolling() {
+    func startStatsPolling(onUpdate: ((ContainerStats) -> Void)? = nil) {
+        onStatsUpdate = onUpdate
         statsTask = Task {
             while !Task.isCancelled {
                 do {
                     stats = try await client.stats(id: id)
+                onStatsUpdate?(stats!)
                 } catch {
                     break
                 }
@@ -70,6 +73,7 @@ final class ContainerDetailVM {
 struct ContainerDetailView: View {
     let containerID: String
     @State private var vm: ContainerDetailVM
+    @State private var metricsVM = MetricsHistoryVM()
 
     init(containerID: String) {
         self.containerID = containerID
@@ -126,25 +130,47 @@ struct ContainerDetailView: View {
                         DetailRow(label: "Env", value: envStr)
                     }
 
-                    // Stats
-                    if let stats = vm.stats {
-                        Divider()
-                        Text("Resource Usage")
-                            .font(.headline)
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                            StatCard(title: "CPU", value: cpuString(stats))
-                            StatCard(title: "Memory", value: memString(stats))
-                            StatCard(title: "Net I/O", value: netString(stats))
-                            StatCard(title: "Block I/O", value: blockString(stats))
-                        }
-                    }
+                    // Live metrics
+                    Divider()
+                    Text("Resource Usage")
+                        .font(.headline)
+
+                    MetricsTimelineView(
+                        title: "CPU",
+                        points: metricsVM.cpuHistory,
+                        color: .blue,
+                        unit: "%"
+                    )
+
+                    MetricsTimelineView(
+                        title: "Memory",
+                        points: metricsVM.memoryHistory,
+                        color: .green,
+                        unit: "%"
+                    )
+
+                    MetricsTimelineView(
+                        title: "Network RX",
+                        points: metricsVM.networkRxHistory,
+                        color: .purple,
+                        unit: "bps"
+                    )
+
+                    MetricsTimelineView(
+                        title: "Network TX",
+                        points: metricsVM.networkTxHistory,
+                        color: .orange,
+                        unit: "bps"
+                    )
                 }
                 .padding(16)
             }
             .inspectorColumnWidth(min: 280, ideal: 320)
             .task {
                 await vm.load()
-                vm.startStatsPolling()
+                vm.startStatsPolling { stats in
+                    metricsVM.addSample(stats: stats)
+                }
             }
             .onDisappear {
                 vm.stopStatsPolling()

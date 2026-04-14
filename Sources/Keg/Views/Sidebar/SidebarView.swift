@@ -11,9 +11,10 @@ struct SidebarView: View {
     private let sections: [SidebarSection] = [
         SidebarSection(name: "Workloads", items: [.containers, .compose]),
         SidebarSection(name: "Content", items: [.images, .builds]),
-        SidebarSection(name: "Networking", items: [.networks, .registries]),
+        SidebarSection(name: "Networking", items: [.networks, .ports, .registries]),
         SidebarSection(name: "Storage", items: [.volumes]),
-        SidebarSection(name: "Tools", items: [.terminal, .kubernetes]),
+        SidebarSection(name: "Tools", items: [.terminal, .devcontainers, .kubernetes]),
+        SidebarSection(name: "Health", items: [.health]),
     ]
 
     var body: some View {

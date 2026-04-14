@@ -1,73 +1,108 @@
 import Foundation
 
-@Observable
-@MainActor
-final class DevContainerVM {
-    var projectDirectory = ""
-    var spec: DevContainerSpec?
-    var isLoading = false
-    var isRunning = false
-    var errorMessage: String?
-    var output = ""
-    var devcontainerPath: String?
+struct DevContainerSpec: Codable {
+    let name: String?
+    let image: String?
+    let dockerFile: String?
+    let build: BuildConfig?
+    let forwardPorts: [PortValue]?
+    let portsAttributes: [String: PortAttributes]?
+    let containerEnv: [String: String]?
+    let mounts: [String]?
+    let workspaceMount: String?
+    let workspaceFolder: String?
+    let runArgs: [String]?
+    let initializeCommand: String?
+    let postCreateCommand: String?
+    let postStartCommand: String?
 
-    /// Config summary for display
-    struct ConfigSummary {
-        let name: String
-        let image: String
-        let ports: [String]
-        let envCount: Int
-        let mountCount: Int
-        let hasPostCreateCommand: Bool
-        let hasFeatures: Bool
+    struct BuildConfig: Codable {
+        let dockerfile: String?
+        let context: String?
+        let args: [String: String]?
     }
 
-    var summary: ConfigSummary? {
-        guard let spec else { return nil }
-        return ConfigSummary(
-            name: spec.name ?? "Unnamed",
-            image: spec.resolvedImage ?? spec.dockerFile ?? "Unknown",
-            ports: (spec.forwardPorts ?? []).map(\.displayValue),
-            envCount: (spec.containerEnv ?? [:]).count + (spec.remoteEnv ?? [:]).count,
-            mountCount: (spec.mounts ?? []).count,
-            hasPostCreateCommand: spec.postCreateCommand != nil || spec.postStartCommand != nil,
-            hasFeatures: !(spec.features ?? [:]).isEmpty
-        )
-    }
+    // Port values can be Int or String in devcontainer.json
+    enum PortValue: Codable {
+        case int(Int)
+        case string(String)
 
-    /// Auto-detect devcontainer.json in a project directory
-    func detectDevContainer(in directory: String) {
-        projectDirectory = directory
-        errorMessage = nil
-        spec = nil
-        devcontainerPath = nil
-
-        let fm = FileManager.default
-        let candidates = [
-            "\(directory)/.devcontainer/devcontainer.json",
-            "\(directory)/.devcontainer.json",
-        ]
-
-        for path in candidates {
-            if fm.fileExists(atPath: path) {
-                devcontainerPath = path
-                parseDevContainer(at: path)
-                return
+        var portNumber: UInt16? {
+            switch self {
+            case .int(let i): return UInt16(i)
+            case .string(let s): return UInt16(s)
             }
         }
 
-        errorMessage = "No devcontainer.json found in \(directory)"
+        init(from decoder: Decoder) throws {
+            if let i = try? decoder.singleValueContainer().decode(Int.self) {
+                self = .int(i)
+            } else {
+                self = .string(try decoder.singleValueContainer().decode(String.self))
+            }
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.singleValueContainer()
+            switch self {
+            case .int(let i): try container.encode(i)
+            case .string(let s): try container.encode(s)
+            }
+        }
     }
 
-    /// Parse a specific devcontainer.json file
-    func parseDevContainer(at path: String) {
-        isLoading = true
-        defer { isLoading = false }
+    struct PortAttributes: Codable {
+        let label: String?
+        let onAutoForward: String?
+    }
+}
 
+@Observable
+@MainActor
+final class DevContainerVM {
+    var projectPath = ""
+    var spec: DevContainerSpec?
+    var isRunning = false
+    var errorMessage: String?
+    var detectedConfigs: [URL] = []
+    var isLaunching = false
+
+    func scanProject(at path: String) {
+        projectPath = path
+        detectedConfigs = []
+        spec = nil
+        errorMessage = nil
+
+        let devcontainerDir = path + "/.devcontainer"
+        let fm = FileManager.default
+
+        guard fm.fileExists(atPath: devcontainerDir) else {
+            errorMessage = "No .devcontainer directory found"
+            return
+        }
+
+        // Look for devcontainer.json files
+        if let contents = try? fm.contentsOfDirectory(atPath: devcontainerDir) {
+            for file in contents {
+                if file.hasSuffix(".json") {
+                    detectedConfigs.append(URL(fileURLWithPath: devcontainerDir + "/" + file))
+                }
+            }
+        }
+
+        // Auto-load devcontainer.json if it exists
+        let defaultConfig = URL(fileURLWithPath: devcontainerDir + "/devcontainer.json")
+        if fm.fileExists(atPath: defaultConfig.path) {
+            loadConfig(url: defaultConfig)
+        } else if let first = detectedConfigs.first {
+            loadConfig(url: first)
+        }
+    }
+
+    func loadConfig(url: URL) {
         do {
-            let data = try Data(contentsOf: URL(fileURLWithPath: path))
-            let decoder = JSONDecoder()
-            spec = try decoder.decode(DevContainerSpec.self, from: data)
+            let data = try Data(contentsOf: url)
+            spec = try JSONDecoder().decode(DevContainerSpec.self, from: data)
             errorMessage = nil
         } catch {
             errorMessage = "Failed to parse devcontainer.json: \(error.localizedDescription)"
@@ -75,165 +110,81 @@ final class DevContainerVM {
         }
     }
 
-    /// Generate `container run` CLI arguments from the spec
-    func generateRunArgs() -> [String] {
-        guard let spec else { return [] }
+    func buildAndRun() async {
+        guard let spec else {
+            errorMessage = "No devcontainer.json loaded"
+            return
+        }
+
+        guard let image = spec.image, !image.isEmpty else {
+            errorMessage = "No image specified in devcontainer.json"
+            return
+        }
+
+        isLaunching = true
+        errorMessage = nil
 
         var args = ["container", "run", "-d"]
 
-        // Container name
+        // Name
         if let name = spec.name {
-            let sanitized = name.lowercased()
-                .replacingOccurrences(of: " ", with: "-")
-                .replacingOccurrences(of: "_", with: "-")
-                .filter { $0.isLetter || $0.isNumber || $0 == "-" }
-            args += ["--name", sanitized]
+            args += ["--name", name.lowercased().replacingOccurrences(of: " ", with: "-")]
         }
 
-        // Environment variables
+        // Ports
+        if let ports = spec.forwardPorts {
+            for port in ports {
+                if let num = port.portNumber {
+                    args += ["-p", "\(num):\(num)"]
+                }
+            }
+        }
+
+        // Environment
         if let env = spec.containerEnv {
             for (key, value) in env {
                 args += ["-e", "\(key)=\(value)"]
-            }
-        }
-        if let env = spec.remoteEnv {
-            for (key, value) in env {
-                args += ["-e", "\(key)=\(value)"]
-            }
-        }
-
-        // Port forwarding
-        if let ports = spec.forwardPorts {
-            for port in ports {
-                let portStr = port.displayValue
-                if let _ = Int(portStr) {
-                    args += ["-p", "\(portStr):\(portStr)"]
-                } else {
-                    // hostPort:containerPort format already
-                    args += ["-p", portStr]
-                }
             }
         }
 
         // Mounts
         if let mounts = spec.mounts {
             for mount in mounts {
-                // Parse mount string: type=bind,source=...,target=...
-                if mount.hasPrefix("type=") {
-                    // Extract source and target from bind mount spec
-                    let parts = mount.split(separator: ",").map(String.init)
-                    var source = ""
-                    var target = ""
-                    for part in parts {
-                        if part.hasPrefix("source=") {
-                            source = String(part.dropFirst("source=".count))
-                        } else if part.hasPrefix("target=") {
-                            target = String(part.dropFirst("target=".count))
-                        }
-                    }
-                    if !source.isEmpty && !target.isEmpty {
-                        args += ["-v", "\(source):\(target)"]
-                    }
-                } else {
-                    // Assume simple host-path:container-path format
-                    args += ["-v", mount]
-                }
+                args += ["-v", mount]
             }
         }
 
         // Workspace mount
-        if let workspaceMount = spec.workspaceMount {
+        if let workspaceMount = spec.workspaceMount, !workspaceMount.isEmpty {
             args += ["-v", workspaceMount]
-        } else if !projectDirectory.isEmpty, spec.workspaceFolder != nil {
-            args += ["-v", "\(projectDirectory):\(spec.workspaceFolder!)"]
         }
 
-        // Extra run args from spec
+        // Extra run args
         if let runArgs = spec.runArgs {
             args += runArgs
         }
 
-        // Image
-        if let image = spec.resolvedImage {
-            args.append(image)
-        } else if let dockerfile = spec.dockerFile {
-            // Need to build first — append a placeholder
-            args.append("devcontainer-built:latest")
-        }
+        args.append(image)
 
-        return args
-    }
-
-    /// Build image from Dockerfile if needed, then run
-    func openInContainer() {
-        guard let spec else {
-            errorMessage = "No devcontainer.json loaded"
-            return
-        }
-
-        isRunning = true
-        output = ""
-        errorMessage = nil
-
-        Task {
-            do {
-                // If Dockerfile-based, build first
-                if spec.usesDockerfile {
-                    let dockerfilePath = spec.dockerFile ?? spec.build?.dockerfile ?? "Dockerfile"
-                    let context = spec.build?.context ?? spec.context ?? projectDirectory
-                    let tag = spec.build?.tag ?? "devcontainer-\(spec.name?.lowercased().replacingOccurrences(of: " ", with: "-") ?? "latest")"
-
-                    output += "Building image from \(dockerfilePath)...\n"
-                    let (buildCode, buildOut) = try await runCLI([
-                        "container", "build",
-                        "--file", dockerfilePath.hasPrefix("/") ? dockerfilePath : "\(projectDirectory)/\(dockerfilePath)",
-                        "--tag", tag,
-                        context
-                    ])
-                    output += buildOut + "\n"
-                    if buildCode != 0 {
-                        errorMessage = "Build failed (exit code \(buildCode))"
-                        isRunning = false
-                        return
-                    }
-                }
-
-                // Run container
-                var args = generateRunArgs()
-                if spec.usesDockerfile {
-                    // Replace the placeholder image with the built tag
-                    let tag = spec.build?.tag ?? "devcontainer-\(spec.name?.lowercased().replacingOccurrences(of: " ", with: "-") ?? "latest")"
-                    if let idx = args.lastIndex(of: "devcontainer-built:latest") {
-                        args[idx] = tag
-                    }
-                }
-
-                output += "Running container...\n"
-                let (runCode, runOut) = try await runCLI(args)
-                output += runOut + "\n"
-
-                if runCode != 0 {
-                    errorMessage = "Container run failed (exit code \(runCode))"
-                } else {
-                    output += "\n✅ Container started!\n"
-                }
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-            isRunning = false
-        }
-    }
-
-    private func runCLI(_ args: [String]) async throws -> (Int32, String) {
         let process = Process()
         let pipe = Pipe()
         process.executableURL = URL(filePath: "/usr/bin/env")
         process.arguments = args
         process.standardOutput = pipe
         process.standardError = pipe
-        try process.run()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        return (process.terminationStatus, String(data: data, encoding: .utf8) ?? "")
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+
+            if process.terminationStatus != 0 {
+                let errorData = pipe.fileHandleForReading.readDataToEndOfFile()
+                errorMessage = String(data: errorData, encoding: .utf8) ?? "Unknown error"
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isLaunching = false
     }
 }
