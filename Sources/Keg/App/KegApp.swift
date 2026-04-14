@@ -11,6 +11,10 @@ struct KegApp: App {
         }
     }
 
+    private var shortContainerID: String {
+        appState.selectedContainerID.map { String($0.prefix(12)) } ?? "Container"
+    }
+
     var body: some Scene {
         // Main window
         WindowGroup {
@@ -22,24 +26,26 @@ struct KegApp: App {
         .windowToolbarStyle(.unified(showsTitle: true))
         .defaultSize(width: 1100, height: 700)
         .commands {
-            // Container menu
             CommandMenu("Container") {
                 Button("Run Container...") {
                     NotificationCenter.default.post(name: .kegRunContainer, object: nil)
                 }
                 .keyboardShortcut("N", modifiers: [.command, .shift])
+                .disabled(appState.selectedSection != .containers)
 
                 Divider()
 
-                Button("Stop Container") {
+                Button(appState.selectedContainerID == nil ? "Stop Selected Container" : "Stop \(shortContainerID)") {
                     NotificationCenter.default.post(name: .kegStopContainer, object: nil)
                 }
                 .keyboardShortcut("S", modifiers: [.command, .shift])
+                .disabled(appState.selectedSection != .containers || appState.selectedContainerID == nil)
 
-                Button("Delete Container") {
+                Button(appState.selectedContainerID == nil ? "Delete Selected Container" : "Delete \(shortContainerID)") {
                     NotificationCenter.default.post(name: .kegDeleteContainer, object: nil)
                 }
                 .keyboardShortcut(.delete, modifiers: [.command])
+                .disabled(appState.selectedSection != .containers || appState.selectedContainerID == nil)
 
                 Divider()
 
@@ -49,15 +55,14 @@ struct KegApp: App {
                 .keyboardShortcut("R", modifiers: .command)
             }
 
-            // Image menu
             CommandMenu("Image") {
                 Button("Pull Image...") {
                     NotificationCenter.default.post(name: .kegPullImage, object: nil)
                 }
                 .keyboardShortcut("P", modifiers: [.command, .shift])
+                .disabled(appState.selectedSection != .images)
             }
 
-            // View → Toggle Sidebar
             CommandGroup(after: .toolbar) {
                 Button("Toggle Sidebar") {
                     NotificationCenter.default.post(name: .kegToggleSidebar, object: nil)

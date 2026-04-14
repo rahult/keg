@@ -25,8 +25,8 @@ struct HealthDashboardView: View {
             }
         }
         .navigationTitle("Health")
-        .toolbar {
-            ToolbarItem(placement: .automatic) {
+        .toolbar(id: "health-toolbar") {
+            ToolbarItem(id: "refresh", placement: .automatic) {
                 Button {
                     Task { await vm.refresh() }
                 } label: {
@@ -35,6 +35,7 @@ struct HealthDashboardView: View {
                 .keyboardShortcut("r", modifiers: .command)
             }
         }
+        .toolbarRole(.editor)
         .task {
             await vm.refresh()
         }

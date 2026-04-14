@@ -94,8 +94,9 @@ struct ContainerListView: View {
         .navigationTitle("Containers")
         .searchable(text: $searchText, prompt: "Search containers")
         .onChange(of: searchText) { vm.searchText = searchText }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+        .onChange(of: selectedContainerID) { appState.selectedContainerID = selectedContainerID }
+        .toolbar(id: "containers-toolbar") {
+            ToolbarItem(id: "run", placement: .primaryAction) {
                 Button {
                     showRunSheet = true
                 } label: {
@@ -103,7 +104,7 @@ struct ContainerListView: View {
                 }
             }
 
-            ToolbarItem(placement: .automatic) {
+            ToolbarItem(id: "filter", placement: .automatic) {
                 Button {
                     vm.showOnlyRunning.toggle()
                     Task { await vm.refresh() }
@@ -115,7 +116,7 @@ struct ContainerListView: View {
                 }
             }
 
-            ToolbarItem(placement: .automatic) {
+            ToolbarItem(id: "refresh", placement: .automatic) {
                 Button {
                     Task { await vm.refresh() }
                 } label: {
@@ -124,6 +125,7 @@ struct ContainerListView: View {
                 .keyboardShortcut("r", modifiers: .command)
             }
         }
+        .toolbarRole(.editor)
         .task {
             await vm.refresh()
         }
@@ -140,6 +142,9 @@ struct ContainerListView: View {
         .onReceive(NotificationCenter.default.publisher(for: .kegDeleteContainer)) { _ in
             guard let selectedContainerID else { return }
             Task { await vm.delete(id: selectedContainerID) }
+        }
+        .onDisappear {
+            appState.selectedContainerID = nil
         }
         .sheet(isPresented: $showRunSheet) {
             RunContainerView()

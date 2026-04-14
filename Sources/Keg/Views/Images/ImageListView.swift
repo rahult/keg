@@ -2,6 +2,7 @@ import SwiftUI
 import ContainerAPIClient
 
 struct ImageListView: View {
+    @Environment(AppState.self) private var appState
     @State private var vm = ImagesVM()
     @State private var selectedImageRef: String?
     @State private var showPullSheet = false
@@ -57,8 +58,9 @@ struct ImageListView: View {
         .navigationTitle("Images")
         .searchable(text: $searchText, prompt: "Search images")
         .onChange(of: searchText) { vm.searchText = searchText }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+        .onChange(of: selectedImageRef) { appState.selectedImageReference = selectedImageRef }
+        .toolbar(id: "images-toolbar") {
+            ToolbarItem(id: "pull", placement: .primaryAction) {
                 Button {
                     showPullSheet = true
                 } label: {
@@ -66,7 +68,7 @@ struct ImageListView: View {
                 }
             }
 
-            ToolbarItem(placement: .automatic) {
+            ToolbarItem(id: "refresh", placement: .automatic) {
                 Button {
                     Task { await vm.refresh() }
                 } label: {
@@ -75,6 +77,7 @@ struct ImageListView: View {
                 .keyboardShortcut("r", modifiers: .command)
             }
         }
+        .toolbarRole(.editor)
         .task {
             await vm.refresh()
         }
@@ -83,6 +86,9 @@ struct ImageListView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .kegRefresh)) { _ in
             Task { await vm.refresh() }
+        }
+        .onDisappear {
+            appState.selectedImageReference = nil
         }
         .sheet(isPresented: $showPullSheet) {
             PullImageView(vm: vm)

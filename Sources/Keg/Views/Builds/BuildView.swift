@@ -116,8 +116,8 @@ struct BuildView: View {
             }
         }
         .navigationTitle("Builds")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+        .toolbar(id: "build-toolbar") {
+            ToolbarItem(id: "build", placement: .primaryAction) {
                 if isBuilding {
                     Button("Cancel Build") {
                         // TODO: Cancel the build process
@@ -132,6 +132,7 @@ struct BuildView: View {
                 }
             }
         }
+        .toolbarRole(.editor)
         .fileImporter(isPresented: $showContextPicker, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
             if case .success(let urls) = result, let url = urls.first {
                 contextDir = url.path

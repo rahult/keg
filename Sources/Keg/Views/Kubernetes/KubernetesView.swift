@@ -228,8 +228,8 @@ struct KubernetesView: View {
             }
         }
         .navigationTitle("Kubernetes")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+        .toolbar(id: "kubernetes-toolbar") {
+            ToolbarItem(id: "cluster-action", placement: .primaryAction) {
                 if vm.clusterStatus == "Running" {
                     Button("Delete Cluster", role: .destructive) {
                         Task { await vm.deleteCluster() }
@@ -244,6 +244,7 @@ struct KubernetesView: View {
                 }
             }
         }
+        .toolbarRole(.editor)
         .task {
             await vm.checkClusterStatus()
         }
@@ -251,6 +252,8 @@ struct KubernetesView: View {
 }
 
 struct CopyableRow: View {
+    @State private var isHovered = false
+
     let label: String
     let value: String
 
@@ -265,8 +268,7 @@ struct CopyableRow: View {
                     .textSelection(.enabled)
                 Spacer()
                 Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(value, forType: .string)
+                    copyValue()
                 } label: {
                     Image(systemName: "doc.on.doc")
                         .font(.caption)
@@ -276,5 +278,16 @@ struct CopyableRow: View {
                 .accessibilityLabel("Copy \(label)")
             }
         }
+        .padding(8)
+        .background(isHovered ? Color.primary.opacity(0.06) : .clear, in: RoundedRectangle(cornerRadius: 6))
+        .contentShape(RoundedRectangle(cornerRadius: 6))
+        .onHover { isHovered = $0 }
+        .onTapGesture { copyValue() }
+        .help("Click to copy \(label.lowercased())")
+    }
+
+    private func copyValue() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(value, forType: .string)
     }
 }

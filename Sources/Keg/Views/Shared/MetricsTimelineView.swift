@@ -3,6 +3,7 @@ import Charts
 
 struct MetricsTimelineView: View {
     @Environment(\.colorSchemeContrast) private var contrast
+    @State private var isHovered = false
 
     let title: String
     let points: [MetricsHistoryVM.MetricPoint]
@@ -76,17 +77,31 @@ struct MetricsTimelineView: View {
         .padding(8)
         .background(backgroundStyle, in: RoundedRectangle(cornerRadius: 6))
         .overlay {
-            if contrast == .increased {
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(Color.primary.opacity(0.35), lineWidth: 1)
-            }
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(overlayColor, lineWidth: isHovered || contrast == .increased ? 1 : 0)
         }
+        .shadow(color: isHovered ? Color.primary.opacity(0.08) : .clear, radius: 4, y: 1)
+        .contentShape(RoundedRectangle(cornerRadius: 6))
+        .onHover { isHovered = $0 }
+        .onTapGesture {
+            guard let latest = points.last else { return }
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString("\(title): \(valueFormatter(latest.value))", forType: .string)
+        }
+        .help("Click to copy current \(title.lowercased()) value")
     }
 
     private var backgroundStyle: AnyShapeStyle {
         if contrast == .increased {
             return AnyShapeStyle(Color(nsColor: .controlBackgroundColor))
         }
+        if isHovered {
+            return AnyShapeStyle(Color.primary.opacity(0.06))
+        }
         return AnyShapeStyle(.quaternary)
+    }
+
+    private var overlayColor: Color {
+        contrast == .increased ? .primary.opacity(0.35) : .primary.opacity(0.12)
     }
 }
