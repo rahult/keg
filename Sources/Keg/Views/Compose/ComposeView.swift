@@ -30,7 +30,7 @@ final class ComposeVM {
             output = "Compose up completed successfully"
             await refreshPS()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = describe(error)
         }
         isRunning = false
     }
@@ -52,7 +52,7 @@ final class ComposeVM {
             output = "Compose down completed"
             services = []
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = describe(error)
         }
         isRunning = false
     }
@@ -65,8 +65,15 @@ final class ComposeVM {
                 projectName: projectName.isEmpty ? nil : projectName
             )
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = describe(error)
         }
+    }
+
+    private func describe(_ error: Error) -> String {
+        if let composeError = error as? ComposeError {
+            return composeError.description
+        }
+        return error.localizedDescription
     }
 }
 
