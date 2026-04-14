@@ -6,18 +6,18 @@ import SwiftUI
 /// Uses Process + Pipe for I/O and renders output in a ScrollView.
 struct TerminalView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let command: String?
+
     @State private var output = ""
     @State private var input = ""
     @State private var process: Process?
     @State private var inputPipe: Pipe?
     @State private var isRunning = false
-    @State private var scrollTarget: Int = 0
 
     var body: some View {
         VStack(spacing: 0) {
-            // Terminal output
-            GeometryReader { geo in
+            GeometryReader { _ in
                 ScrollViewReader { proxy in
                     ScrollView {
                         Text(output)
@@ -43,13 +43,12 @@ struct TerminalView: View {
 
             Divider()
 
-            // Input bar
             HStack(spacing: 8) {
                 Text("$")
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.green)
 
-                TextField("Type a command...", text: $input)
+                TextField("Enter command", text: $input)
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.white)
                     .textFieldStyle(.plain)
@@ -75,7 +74,6 @@ struct TerminalView: View {
             if let cmd = command {
                 runCommand(cmd)
             } else {
-                // Interactive shell
                 startShell()
             }
         }
@@ -84,21 +82,18 @@ struct TerminalView: View {
         }
     }
 
-    // MARK: - Shell
-
     private func startShell() {
         let shell = Process()
         let outPipe = Pipe()
         let inPipe = Pipe()
 
         shell.executableURL = URL(filePath: "/bin/zsh")
-        shell.arguments = ["-l"] // login shell
+        shell.arguments = ["-l"]
         shell.standardOutput = outPipe
         shell.standardError = outPipe
         shell.standardInput = inPipe
         shell.environment = ProcessInfo.processInfo.environment
 
-        // Stream output
         outPipe.fileHandleForReading.readabilityHandler = { handle in
             let data = handle.availableData
             if let str = String(data: data, encoding: .utf8), !str.isEmpty {
@@ -113,37 +108,33 @@ struct TerminalView: View {
             process = shell
             inputPipe = inPipe
             isRunning = true
-            output += "Keg Terminal — type commands below\n\n"
+            output += "Keg Terminal — shell ready\n\n"
         } catch {
             output += "Failed to start shell: \(error.localizedDescription)\n"
         }
     }
 
-    // MARK: - Run Command
-
     private func runCommand(_ cmd: String) {
-        guard !cmd.isEmpty else { return }
+        let trimmed = cmd.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
 
-        output += "$ \(cmd)\n"
+        output += "$ \(trimmed)\n"
 
-        // If we have an interactive shell, send to it
         if let pipe = inputPipe, process?.isRunning == true {
-            let data = (cmd + "\n").data(using: .utf8)!
+            let data = (trimmed + "\n").data(using: .utf8)!
             pipe.fileHandleForWriting.write(data)
             return
         }
 
-        // Otherwise run as a one-shot process
         let proc = Process()
         let outPipe = Pipe()
 
         proc.executableURL = URL(filePath: "/bin/zsh")
-        proc.arguments = ["-c", cmd]
+        proc.arguments = ["-c", trimmed]
         proc.standardOutput = outPipe
         proc.standardError = outPipe
         proc.environment = ProcessInfo.processInfo.environment
 
-        // Stream output
         outPipe.fileHandleForReading.readabilityHandler = { handle in
             let data = handle.availableData
             if let str = String(data: data, encoding: .utf8), !str.isEmpty {
@@ -158,7 +149,6 @@ struct TerminalView: View {
             try proc.run()
             process = proc
 
-            // Monitor completion
             Task.detached {
                 proc.waitUntilExit()
                 let remaining = outPipe.fileHandleForReading.readDataToEndOfFile()
@@ -177,85 +167,73 @@ struct TerminalView: View {
     }
 }
 
-// MARK: - Quick Terminal Tab View
+// MARK: - Quick Terminal View
 
-/// A tab-based terminal with preset commands for quick testing
 struct QuickTerminalView: View {
-    @State private var selectedTab = "shell"
-    @State private var customCommand = ""
+    @State private var selectedCommand: TerminalPreset = .shell
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Quick command bar
-            HStack(spacing: 8) {
-                Text("▶")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-
-                TextField("Run a command...", text: $customCommand)
-                    .font(.system(.caption, design: .monospaced))
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit {
-                        if !customCommand.isEmpty {
-                            selectedTab = "custom-\(customCommand)"
-                        }
+        TerminalView(command: selectedCommand.command)
+            .id(selectedCommand.id)
+            .navigationTitle("Terminal")
+            .toolbar(id: "terminal-toolbar") {
+                ToolbarItem(id: "shell", placement: .primaryAction) {
+                    Button {
+                        selectedCommand = .shell
+                    } label: {
+                        Label("Shell", systemImage: "terminal")
                     }
-
-                Divider().frame(height: 16)
-
-                // Quick presets
-                Button("docker ps") {
-                    selectedTab = "docker-ps"
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
 
-                Button("container ls") {
-                    selectedTab = "container-ls"
+                ToolbarItem(id: "docker-ps", placement: .automatic) {
+                    Button("docker ps") {
+                        selectedCommand = .dockerPS
+                    }
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
 
-                Button("container images") {
-                    selectedTab = "container-images"
+                ToolbarItem(id: "container-ls", placement: .automatic) {
+                    Button("container ls") {
+                        selectedCommand = .containerList
+                    }
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
 
-                Button("kubectl") {
-                    selectedTab = "kubectl"
+                ToolbarItem(id: "container-images", placement: .automatic) {
+                    Button("images") {
+                        selectedCommand = .containerImages
+                    }
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+
+                ToolbarItem(id: "kubectl", placement: .automatic) {
+                    Button("kubectl") {
+                        selectedCommand = .kubectlPods
+                    }
+                }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(.bar)
-
-            Divider()
-
-            // Terminal content
-            TerminalView(command: commandForTab(selectedTab))
-                .id(selectedTab) // Re-create on tab change
-        }
-        .navigationTitle("Terminal")
+            .toolbarRole(.editor)
     }
+}
 
-    private func commandForTab(_ tab: String) -> String? {
-        switch tab {
-        case "docker-ps":
+private enum TerminalPreset: String, Identifiable {
+    case shell
+    case dockerPS
+    case containerList
+    case containerImages
+    case kubectlPods
+
+    var id: String { rawValue }
+
+    var command: String? {
+        switch self {
+        case .shell:
+            return nil
+        case .dockerPS:
             return "export DOCKER_HOST=unix://\(NSHomeDirectory())/.keg/docker.sock && docker ps -a"
-        case "container-ls":
+        case .containerList:
             return "container list -a"
-        case "container-images":
+        case .containerImages:
             return "container image list"
-        case "kubectl":
+        case .kubectlPods:
             return "export KUBECONFIG=\"\(NSHomeDirectory())/.keg/kubeconfig\" && kubectl get pods -A"
-        default:
-            if tab.hasPrefix("custom-") {
-                return String(tab.dropFirst(7))
-            }
-            return nil // Interactive shell
         }
     }
 }
