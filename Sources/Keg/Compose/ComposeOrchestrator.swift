@@ -267,7 +267,9 @@ actor ComposeOrchestrator {
 
     private func buildServiceImage(serviceName: String, build: ComposeBuild, projectName: String, composeDir: String, progress: ProgressHandler? = nil) async throws -> String {
         let tag = "\(projectName)-\(serviceName):local"
-        var args = ["container", "build", "--tag", tag]
+        var args = ["container", "build"]
+        args += dnsArguments()
+        args += ["--tag", tag]
 
         if let dockerfile = build.dockerfile, !dockerfile.isEmpty {
             let dockerfilePath = dockerfile.hasPrefix("/") ? dockerfile : URL(fileURLWithPath: composeDir).appendingPathComponent(dockerfile).path
@@ -293,10 +295,21 @@ actor ComposeOrchestrator {
         args.append(contextPath)
 
         let (code, output) = try await runLogged(args, progress: progress)
-        if code != 0 {
-            throw ComposeError.runFailed(serviceName, output)
+        if code == 0 {
+            return tag
         }
-        return tag
+
+        if shouldRetryAfterBuilderReset(output) {
+            await emit("Build DNS failure detected. Resetting builder and retrying once...", to: progress)
+            try await resetBuilder(progress: progress)
+            let retried = try await runLogged(args, progress: progress)
+            if retried.exitCode == 0 {
+                return tag
+            }
+            throw ComposeError.runFailed(serviceName, retried.output)
+        }
+
+        throw ComposeError.runFailed(serviceName, output)
     }
 
     private func resolveVolume(_ volume: String, projectName: String, composeDir: String, declaredVolumes: Set<String>) -> String {
@@ -349,6 +362,7 @@ actor ComposeOrchestrator {
 
         let containerName = service.containerName ?? "\(projectName)-\(serviceName)-1"
         var args = ["container", "run"]
+        args += dnsArguments()
         if detached {
             args.append("-d")
         }
@@ -516,6 +530,54 @@ actor ComposeOrchestrator {
         return result
     }
 
+    private func dnsArguments() -> [String] {
+        systemNameservers().flatMap { ["--dns", $0] }
+    }
+
+    private func systemNameservers() -> [String] {
+        let process = Process()
+        let pipe = Pipe()
+        process.executableURL = URL(filePath: "/usr/sbin/scutil")
+        process.arguments = ["--dns"]
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        do {
+            try process.run()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0,
+                  let output = String(data: data, encoding: .utf8) else {
+                return []
+            }
+
+            var seen = Set<String>()
+            var result: [String] = []
+            let pattern = /nameserver\[\d+\]\s*:\s*(\S+)/
+            for match in output.matches(of: pattern) {
+                let value = String(match.1)
+                if seen.insert(value).inserted {
+                    result.append(value)
+                }
+            }
+            return result
+        } catch {
+            return []
+        }
+    }
+
+    private func shouldRetryAfterBuilderReset(_ output: String) -> Bool {
+        let lower = output.lowercased()
+        return lower.contains("temporary failure resolving") || lower.contains("failed to fetch")
+    }
+
+    private func resetBuilder(progress: ProgressHandler?) async throws {
+        let result = try await runLogged(["container", "builder", "delete", "-f"], progress: progress)
+        if result.exitCode != 0 {
+            throw ComposeError.builderResetFailed(result.output)
+        }
+    }
+
     private func ensureVolumeExists(_ name: String, progress: ProgressHandler?) async throws {
         let inspect = try await bridge.runCLI(["container", "volume", "inspect", name])
         if inspect.exitCode == 0 {
@@ -596,6 +658,7 @@ enum ComposeError: Error, CustomStringConvertible {
     case parseFailed(String)
     case serviceNotFound(String)
     case resourceCreateFailed(String, String, String)
+    case builderResetFailed(String)
 
     var description: String {
         switch self {
@@ -605,6 +668,7 @@ enum ComposeError: Error, CustomStringConvertible {
         case .parseFailed(let m): return "Parse error: \(m)"
         case .serviceNotFound(let s): return "Service '\(s)' not found in compose file"
         case .resourceCreateFailed(let kind, let name, let message): return "Failed to create \(kind) '\(name)': \(message)"
+        case .builderResetFailed(let message): return "Failed to reset builder: \(message)"
         }
     }
 }
