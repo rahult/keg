@@ -45,18 +45,12 @@ actor ContainerBridge {
         var args = ["container", "list", "--format", "json"]
         if all { args.append("-a") }
         let (code, output) = try await runCLI(args)
-        guard code == 0 else { return [] }
+        guard code == 0, let data = output.data(using: .utf8) else { return [] }
 
-        // container list --format json gives one JSON per line
-        var containers: [DockerContainer] = []
-        for line in output.split(separator: "\n") where !line.isEmpty {
-            if let data = String(line).data(using: .utf8),
-               let snapshot = try? JSONDecoder().decode(ContainerListEntry.self, from: data)
-            {
-                containers.append(snapshot.toDocker())
-            }
+        if let entries = try? JSONDecoder().decode([ContainerListEntry].self, from: data) {
+            return entries.map { $0.toDocker() }
         }
-        return containers
+        return []
     }
 
     func createContainer(from request: DockerContainerCreateRequest, name: String?) async throws -> DockerContainerCreateResponse {
@@ -188,17 +182,12 @@ actor ContainerBridge {
 
     func listImages() async throws -> [DockerImage] {
         let (code, output) = try await runCLI(["container", "image", "list", "--format", "json"])
-        guard code == 0 else { return [] }
+        guard code == 0, let data = output.data(using: .utf8) else { return [] }
 
-        var images: [DockerImage] = []
-        for line in output.split(separator: "\n") where !line.isEmpty {
-            if let data = String(line).data(using: .utf8),
-               let entry = try? JSONDecoder().decode(ImageListEntry.self, from: data)
-            {
-                images.append(entry.toDocker())
-            }
+        if let entries = try? JSONDecoder().decode([ImageListEntry].self, from: data) {
+            return entries.map { $0.toDocker() }
         }
-        return images
+        return []
     }
 
     func pullImage(from input: String) async throws {
@@ -232,8 +221,8 @@ actor ContainerBridge {
         let (_, containerOutput) = try await runCLI(["container", "list", "--format", "json"])
         let (_, imageOutput) = try await runCLI(["container", "image", "list", "--format", "json"])
 
-        let containerCount = containerOutput.split(separator: "\n").filter { !$0.isEmpty }.count
-        let imageCount = imageOutput.split(separator: "\n").filter { !$0.isEmpty }.count
+        let containerCount = countJSONArrayEntries(containerOutput)
+        let imageCount = countJSONArrayEntries(imageOutput)
 
         return DockerInfo(
             id: UUID().uuidString,
@@ -269,40 +258,51 @@ actor ContainerBridge {
     // MARK: - Parsing Helpers
 
     private func parseContainerInspect(_ data: Data, id: String) throws -> DockerContainerInspect {
-        // Apple container inspect returns JSON
-        // Convert to Docker-compatible inspect format
+        guard let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+              let entry = jsonArray.first else {
+            throw DockerAPIError.containerNotFound(id)
+        }
+
+        let cfg = entry["configuration"] as? [String: Any]
+        let status = (entry["status"] as? String) ?? ""
+        let networks = (entry["networks"] as? [[String: Any]]) ?? []
+        let firstNet = networks.first
+
         let state = DockerContainerState(
-            status: "running",
-            running: true,
+            status: status,
+            running: status == "running",
             paused: false,
             restarting: false,
-            dead: false,
+            dead: status == "stopped",
             pid: nil,
             exitCode: nil,
-            startedAt: ISO8601DateFormatter().string(from: Date()),
+            startedAt: "",
             finishedAt: ""
         )
 
+        let initProc = cfg?["initProcess"] as? [String: Any]
+        let imgRef = (cfg?["image"] as? [String: Any])?["reference"] as? String
+
         return DockerContainerInspect(
-            id: id,
-            created: ISO8601DateFormatter().string(from: Date()),
-            path: "",
-            args: [],
+            id: cfg?["id"] as? String ?? id,
+            created: "",
+            path: initProc?["executable"] as? String ?? "",
+            args: initProc?["arguments"] as? [String] ?? [],
             state: state,
-            image: "",
-            name: "/" + id,
+            image: imgRef ?? "",
+            name: "/" + (cfg?["id"] as? String ?? id),
             config: DockerContainerConfig(
-                image: nil,
-                cmd: nil,
-                env: nil,
-                labels: nil,
-                tty: nil,
+                image: imgRef,
+                cmd: initProc?["arguments"] as? [String],
+                env: initProc?["environment"] as? [String],
+                labels: cfg?["labels"] as? [String: String],
+                tty: initProc?["terminal"] as? Bool,
                 openStdin: nil,
-                workingDir: nil
+                workingDir: initProc?["workingDirectory"] as? String
             ),
             networkSettings: DockerInspectNetworkSettings(
-                ipAddress: nil,
-                gateway: nil,
+                ipAddress: firstNet?["ipv4Address"] as? String,
+                gateway: firstNet?["ipv4Gateway"] as? String,
                 ports: nil,
                 networks: nil
             )
@@ -310,13 +310,25 @@ actor ContainerBridge {
     }
 
     private func parseImageInspect(_ output: String, name: String) throws -> DockerImage {
-        DockerImage(
-            id: "sha256:" + name.replacingOccurrences(of: ":", with: "-").replacingOccurrences(of: "/", with: "_"),
-            repoTags: [name],
-            repoDigests: nil,
-            created: Int64(Date().timeIntervalSince1970),
-            size: 0,
-            labels: nil
+        guard let data = output.data(using: .utf8),
+              let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+              let entry = jsonArray.first else {
+            return DockerImage(id: "sha256:" + name, repoTags: [name], repoDigests: nil, created: 0, size: 0, labels: nil)
+        }
+
+        let descriptor = entry["descriptor"] as? [String: Any]
+        let digest = descriptor?["digest"] as? String
+        let size = (descriptor?["size"] as? Int).map { Int64($0) } ?? Int64(0)
+        let annotations = descriptor?["annotations"] as? [String: String]
+        let imgName = annotations?["com.apple.containerization.image.name"] ?? name
+
+        return DockerImage(
+            id: "sha256:" + (digest ?? name),
+            repoTags: [imgName],
+            repoDigests: digest.map { ["\(imgName)@\($0)"] },
+            created: 0,
+            size: size,
+            labels: annotations
         )
     }
 }
@@ -324,19 +336,23 @@ actor ContainerBridge {
 // MARK: - Intermediate parsing types
 
 private struct ContainerListEntry: Codable {
-    let id: String
-    let image: ContainerImageRef?
+    let configuration: Configuration
     let status: String?
 
-    struct ContainerImageRef: Codable {
-        let reference: String
+    struct Configuration: Codable {
+        let id: String
+        let image: ContainerImageRef?
+
+        struct ContainerImageRef: Codable {
+            let reference: String
+        }
     }
 
     func toDocker() -> DockerContainer {
         DockerContainer(
-            id: id,
-            names: ["/" + id],
-            image: image?.reference ?? "",
+            id: configuration.id,
+            names: ["/" + configuration.id],
+            image: configuration.image?.reference ?? "",
             imageID: "",
             command: "",
             created: 0,
@@ -363,6 +379,16 @@ private struct ImageListEntry: Codable {
             labels: nil
         )
     }
+}
+
+// MARK: - Helpers
+
+private func countJSONArrayEntries(_ output: String) -> Int {
+    guard let data = output.data(using: .utf8),
+          let array = try? JSONSerialization.jsonObject(with: data) as? [Any] else {
+        return 0
+    }
+    return array.count
 }
 
 // MARK: - Errors
