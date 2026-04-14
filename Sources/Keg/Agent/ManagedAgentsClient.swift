@@ -4,7 +4,6 @@ import Foundation
 /// Base URL: https://api.anthropic.com/v1
 /// Requires: anthropic-beta: managed-agents-2026-04-01 header
 public actor ManagedAgentsClient {
-    public let apiKey: String
     public let baseURL: URL
 
     private let session: URLSession
@@ -14,8 +13,7 @@ public actor ManagedAgentsClient {
     /// Beta header value required for all Managed Agents requests
     public static let betaHeader = "managed-agents-2026-04-01"
 
-    public init(apiKey: String, baseURL: URL = URL(string: "https://api.anthropic.com")!) {
-        self.apiKey = apiKey
+    private init(baseURL: URL) {
         self.baseURL = baseURL
 
         let config = URLSessionConfiguration.default
@@ -28,6 +26,18 @@ public actor ManagedAgentsClient {
 
         self.encoder = JSONEncoder()
         self.encoder.dateEncodingStrategy = .iso8601
+    }
+
+    /// Create a client using stored Keychain credentials
+    public static func fromKeychain(baseURL: URL = URL(string: "https://api.anthropic.com")!) async throws -> ManagedAgentsClient {
+        _ = try AgentAuth.retrieveAPIKey()
+        return ManagedAgentsClient(baseURL: baseURL)
+    }
+
+    /// Create a client and store API key in Keychain
+    public static func withStoredCredentials(apiKey: String, baseURL: URL = URL(string: "https://api.anthropic.com")!) async throws -> ManagedAgentsClient {
+        try AgentAuth.storeAPIKey(apiKey)
+        return ManagedAgentsClient(baseURL: baseURL)
     }
 
     // MARK: - Request Building
@@ -46,6 +56,7 @@ public actor ManagedAgentsClient {
         request.setValue("application/json", forHTTPHeaderField: "content-type")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         request.setValue(Self.betaHeader, forHTTPHeaderField: "anthropic-beta")
+        let apiKey = try AgentAuth.retrieveAPIKey()
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.httpBody = body
 
@@ -196,6 +207,43 @@ public actor ManagedAgentsClient {
         let request = try buildRequest(path: "/v1/sessions/\(sessionId)/events", method: "GET")
         return try await perform(request)
     }
+
+    /// Stream events from a session in real-time using SSE
+    /// GET /v1/sessions/:id/events/stream
+    /// - Parameter sessionId: The session ID to stream events for
+    /// - Returns: AsyncThrowingStream of SessionEvent
+    public func streamEvents(sessionId: String) async throws -> AsyncThrowingStream<SessionEvent, Error> {
+        let apiKey = try AgentAuth.retrieveAPIKey()
+        return SSEClient.streamSessionEvents(
+            apiKey: apiKey,
+            sessionId: sessionId,
+            baseURL: baseURL
+        )
+    }
+
+    /// Stream events from a session with custom headers (e.g., for WebSocket upgrades)
+    /// - Parameters:
+    ///   - sessionId: The session ID to stream events for
+    ///   - customHeaders: Additional headers to include
+    /// - Returns: SSE event stream
+    public func streamEventsRaw(sessionId: String, customHeaders: [String: String] = [:]) async throws -> SSEEventStream {
+        let path = "/v1/sessions/\(sessionId)/events/stream"
+        guard let url = URL(string: path, relativeTo: baseURL) else {
+            return SSEEventStream { continuation in
+                continuation.finish(throwing: ManagedAgentsError.invalidURL(path))
+            }
+        }
+
+        let apiKey = try AgentAuth.retrieveAPIKey()
+        var headers = customHeaders
+        headers["anthropic-version"] = "2023-06-01"
+        headers["anthropic-beta"] = Self.betaHeader
+        headers["x-api-key"] = apiKey
+        headers["accept"] = "text/event-stream"
+
+        let client = SSEClient(url: url, headers: headers)
+        return client.streamEvents()
+    }
 }
 
 // MARK: - Error Types
@@ -205,6 +253,8 @@ public enum ManagedAgentsError: Error, LocalizedError {
     case invalidResponse
     case httpError(statusCode: Int, message: String)
     case missingAPIKey
+    case streamError(String)
+    case sessionNotFound(String)
 
     public var errorDescription: String? {
         switch self {
@@ -216,6 +266,10 @@ public enum ManagedAgentsError: Error, LocalizedError {
             return "HTTP \(code): \(message)"
         case .missingAPIKey:
             return "API key is required"
+        case .streamError(let message):
+            return "Stream error: \(message)"
+        case .sessionNotFound(let id):
+            return "Session not found: \(id)"
         }
     }
 }

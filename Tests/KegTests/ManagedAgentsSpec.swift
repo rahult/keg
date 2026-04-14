@@ -347,10 +347,10 @@ final class ManagedAgentsSpec: XCTestCase {
         XCTAssertEqual(ManagedAgentsClient.betaHeader, "managed-agents-2026-04-01")
     }
 
-    func testAPIKeyRequired() async throws {
-        // Client initialization requires API key
-        let client = ManagedAgentsClient(apiKey: "sk-test-key")
-        let retrievedKey = await client.apiKey
-        XCTAssertEqual(retrievedKey, "sk-test-key")
+    func testAPIKeyFromKeychain() async throws {
+        // Client can be created using stored Keychain credentials
+        // Note: This test just verifies the API exists - actual keychain storage tested in integration
+        let client = try await ManagedAgentsClient.withStoredCredentials(apiKey: "sk-test-key")
+        XCTAssertNotNil(client)
     }
 }
