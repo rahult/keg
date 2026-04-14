@@ -25,9 +25,11 @@ final class ComposeVM {
             try await orchestrator.up(
                 filePath: composeFilePath,
                 projectName: projectName.isEmpty ? nil : projectName,
-                detached: detached
+                detached: detached,
+                progress: { [self] line in
+                    appendOutput(line)
+                }
             )
-            output = "Compose up completed successfully"
             await refreshPS()
         } catch {
             errorMessage = describe(error)
@@ -47,9 +49,11 @@ final class ComposeVM {
         do {
             try await orchestrator.down(
                 filePath: composeFilePath,
-                projectName: projectName.isEmpty ? nil : projectName
+                projectName: projectName.isEmpty ? nil : projectName,
+                progress: { [self] line in
+                    appendOutput(line)
+                }
             )
-            output = "Compose down completed"
             services = []
         } catch {
             errorMessage = describe(error)
@@ -66,6 +70,14 @@ final class ComposeVM {
             )
         } catch {
             errorMessage = describe(error)
+        }
+    }
+
+    private func appendOutput(_ line: String) {
+        if output.isEmpty {
+            output = line
+        } else {
+            output += "\n\n" + line
         }
     }
 

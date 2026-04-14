@@ -203,6 +203,8 @@ struct ComposeVolume: Codable {
 // MARK: - Compose Orchestrator
 
 actor ComposeOrchestrator {
+    typealias ProgressHandler = @Sendable @MainActor (String) -> Void
+
     private let bridge = ContainerBridge()
 
     struct ComposeProject: Sendable {
@@ -224,44 +226,56 @@ actor ComposeOrchestrator {
 
     // MARK: - Up
 
-    func up(filePath: String, projectName: String?, detached: Bool) async throws {
+    func up(filePath: String, projectName: String?, detached: Bool, progress: ProgressHandler? = nil) async throws {
         let file = try parse(filePath: filePath)
         let name = projectName ?? URL(fileURLWithPath: filePath).deletingPathExtension().lastPathComponent
         let composeDir = URL(fileURLWithPath: filePath).deletingLastPathComponent().path
 
+        await emit("Compose up: \(name)\nFile: \(filePath)", to: progress)
+
         if let networks = file.networks {
-            for (networkName, _) in networks {
-                let _ = try? await bridge.runCLI(["container", "network", "create", "\(name)-\(networkName)"])
+            for (networkName, _) in networks.sorted(by: { $0.key < $1.key }) {
+                let args = ["container", "network", "create", "\(name)-\(networkName)"]
+                let _ = try? await runLogged(args, progress: progress)
             }
         }
 
         if let volumes = file.volumes {
-            for (volumeName, _) in volumes {
-                let _ = try? await bridge.runCLI(["container", "volume", "create", "\(name)-\(volumeName)"])
+            for (volumeName, _) in volumes.sorted(by: { $0.key < $1.key }) {
+                let args = ["container", "volume", "create", "\(name)-\(volumeName)"]
+                let _ = try? await runLogged(args, progress: progress)
             }
         }
 
         let orderedServices = try topologicalSort(services: file.services)
+        let declaredVolumes = Set(file.volumes?.map { $0.key } ?? [])
 
         for serviceName in orderedServices {
             guard let service = file.services[serviceName] else { continue }
+            await emit("\n==> Service: \(serviceName)", to: progress)
 
             let resolvedImage: String
             if let image = service.image, !image.isEmpty {
                 resolvedImage = image
+                await emit("Using image: \(image)", to: progress)
             } else if let build = service.build {
                 resolvedImage = try await buildServiceImage(
                     serviceName: serviceName,
                     build: build,
                     projectName: name,
-                    composeDir: composeDir
+                    composeDir: composeDir,
+                    progress: progress
                 )
             } else {
                 throw ComposeError.missingImage(serviceName)
             }
 
             let containerName = service.containerName ?? "\(name)-\(serviceName)-1"
-            var args = ["container", "run", "-d", "--name", containerName]
+            var args = ["container", "run"]
+            if detached {
+                args.append("-d")
+            }
+            args += ["--name", containerName]
 
             if let env = service.environment {
                 for e in env {
@@ -277,7 +291,6 @@ actor ComposeOrchestrator {
 
             if let vols = service.volumes {
                 for volume in vols {
-                    let declaredVolumes = Set(file.volumes?.map { $0.key } ?? [])
                     let resolved = resolveVolume(volume, projectName: name, composeDir: composeDir, declaredVolumes: declaredVolumes)
                     args += ["-v", resolved]
                 }
@@ -290,7 +303,7 @@ actor ComposeOrchestrator {
             }
 
             if let labels = service.labels {
-                for (k, v) in labels {
+                for (k, v) in labels.sorted(by: { $0.key < $1.key }) {
                     args += ["-l", "\(k)=\(v)"]
                 }
             }
@@ -312,14 +325,16 @@ actor ComposeOrchestrator {
                 args += ["sh", "-lc", cmd]
             }
 
-            let (code, output) = try await bridge.runCLI(args)
+            let (code, output) = try await runLogged(args, progress: progress)
             if code != 0 {
                 throw ComposeError.runFailed(serviceName, output)
             }
         }
+
+        await emit("\nCompose up finished.", to: progress)
     }
 
-    private func buildServiceImage(serviceName: String, build: ComposeBuild, projectName: String, composeDir: String) async throws -> String {
+    private func buildServiceImage(serviceName: String, build: ComposeBuild, projectName: String, composeDir: String, progress: ProgressHandler? = nil) async throws -> String {
         let tag = "\(projectName)-\(serviceName):local"
         var args = ["container", "build", "--tag", tag]
 
@@ -346,7 +361,7 @@ actor ComposeOrchestrator {
         }
         args.append(contextPath)
 
-        let (code, output) = try await bridge.runCLI(args)
+        let (code, output) = try await runLogged(args, progress: progress)
         if code != 0 {
             throw ComposeError.runFailed(serviceName, output)
         }
@@ -378,27 +393,31 @@ actor ComposeOrchestrator {
 
     // MARK: - Down
 
-    func down(filePath: String, projectName: String?) async throws {
+    func down(filePath: String, projectName: String?, progress: ProgressHandler? = nil) async throws {
         let file = try parse(filePath: filePath)
         let name = projectName ?? URL(fileURLWithPath: filePath).deletingPathExtension().lastPathComponent
+
+        await emit("Compose down: \(name)\nFile: \(filePath)", to: progress)
 
         let orderedServices = try topologicalSort(services: file.services).reversed()
         for serviceName in orderedServices {
             let containerName = file.services[serviceName]?.containerName ?? "\(name)-\(serviceName)-1"
-            let _ = try? await bridge.runCLI(["container", "delete", "-f", containerName])
+            let _ = try? await runLogged(["container", "delete", "-f", containerName], progress: progress)
         }
 
         if let networks = file.networks {
-            for (networkName, _) in networks {
-                let _ = try? await bridge.runCLI(["container", "network", "delete", "\(name)-\(networkName)"])
+            for (networkName, _) in networks.sorted(by: { $0.key < $1.key }) {
+                let _ = try? await runLogged(["container", "network", "delete", "\(name)-\(networkName)"], progress: progress)
             }
         }
 
         if let volumes = file.volumes {
-            for (volumeName, _) in volumes {
-                let _ = try? await bridge.runCLI(["container", "volume", "delete", "\(name)-\(volumeName)"])
+            for (volumeName, _) in volumes.sorted(by: { $0.key < $1.key }) {
+                let _ = try? await runLogged(["container", "volume", "delete", "\(name)-\(volumeName)"], progress: progress)
             }
         }
+
+        await emit("\nCompose down finished.", to: progress)
     }
 
     // MARK: - PS
@@ -439,6 +458,34 @@ actor ComposeOrchestrator {
             }
         }
         return results
+    }
+
+    private func runLogged(_ args: [String], progress: ProgressHandler?) async throws -> (exitCode: Int32, output: String) {
+        await emit("$ \(formatCommand(args))", to: progress)
+        let result = try await bridge.runCLI(args)
+        let trimmed = result.output.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            await emit(trimmed, to: progress)
+        }
+        if result.exitCode != 0 {
+            await emit("exit code: \(result.exitCode)", to: progress)
+        }
+        return result
+    }
+
+    private func emit(_ line: String, to progress: ProgressHandler?) async {
+        guard let progress else { return }
+        await progress(line)
+    }
+
+    private func formatCommand(_ args: [String]) -> String {
+        args.map { arg in
+            if arg.contains(where: { $0.isWhitespace || $0 == "\"" || $0 == "'" }) {
+                let escaped = arg.replacingOccurrences(of: "\"", with: "\\\"")
+                return "\"\(escaped)\""
+            }
+            return arg
+        }.joined(separator: " ")
     }
 
     // MARK: - Topological Sort
