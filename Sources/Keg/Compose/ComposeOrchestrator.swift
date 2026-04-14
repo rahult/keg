@@ -235,15 +235,13 @@ actor ComposeOrchestrator {
 
         if let networks = file.networks {
             for (networkName, _) in networks.sorted(by: { $0.key < $1.key }) {
-                let args = ["container", "network", "create", "\(name)-\(networkName)"]
-                let _ = try? await runLogged(args, progress: progress)
+                try await ensureNetworkExists("\(name)-\(networkName)", progress: progress)
             }
         }
 
         if let volumes = file.volumes {
             for (volumeName, _) in volumes.sorted(by: { $0.key < $1.key }) {
-                let args = ["container", "volume", "create", "\(name)-\(volumeName)"]
-                let _ = try? await runLogged(args, progress: progress)
+                try await ensureVolumeExists("\(name)-\(volumeName)", progress: progress)
             }
         }
 
@@ -518,6 +516,30 @@ actor ComposeOrchestrator {
         return result
     }
 
+    private func ensureVolumeExists(_ name: String, progress: ProgressHandler?) async throws {
+        let inspect = try await bridge.runCLI(["container", "volume", "inspect", name])
+        if inspect.exitCode == 0 {
+            await emit("Volume already present: \(name)", to: progress)
+            return
+        }
+        let created = try await runLogged(["container", "volume", "create", name], progress: progress)
+        if created.exitCode != 0 {
+            throw ComposeError.resourceCreateFailed("volume", name, created.output)
+        }
+    }
+
+    private func ensureNetworkExists(_ name: String, progress: ProgressHandler?) async throws {
+        let inspect = try await bridge.runCLI(["container", "network", "inspect", name])
+        if inspect.exitCode == 0 {
+            await emit("Network already present: \(name)", to: progress)
+            return
+        }
+        let created = try await runLogged(["container", "network", "create", name], progress: progress)
+        if created.exitCode != 0 {
+            throw ComposeError.resourceCreateFailed("network", name, created.output)
+        }
+    }
+
     private func emit(_ line: String, to progress: ProgressHandler?) async {
         guard let progress else { return }
         await progress(line)
@@ -573,6 +595,7 @@ enum ComposeError: Error, CustomStringConvertible {
     case circularDependency(String)
     case parseFailed(String)
     case serviceNotFound(String)
+    case resourceCreateFailed(String, String, String)
 
     var description: String {
         switch self {
@@ -581,6 +604,7 @@ enum ComposeError: Error, CustomStringConvertible {
         case .circularDependency(let s): return "Circular dependency detected: \(s)"
         case .parseFailed(let m): return "Parse error: \(m)"
         case .serviceNotFound(let s): return "Service '\(s)' not found in compose file"
+        case .resourceCreateFailed(let kind, let name, let message): return "Failed to create \(kind) '\(name)': \(message)"
         }
     }
 }
