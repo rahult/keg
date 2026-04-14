@@ -127,6 +127,20 @@ struct ContainerListView: View {
         .task {
             await vm.refresh()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .kegRunContainer)) { _ in
+            showRunSheet = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .kegRefresh)) { _ in
+            Task { await vm.refresh() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .kegStopContainer)) { _ in
+            guard let selectedContainerID else { return }
+            Task { await vm.stop(id: selectedContainerID) }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .kegDeleteContainer)) { _ in
+            guard let selectedContainerID else { return }
+            Task { await vm.delete(id: selectedContainerID) }
+        }
         .sheet(isPresented: $showRunSheet) {
             RunContainerView()
         }

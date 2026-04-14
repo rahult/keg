@@ -137,6 +137,9 @@ struct MainView: View {
             await appState.checkSystemStatus()
             appState.startRefreshing()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .kegToggleSidebar)) { _ in
+            columnVisibility = columnVisibility == .detailOnly ? .doubleColumn : .detailOnly
+        }
         .onDisappear {
             appState.stopRefreshing()
         }

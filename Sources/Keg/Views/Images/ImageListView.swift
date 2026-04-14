@@ -78,6 +78,12 @@ struct ImageListView: View {
         .task {
             await vm.refresh()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .kegPullImage)) { _ in
+            showPullSheet = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .kegRefresh)) { _ in
+            Task { await vm.refresh() }
+        }
         .sheet(isPresented: $showPullSheet) {
             PullImageView(vm: vm)
         }

@@ -19,7 +19,6 @@ final class KubernetesVM {
         clusterStatus = "Creating..."
 
         do {
-            // Start the container with kindest/node
             output += "Starting K8s node container...\n"
             let (code, out) = try await runCLI([
                 "container", "run", "-d",
@@ -30,31 +29,23 @@ final class KubernetesVM {
                 "-p", "127.0.0.1:6443:6443",
                 nodeImage
             ])
-            if code != 0 {
-                throw K8sError.createFailed(out)
-            }
+            if code != 0 { throw K8sError.createFailed(out) }
             output += out + "\n"
 
-            // Wait for container to boot
             output += "Waiting for container to boot...\n"
             try await Task.sleep(for: .seconds(5))
 
-            // Enable IP forwarding
             output += "Enabling IP forwarding...\n"
             let _ = try await runCLI(["container", "exec", clusterName, "sysctl", "-w", "net.ipv4.ip_forward=1"])
 
-            // Initialize cluster with kubeadm
             output += "Initializing Kubernetes (this takes ~60s)...\n"
             let (initCode, initOut) = try await runCLI([
                 "container", "exec", clusterName,
                 "kubeadm", "init", "--pod-network-cidr=10.244.0.0/16"
             ])
             output += initOut + "\n"
-            if initCode != 0 {
-                throw K8sError.createFailed(initOut)
-            }
+            if initCode != 0 { throw K8sError.createFailed(initOut) }
 
-            // Install CNI (kindnet)
             output += "Installing CNI...\n"
             let (_, cniOut) = try await runCLI([
                 "container", "exec", clusterName, "sh", "-euc",
@@ -62,14 +53,12 @@ final class KubernetesVM {
             ])
             output += cniOut + "\n"
 
-            // Remove taint for single-node
             output += "Removing control-plane taint...\n"
             let _ = try await runCLI([
                 "container", "exec", clusterName,
                 "kubectl", "taint", "nodes", "--all", "node-role.kubernetes.io/control-plane-"
             ])
 
-            // Extract kubeconfig
             output += "Extracting kubeconfig...\n"
             let kubeconfigDir = NSHomeDirectory() + "/.keg"
             try FileManager.default.createDirectory(atPath: kubeconfigDir, withIntermediateDirectories: true)
@@ -80,7 +69,6 @@ final class KubernetesVM {
             if kcCode == 0 {
                 try kcOut.write(toFile: kcPath, atomically: true, encoding: .utf8)
                 kubeconfigPath = kcPath
-                // Update server address to localhost
                 if var kcContent = try? String(contentsOfFile: kcPath, encoding: .utf8) {
                     kcContent = kcContent.replacingOccurrences(of: "kubernetes.default.svc", with: "127.0.0.1")
                     kcContent = kcContent.replacingOccurrences(of: ":6443", with: ":6443")
@@ -106,10 +94,7 @@ final class KubernetesVM {
 
         let result = try? await runCLI(["container", "delete", "-f", clusterName])
         if let (code, _) = result, code == 0 || code == 1 {
-            // Remove kubeconfig
-            if let kcPath = kubeconfigPath {
-                try? FileManager.default.removeItem(atPath: kcPath)
-            }
+            if let kcPath = kubeconfigPath { try? FileManager.default.removeItem(atPath: kcPath) }
             kubeconfigPath = nil
             clusterStatus = "Not Created"
             output = "Cluster deleted"
@@ -122,7 +107,6 @@ final class KubernetesVM {
     func checkClusterStatus() async {
         let (code, _) = (try? await runCLI(["container", "list", "--format", "json"])) ?? (1, "")
         if code == 0 {
-            // Check if our cluster container is running
             let (inspectCode, _) = (try? await runCLI(["container", "inspect", clusterName])) ?? (1, "")
             if inspectCode == 0 {
                 clusterStatus = "Running"
@@ -161,75 +145,70 @@ struct KubernetesView: View {
     @State private var vm = KubernetesVM()
 
     var body: some View {
-        Group {
-            if vm.isCreating {
-                VStack(spacing: 16) {
-                    ProgressView("Creating Kubernetes cluster (~60s)...")
-                    if !vm.output.isEmpty {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                GroupBox("Cluster Configuration") {
+                    Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 12) {
+                        GridRow {
+                            Text("Status")
+                                .foregroundStyle(.secondary)
+                            StatusBadge(status: vm.clusterStatus == "Running" ? "running" : vm.clusterStatus == "Creating..." ? "created" : "stopped")
+                        }
+
+                        GridRow {
+                            Text("Name")
+                                .foregroundStyle(.secondary)
+                            TextField("Cluster name", text: $vm.clusterName)
+                                .textFieldStyle(.roundedBorder)
+                                .disabled(vm.isCreating || vm.clusterStatus == "Running")
+                        }
+
+                        GridRow {
+                            Text("Node Image")
+                                .foregroundStyle(.secondary)
+                            TextField("docker.io/kindest/node:v1.34.0", text: $vm.nodeImage)
+                                .textFieldStyle(.roundedBorder)
+                                .disabled(vm.isCreating || vm.clusterStatus == "Running")
+                        }
+                    }
+                    .padding(.top, 4)
+                }
+
+                if vm.clusterStatus == "Running", let kcPath = vm.kubeconfigPath {
+                    GroupBox("Connection") {
+                        VStack(alignment: .leading, spacing: 12) {
+                            CopyableRow(label: "Kubeconfig", value: kcPath)
+                            CopyableRow(label: "Connect", value: "export KUBECONFIG=\"\(kcPath)\"")
+                            CopyableRow(label: "Get Nodes", value: "kubectl get nodes")
+                            CopyableRow(label: "Get Pods", value: "kubectl get pods -A")
+                        }
+                        .padding(.top, 4)
+                    }
+                }
+
+                GroupBox("Cluster Output") {
+                    if vm.isCreating || !vm.output.isEmpty {
                         ScrollView {
-                            Text(vm.output)
+                            Text(vm.output.isEmpty ? "Working…" : vm.output)
                                 .font(.system(.caption, design: .monospaced))
                                 .textSelection(.enabled)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(8)
                         }
-                        .background(Color(nsColor: .textBackgroundColor))
-                        .frame(maxHeight: .infinity)
+                        .frame(minHeight: 220, alignment: .top)
+                        .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
+                    } else {
+                        ContentUnavailableView(
+                            "No Kubernetes Cluster",
+                            systemImage: "helm",
+                            description: Text("Configure the cluster and choose Create Cluster from the toolbar.")
+                        )
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 24)
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if vm.clusterStatus == "Running" {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        // Output log
-                        if !vm.output.isEmpty {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Cluster Output")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text(vm.output)
-                                    .font(.system(.caption, design: .monospaced))
-                                    .textSelection(.enabled)
-                                    .padding(8)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
-                            }
-                        }
-
-                        // Connection info
-                        if let kcPath = vm.kubeconfigPath {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Connection")
-                                    .font(.headline)
-
-                                CopyableRow(label: "Kubeconfig", value: kcPath)
-
-                                CopyableRow(
-                                    label: "Connect",
-                                    value: "export KUBECONFIG=\"\(kcPath)\""
-                                )
-
-                                CopyableRow(
-                                    label: "Get Nodes",
-                                    value: "kubectl get nodes"
-                                )
-
-                                CopyableRow(
-                                    label: "Get Pods",
-                                    value: "kubectl get pods -A"
-                                )
-                            }
-                        }
-                    }
-                    .padding(16)
-                }
-            } else if vm.clusterStatus == "Not Created" && vm.output.isEmpty {
-                ContentUnavailableView(
-                    "No Kubernetes Cluster",
-                    systemImage: "helm",
-                    description: Text("Create a single-node Kubernetes cluster using Apple Containers")
-                )
             }
+            .padding(20)
         }
         .overlay(alignment: .bottom) {
             if let error = vm.errorMessage {
@@ -250,37 +229,18 @@ struct KubernetesView: View {
         }
         .navigationTitle("Kubernetes")
         .toolbar {
-            ToolbarItem(placement: .automatic) {
-                HStack(spacing: 8) {
-                    TextField("Cluster", text: $vm.clusterName)
-                        .textFieldStyle(.roundedBorder)
-                        .controlSize(.small)
-                        .frame(width: 140)
-                        .disabled(vm.isCreating || vm.clusterStatus == "Running")
-
-                    TextField("Node image", text: $vm.nodeImage)
-                        .textFieldStyle(.roundedBorder)
-                        .controlSize(.small)
-                        .frame(width: 280)
-                        .disabled(vm.isCreating || vm.clusterStatus == "Running")
-                }
-            }
-
             ToolbarItem(placement: .primaryAction) {
-                HStack(spacing: 8) {
-                    StatusBadge(status: vm.clusterStatus == "Running" ? "running" : vm.clusterStatus == "Creating..." ? "created" : "stopped")
-
-                    if vm.clusterStatus == "Running" {
-                        Button("Delete Cluster", role: .destructive) {
-                            Task { await vm.deleteCluster() }
-                        }
-                    } else if vm.clusterStatus == "Not Created" {
-                        Button("Create Cluster") {
-                            Task { await vm.createCluster() }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(vm.isCreating)
+                if vm.clusterStatus == "Running" {
+                    Button("Delete Cluster", role: .destructive) {
+                        Task { await vm.deleteCluster() }
                     }
+                } else if vm.clusterStatus == "Not Created" {
+                    Button("Create Cluster") {
+                        Task { await vm.createCluster() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(vm.isCreating)
+                    .keyboardShortcut(.defaultAction)
                 }
             }
         }

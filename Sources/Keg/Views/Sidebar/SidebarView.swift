@@ -25,7 +25,7 @@ struct SidebarView: View {
             ForEach(sections, id: \.name) { section in
                 Section(section.name) {
                     ForEach(section.items) { item in
-                        Label(item.rawValue, systemImage: item.iconName)
+                        sidebarLabel(for: item)
                             .tag(item)
                     }
                 }
@@ -39,5 +39,19 @@ struct SidebarView: View {
         .listStyle(.sidebar)
         .navigationTitle("Keg")
         .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 320)
+    }
+
+    @ViewBuilder
+    private func sidebarLabel(for item: NavigationSection) -> some View {
+        switch item {
+        case .containers:
+            Label(item.rawValue, systemImage: item.iconName)
+                .badge(appState.runningContainerCount)
+        case .health:
+            Label(item.rawValue, systemImage: item.iconName)
+                .badge(appState.unhealthyContainerCount)
+        default:
+            Label(item.rawValue, systemImage: item.iconName)
+        }
     }
 }

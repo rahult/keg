@@ -2,6 +2,8 @@ import SwiftUI
 import Charts
 
 struct MetricsTimelineView: View {
+    @Environment(\.colorSchemeContrast) private var contrast
+
     let title: String
     let points: [MetricsHistoryVM.MetricPoint]
     let color: Color
@@ -72,6 +74,19 @@ struct MetricsTimelineView: View {
             }
         }
         .padding(8)
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+        .background(backgroundStyle, in: RoundedRectangle(cornerRadius: 6))
+        .overlay {
+            if contrast == .increased {
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color.primary.opacity(0.35), lineWidth: 1)
+            }
+        }
+    }
+
+    private var backgroundStyle: AnyShapeStyle {
+        if contrast == .increased {
+            return AnyShapeStyle(Color(nsColor: .controlBackgroundColor))
+        }
+        return AnyShapeStyle(.quaternary)
     }
 }

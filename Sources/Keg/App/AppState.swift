@@ -20,7 +20,10 @@ final class AppState {
     var selectedContainerID: String?
     var selectedImageReference: String?
     var isRefreshing = false
+    var runningContainerCount = 0
+    var unhealthyContainerCount = 0
 
+    private let containerClient = ContainerClient()
     private var refreshTimer: Timer?
 
     var isSystemRunning: Bool {
@@ -122,6 +125,31 @@ final class AppState {
         isRefreshing = true
         defer { isRefreshing = false }
         await checkSystemStatus()
+        await refreshDashboardCounts()
+    }
+
+    private func refreshDashboardCounts() async {
+        do {
+            let containers = try await containerClient.list(filters: .all)
+            runningContainerCount = containers.filter { $0.status == .running }.count
+
+            var warnings = 0
+            for container in containers where container.status == .running {
+                if let stats = try? await containerClient.stats(id: container.id),
+                   let used = stats.memoryUsageBytes,
+                   let limit = stats.memoryLimitBytes,
+                   limit > 0 {
+                    let memPercent = Double(used) / Double(limit) * 100
+                    if memPercent >= 80 {
+                        warnings += 1
+                    }
+                }
+            }
+            unhealthyContainerCount = warnings + containers.filter { $0.status != .running }.count
+        } catch {
+            runningContainerCount = 0
+            unhealthyContainerCount = 0
+        }
     }
 }
 

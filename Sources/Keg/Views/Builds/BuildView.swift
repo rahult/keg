@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct BuildView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @State private var contextDir = ""
     @State private var dockerfile = ""
     @State private var tags = ""
@@ -14,22 +16,86 @@ struct BuildView: View {
     @State private var showFilePicker = false
 
     var body: some View {
-        Group {
-            if isBuilding || !output.isEmpty {
-                ScrollView {
-                    Text(output)
-                        .font(.system(.caption, design: .monospaced))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(8)
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    GroupBox("Build Configuration") {
+                        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 12) {
+                            GridRow {
+                                Text("Context")
+                                    .foregroundStyle(.secondary)
+                                HStack(spacing: 8) {
+                                    TextField("Project directory", text: $contextDir, prompt: Text("."))
+                                        .textFieldStyle(.roundedBorder)
+                                    Button("Browse…") { showContextPicker = true }
+                                }
+                            }
+
+                            GridRow {
+                                Text("Dockerfile")
+                                    .foregroundStyle(.secondary)
+                                HStack(spacing: 8) {
+                                    TextField("Dockerfile path", text: $dockerfile, prompt: Text("Dockerfile"))
+                                        .textFieldStyle(.roundedBorder)
+                                    Button("Browse…") { showFilePicker = true }
+                                }
+                            }
+
+                            GridRow {
+                                Text("Tags")
+                                    .foregroundStyle(.secondary)
+                                TextField("my-image:latest, my-image:v1", text: $tags)
+                                    .textFieldStyle(.roundedBorder)
+                            }
+
+                            GridRow {
+                                Text("Build Args")
+                                    .foregroundStyle(.secondary)
+                                TextField("KEY=VALUE, FOO=bar", text: $buildArgs)
+                                    .textFieldStyle(.roundedBorder)
+                            }
+
+                            GridRow {
+                                Text("Platform")
+                                    .foregroundStyle(.secondary)
+                                TextField("linux/arm64", text: $platform)
+                                    .textFieldStyle(.roundedBorder)
+                            }
+
+                            GridRow {
+                                Text("Options")
+                                    .foregroundStyle(.secondary)
+                                Toggle("Disable cache", isOn: $noCache)
+                                    .toggleStyle(.checkbox)
+                                    .controlSize(.small)
+                            }
+                        }
+                        .padding(.top, 4)
+                    }
+
+                    GroupBox("Build Output") {
+                        if isBuilding || !output.isEmpty {
+                            ScrollView {
+                                Text(output.isEmpty ? "Building…" : output)
+                                    .font(.system(.caption, design: .monospaced))
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(8)
+                            }
+                            .frame(minHeight: 260, alignment: .top)
+                            .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
+                        } else {
+                            ContentUnavailableView(
+                                "No Build Output",
+                                systemImage: "hammer",
+                                description: Text("Configure the build and choose Build from the toolbar.")
+                            )
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 24)
+                        }
+                    }
                 }
-                .background(Color(nsColor: .textBackgroundColor))
-            } else {
-                ContentUnavailableView(
-                    "No Build Output",
-                    systemImage: "hammer",
-                    description: Text("Configure build settings and click Build")
-                )
+                .padding(20)
             }
         }
         .overlay(alignment: .bottom) {
@@ -51,7 +117,7 @@ struct BuildView: View {
         }
         .navigationTitle("Builds")
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItem(placement: .primaryAction) {
                 if isBuilding {
                     Button("Cancel Build") {
                         // TODO: Cancel the build process
@@ -62,45 +128,8 @@ struct BuildView: View {
                     }
                     .disabled(contextDir.isEmpty)
                     .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
                 }
-            }
-
-            ToolbarItemGroup(placement: .automatic) {
-                HStack(spacing: 8) {
-                    TextField("Context", text: $contextDir, prompt: Text("."))
-                        .textFieldStyle(.roundedBorder)
-                        .controlSize(.small)
-                        .frame(width: 140)
-                    Button("...") { showContextPicker = true }
-                        .controlSize(.small)
-
-                    TextField("Dockerfile", text: $dockerfile, prompt: Text("Dockerfile"))
-                        .textFieldStyle(.roundedBorder)
-                        .controlSize(.small)
-                        .frame(width: 100)
-                    Button("...") { showFilePicker = true }
-                        .controlSize(.small)
-
-                    TextField("Tags", text: $tags, prompt: Text("my-image:latest"))
-                        .textFieldStyle(.roundedBorder)
-                        .controlSize(.small)
-                        .frame(width: 120)
-
-                    TextField("Args", text: $buildArgs, prompt: Text("KEY=VALUE"))
-                        .textFieldStyle(.roundedBorder)
-                        .controlSize(.small)
-                        .frame(width: 120)
-
-                    TextField("Platform", text: $platform, prompt: Text("linux/arm64"))
-                        .textFieldStyle(.roundedBorder)
-                        .controlSize(.small)
-                        .frame(width: 100)
-                }
-            }
-
-            ToolbarItemGroup(placement: .automatic) {
-                Toggle("No Cache", isOn: $noCache)
-                    .controlSize(.small)
             }
         }
         .fileImporter(isPresented: $showContextPicker, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
@@ -155,7 +184,6 @@ struct BuildView: View {
                 process.standardOutput = pipe
                 process.standardError = pipe
 
-                // Stream output
                 pipe.fileHandleForReading.readabilityHandler = { handle in
                     let data = handle.availableData
                     if let str = String(data: data, encoding: .utf8), !str.isEmpty {

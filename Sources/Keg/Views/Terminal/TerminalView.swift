@@ -5,6 +5,7 @@ import SwiftUI
 /// A native terminal emulator view that runs a shell inside the app.
 /// Uses Process + Pipe for I/O and renders output in a ScrollView.
 struct TerminalView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let command: String?
     @State private var output = ""
     @State private var input = ""
@@ -29,8 +30,12 @@ struct TerminalView: View {
                     }
                     .background(Color.black)
                     .onChange(of: output.count) {
-                        withAnimation {
+                        if reduceMotion {
                             proxy.scrollTo("terminal-bottom", anchor: .bottom)
+                        } else {
+                            withAnimation {
+                                proxy.scrollTo("terminal-bottom", anchor: .bottom)
+                            }
                         }
                     }
                 }

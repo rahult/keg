@@ -109,6 +109,7 @@ enum LogLevelFilter: String, CaseIterable {
 // MARK: - Smart Log Viewer
 
 struct ContainerLogsView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let containerID: String
     @State private var logLines: [LogLine] = []
     @State private var rawBuffer = ""
@@ -219,8 +220,12 @@ struct ContainerLogsView: View {
             .background(Color(nsColor: .textBackgroundColor))
             .onChange(of: logLines.count) {
                 if isFollowing, let last = logLines.last {
-                    withAnimation(.none) {
+                    if reduceMotion {
                         proxy.scrollTo(last.id, anchor: .bottom)
+                    } else {
+                        withAnimation(.easeOut(duration: 0.15)) {
+                            proxy.scrollTo(last.id, anchor: .bottom)
+                        }
                     }
                 }
             }
