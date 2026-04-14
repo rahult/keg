@@ -19,6 +19,7 @@ final class AppState {
     var selectedSection: NavigationSection = .containers
     var selectedContainerID: String?
     var selectedImageReference: String?
+    var selectedAgentID: String?
     var isRefreshing = false
     var runningContainerCount = 0
     var unhealthyContainerCount = 0
@@ -29,6 +30,10 @@ final class AppState {
     var isSystemRunning: Bool {
         if case .running = systemStatus { return true }
         return false
+    }
+
+    var isAgentAuthenticated: Bool {
+        AgentAuth.hasAPIKey()
     }
 
     func checkSystemStatus() async {
@@ -166,6 +171,7 @@ enum NavigationSection: String, CaseIterable, Identifiable, Hashable {
     case volumes = "Volumes"
     case registries = "Registries"
     case kubernetes = "Kubernetes"
+    case agents = "Agents"
     case settings = "Settings"
 
     var id: String { rawValue }
@@ -184,6 +190,7 @@ enum NavigationSection: String, CaseIterable, Identifiable, Hashable {
         case .health: return "heart.fill"
         case .devcontainers: return "chevron.left.forwardslash.chevron.right"
         case .kubernetes: return "helm"
+        case .agents: return "person.2.badge.gearshape"
         case .settings: return "gearshape"
         }
     }

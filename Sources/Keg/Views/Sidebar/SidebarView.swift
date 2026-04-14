@@ -13,7 +13,7 @@ struct SidebarView: View {
         SidebarSection(name: "Content", items: [.images, .builds]),
         SidebarSection(name: "Networking", items: [.networks, .ports, .registries]),
         SidebarSection(name: "Storage", items: [.volumes]),
-        SidebarSection(name: "Tools", items: [.terminal, .devcontainers, .kubernetes]),
+        SidebarSection(name: "Tools", items: [.terminal, .devcontainers, .kubernetes, .agents]),
         SidebarSection(name: "Health", items: [.health]),
     ]
 

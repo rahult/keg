@@ -183,6 +183,8 @@ struct DetailView: View {
                 DevContainerView()
             case .kubernetes:
                 KubernetesView()
+            case .agents:
+                AgentListView()
             case .settings:
                 SettingsView()
             }

@@ -4,7 +4,7 @@ import Foundation
 
 /// Agent configuration - reusable, versioned persona and capabilities bundle
 /// Based on: https://platform.claude.com/docs/en/managed-agents/agent-setup
-public struct Agent: Codable, Sendable {
+public struct Agent: Codable, Sendable, Identifiable {
     public let id: String
     public let type: String
     public var name: String
