@@ -29,6 +29,7 @@ let package = Package(
         .testTarget(
             name: "KegTests",
             dependencies: [
+                .target(name: "Keg"),
                 .product(name: "ContainerAPIClient", package: "container"),
                 .product(name: "ContainerResource", package: "container"),
             ],
