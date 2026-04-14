@@ -74,6 +74,7 @@ struct SettingsView: View {
                             }
                             .buttonStyle(.borderless)
                             .controlSize(.small)
+                            .accessibilityLabel("Copy socket path")
                         }
                         HStack(spacing: 4) {
                             Text("export DOCKER_HOST=unix://\(appState.dockerSocketPath)")
@@ -89,6 +90,7 @@ struct SettingsView: View {
                             }
                             .buttonStyle(.borderless)
                             .controlSize(.small)
+                            .accessibilityLabel("Copy DOCKER_HOST command")
                         }
                     }
                     Spacer()

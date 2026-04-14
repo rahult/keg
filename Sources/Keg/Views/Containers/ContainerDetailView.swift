@@ -97,6 +97,7 @@ struct ContainerDetailView: View {
                         }
                         .buttonStyle(.borderless)
                         .controlSize(.small)
+                        .accessibilityLabel("Copy container ID")
                         Spacer()
                         if container.status == .running {
                             Button("Stop") { Task { await vm.stop() } }

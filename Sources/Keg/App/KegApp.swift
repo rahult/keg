@@ -21,6 +21,50 @@ struct KegApp: App {
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified(showsTitle: true))
         .defaultSize(width: 1100, height: 700)
+        .commands {
+            // Container menu
+            CommandMenu("Container") {
+                Button("Run Container...") {
+                    NotificationCenter.default.post(name: .kegRunContainer, object: nil)
+                }
+                .keyboardShortcut("N", modifiers: [.command, .shift])
+
+                Divider()
+
+                Button("Stop Container") {
+                    NotificationCenter.default.post(name: .kegStopContainer, object: nil)
+                }
+                .keyboardShortcut("S", modifiers: [.command, .shift])
+
+                Button("Delete Container") {
+                    NotificationCenter.default.post(name: .kegDeleteContainer, object: nil)
+                }
+                .keyboardShortcut(.delete, modifiers: [.command])
+
+                Divider()
+
+                Button("Refresh") {
+                    NotificationCenter.default.post(name: .kegRefresh, object: nil)
+                }
+                .keyboardShortcut("R", modifiers: .command)
+            }
+
+            // Image menu
+            CommandMenu("Image") {
+                Button("Pull Image...") {
+                    NotificationCenter.default.post(name: .kegPullImage, object: nil)
+                }
+                .keyboardShortcut("P", modifiers: [.command, .shift])
+            }
+
+            // View → Toggle Sidebar
+            CommandGroup(after: .toolbar) {
+                Button("Toggle Sidebar") {
+                    NotificationCenter.default.post(name: .kegToggleSidebar, object: nil)
+                }
+                .keyboardShortcut("S", modifiers: [.command, .control])
+            }
+        }
 
         // Menu bar
         MenuBarExtra {
@@ -46,6 +90,19 @@ struct KegApp: App {
     }
 }
 
+// MARK: - Notification Names
+
+extension Notification.Name {
+    static let kegRunContainer = Notification.Name("keg.runContainer")
+    static let kegStopContainer = Notification.Name("keg.stopContainer")
+    static let kegDeleteContainer = Notification.Name("keg.deleteContainer")
+    static let kegRefresh = Notification.Name("keg.refresh")
+    static let kegPullImage = Notification.Name("keg.pullImage")
+    static let kegToggleSidebar = Notification.Name("keg.toggleSidebar")
+}
+
+// MARK: - Icons
+
 private enum KegIcon {
     static let image = Bundle.main.url(forResource: "Keg", withExtension: "icns")
         .flatMap(NSImage.init(contentsOf:))
@@ -60,6 +117,8 @@ private enum KegIcon {
         return image
     }()
 }
+
+// MARK: - Main View
 
 struct MainView: View {
     @Environment(AppState.self) private var appState
@@ -83,6 +142,8 @@ struct MainView: View {
         }
     }
 }
+
+// MARK: - Detail Routing
 
 struct DetailView: View {
     @Environment(AppState.self) private var appState

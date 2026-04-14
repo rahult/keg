@@ -74,6 +74,7 @@ struct PortDashboardView: View {
                                 Image(systemName: "safari")
                             }
                             .buttonStyle(.borderless)
+                            .accessibilityLabel("Open in browser")
                             .help("Open in browser")
                         }
                     }

@@ -313,6 +313,7 @@ struct CopyableRow: View {
                 }
                 .buttonStyle(.borderless)
                 .controlSize(.small)
+                .accessibilityLabel("Copy \(label)")
             }
         }
     }
