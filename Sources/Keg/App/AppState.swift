@@ -53,6 +53,14 @@ final class AppState {
         AgentAuth.hasAPIKey()
     }
 
+    /// Lazy-initialized Agent API client
+    var agentClient: ManagedAgentsClient? {
+        get async {
+            guard AgentAuth.hasAPIKey() else { return nil }
+            return try? await ManagedAgentsClient.fromKeychain()
+        }
+    }
+
     // Computed for current section (used by legacy views)
     var currentSection: NavigationSection {
         get {
