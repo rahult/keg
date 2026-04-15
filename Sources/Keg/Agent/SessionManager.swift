@@ -177,6 +177,9 @@ actor SessionManager {
     private let store: SessionStore
     private let cleanupInterval: TimeInterval
     private var cleanupTask: Task<Void, Never>?
+    private let agentRunner: HybridAgentRunner
+    private let containerManager: LightweightContainerManager
+    private var isPrewarmed = false
 
     enum SessionError: Error, LocalizedError {
         case sessionNotFound(String)
@@ -205,6 +208,8 @@ actor SessionManager {
             self.store = try await SessionStore()
         }
         self.cleanupInterval = cleanupInterval
+        self.agentRunner = HybridAgentRunner()
+        self.containerManager = LightweightContainerManager()
         await restoreSessions()
         self.cleanupTask = Task { [weak self] in
             await self?.runCleanupLoop()
@@ -447,6 +452,12 @@ extension SessionManager {
         agentVersion: Int = 1,
         environmentId: String
     ) async throws -> Session {
+        // Pre-warm container on session start
+        if !isPrewarmed {
+            try? await prewarmContainer()
+            isPrewarmed = true
+        }
+
         let sessionId = "session-\(UUID().uuidString.prefix(12).lowercased())"
         _ = try await createSession(
             id: sessionId,
@@ -457,6 +468,38 @@ extension SessionManager {
 
         try await transitionStatus(sessionId: sessionId, to: .running)
         return activeSessions[sessionId]!
+    }
+
+    // MARK: - Command Execution
+
+    /// Execute a command using HybridAgentRunner (auto-selects process vs container)
+    func executeCommand(_ command: String) async throws -> HybridAgentRunner.ExecutionResult {
+        return try await agentRunner.execute(command: command)
+    }
+
+    /// Execute a command with forced execution mode
+    func executeCommand(_ command: String, mode: HybridAgentRunner.Mode) async throws -> HybridAgentRunner.ExecutionResult {
+        return try await agentRunner.execute(command: command, mode: mode)
+    }
+
+    // MARK: - Container Pre-warming
+
+    /// Pre-warm the lightweight container for faster dangerous command execution
+    func prewarmContainer(
+        name: String = "lightweight-agent",
+        image: String = "alpine:latest"
+    ) async throws {
+        try await containerManager.prewarm(name: name, image: image)
+    }
+
+    /// Check if container is pre-warmed and ready
+    func isContainerReady() async -> Bool {
+        do {
+            _ = try await containerManager.exec(command: "echo ready")
+            return true
+        } catch {
+            return false
+        }
     }
 
     /// End a session with success
