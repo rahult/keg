@@ -62,12 +62,18 @@ public struct CreateSessionParams: Codable, Sendable {
 
 public struct SessionListResponse: Codable, Sendable {
     public let data: [Session]
-    public let hasMore: Bool
+    public let hasMore: Bool?
+    public let nextPage: String?
+    public let firstID: String?
+    public let lastID: String?
     public let totalCount: Int?
 
     enum CodingKeys: String, CodingKey {
         case data
         case hasMore = "has_more"
+        case nextPage = "next_page"
+        case firstID = "first_id"
+        case lastID = "last_id"
         case totalCount = "total_count"
     }
 }

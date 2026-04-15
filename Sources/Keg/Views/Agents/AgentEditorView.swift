@@ -10,7 +10,7 @@ struct AgentEditorView: View {
     let onCancel: () -> Void
 
     @State private var name = ""
-    @State private var modelID = "claude-sonnet-4-7"
+    @State private var modelID = "claude-sonnet-4-6"
     @State private var selectedSpeed: ModelSpeed = .standard
     @State private var description = ""
     @State private var systemPrompt = ""
@@ -27,11 +27,11 @@ struct AgentEditorView: View {
     @State private var contextMenuSelection: Set<String> = []
 
     private let availableModels = [
-        "claude-sonnet-4-7",
-        "claude-opus-4-7",
-        "claude-3-5-haiku",
-        "claude-3-5-sonnet",
-        "claude-3-5-opus"
+        "claude-sonnet-4-6",
+        "claude-opus-4-6",
+        "claude-haiku-4-5",
+        "claude-sonnet-4-5",
+        "claude-opus-4-5"
     ]
 
     init(
@@ -47,7 +47,7 @@ struct AgentEditorView: View {
 
         let existing = agent
         _name = State(initialValue: existing?.name ?? "")
-        _modelID = State(initialValue: existing?.model.id ?? "claude-sonnet-4-7")
+        _modelID = State(initialValue: existing?.model.id ?? "claude-sonnet-4-6")
         _selectedSpeed = State(initialValue: existing?.model.speed ?? .standard)
         _description = State(initialValue: existing?.description ?? "")
         _systemPrompt = State(initialValue: existing?.system ?? "")

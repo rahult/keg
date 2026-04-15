@@ -5,7 +5,7 @@ struct CreateAgentSheet: View {
     let onCreated: (Agent) -> Void
 
     @State private var name = ""
-    @State private var modelID = "claude-sonnet-4-7"
+    @State private var modelID = "claude-sonnet-4-6"
     @State private var description = ""
     @State private var systemPrompt = ""
     @State private var selectedSpeed: ModelSpeed = .standard
@@ -14,11 +14,11 @@ struct CreateAgentSheet: View {
     @State private var errorMessage: String?
 
     private let availableModels = [
-        "claude-sonnet-4-7",
-        "claude-opus-4-7",
-        "claude-3-5-haiku",
-        "claude-3-5-sonnet",
-        "claude-3-5-opus"
+        "claude-sonnet-4-6",
+        "claude-opus-4-6",
+        "claude-haiku-4-5",
+        "claude-sonnet-4-5",
+        "claude-opus-4-5"
     ]
 
     var body: some View {

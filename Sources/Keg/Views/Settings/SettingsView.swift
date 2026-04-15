@@ -296,9 +296,9 @@ struct SettingsView: View {
         do {
             try AgentAuth.storeAPIKey(apiKeyInput)
 
-            // Test connection
+            // Test connection against Managed Agents API using a minimal probe
             let client = try await ManagedAgentsClient.fromKeychain()
-            _ = try await client.listAgents()
+            try await client.validateCredentials()
 
             apiKeyInput = ""
             appState.refreshAgentAuthentication()

@@ -100,24 +100,36 @@ public struct CreateEnvironmentParams: Codable, Sendable {
 
 public struct AgentListResponse: Codable, Sendable {
     public let data: [Agent]
-    public let hasMore: Bool
+    public let hasMore: Bool?
+    public let nextPage: String?
+    public let firstID: String?
+    public let lastID: String?
     public let totalCount: Int?
 
     enum CodingKeys: String, CodingKey {
         case data
         case hasMore = "has_more"
+        case nextPage = "next_page"
+        case firstID = "first_id"
+        case lastID = "last_id"
         case totalCount = "total_count"
     }
 }
 
 public struct EnvironmentListResponse: Codable, Sendable {
     public let data: [AgentEnvironment]
-    public let hasMore: Bool
+    public let hasMore: Bool?
+    public let nextPage: String?
+    public let firstID: String?
+    public let lastID: String?
     public let totalCount: Int?
 
     enum CodingKeys: String, CodingKey {
         case data
         case hasMore = "has_more"
+        case nextPage = "next_page"
+        case firstID = "first_id"
+        case lastID = "last_id"
         case totalCount = "total_count"
     }
 }

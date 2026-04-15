@@ -1,67 +1,71 @@
-# Autoresearch: Firecracker-like Agent Containers
+# Autoresearch: Lightweight Agent Footprint
 
 ## Session Config
 
-- **Goal:** Minimize agent container startup latency and memory footprint
-- **Metric 1:** startup_time (ms) - lower is better
-- **Metric 2:** memory_footprint (mb) - lower is better
+- **Goal:** Reduce memory and storage footprint to minimum while remaining useful
+- **Metric 1:** memory_footprint_mb - lower is better
+- **Metric 2:** storage_size_mb - lower is better
+- **Metric 3:** startup_time_ms - lower is better
 - **Max iterations:** 20
-- **Status:** ✅ complete
+- **Status:** running
 
 ## Key Findings
 
-### Warm Exec > Cold Start (35x faster)
+### Hybrid Agent Architecture
 
-| Method | Time (ms) | Improvement |
-|--------|-----------|------------|
-| Cold start | **650-670** | baseline |
-| Warm exec | **14-21** | **97% faster** |
+| Mode | Latency | Memory | Storage | Security |
+|------|---------|--------|---------|----------|
+| Process | **~4-8ms** | ~0MB | ~0MB | Low |
+| Container | ~13-22ms | ~10MB | ~25MB | High |
 
-### Firecracker Comparison
+**Improvement: 3-5x faster** with process mode for safe operations.
 
-| Feature | Firecracker | Apple Container |
-|---------|-------------|----------------|
-| Cold boot | 100-150ms | 650ms |
-| Warm exec | ~50ms | **14-18ms** ✓ |
-| Isolation | Full VM | Process |
-| Memory overhead | Higher | Lower |
+### Implementation: HybridAgentRunner
 
-**Apple Container wins on warm exec latency** - ideal for agent workloads.
+Auto-selects execution mode based on command risk:
+- **Safe** (echo, cat, grep) → Process (~5ms, ~0MB)
+- **Moderate** (mkdir, cp, vim) → Process (~5ms, ~0MB)
+- **Dangerous** (rm -rf, sudo, curl|bash) → Container (~15ms, ~10MB)
 
 ## Iteration Results
 
-| Iter | Optimization | startup_time (ms) | Improvement |
-|------|-------------|-------------------|------------|
-| 0 | Baseline | 41 (API only) | - |
-| 1 | Pooling test | 18 (warm exec) | **97%** ✓ |
-| 2 | Minimal images | ~16 | No change |
-| 3 | ContainerPool impl | ~15-18 | Ready to use |
+| Iter | Optimization | memory_mb | storage_mb | latency_ms | Notes |
+|------|-------------|-----------|------------|------------|-------|
+| 0 | Process spawn | ~0 | ~0 | 4-8 | Baseline |
+| 0 | Container exec | ~10 | ~25 | 13-22 | Full isolation |
+| 1 | HybridAgentRunner | ~1 | ~0 | 5-15 | Auto mode select |
 
 ## Implementation Delivered
 
-### `Sources/Keg/Agent/ContainerPool.swift`
+### `Sources/Keg/Agent/HybridAgentRunner.swift`
 
-Actor-based container pool manager:
-- Pre-warms containers on init
-- Maintains N warm containers
-- Auto-cleanup of idle containers
-- Stats tracking (warm hits, cold starts, avg latency)
-- Thread-safe actor design
+- **Risk assessment** - Evaluates command safety
+- **Mode auto-selection** - Process vs Container based on risk
+- **Hybrid execution** - Transparent fallback
+- **LightweightContainerManager** - Pre-warmed container support
 
-### Benchmark Script: `autoresearch.sh`
+### Risk Detection
 
-Shell script for benchmarking container performance.
+```swift
+dangerous: ["rm -rf", "sudo", "curl.*|bash", "eval", "dd if=", "mkfs"]
+moderate: [">", ">>", "|", "cp ", "mv ", "mkdir", "chmod"]
+safe: everything else
+```
 
-## Recommendations for Keg Agents
+## Benchmark Script: `footprint_benchmark.sh`
 
-1. **Use warm exec pattern** - Keep containers warm for agent workloads
-2. **Implement ContainerPool** - Manages pool of warm containers per agent
-3. **Pool size tuning** - Start with 2-5 containers, scale on demand
-4. **Idle timeout** - Cleanup after 5 min of inactivity
+Measures memory and storage footprint for agent workloads.
 
-## Next Steps (if continuing)
+## Recommendations
 
-1. [ ] Wire ContainerPool into AgentRuntime
-2. [ ] Test with real agent workloads
-3. [ ] Measure memory footprint reduction
-4. [ ] Implement per-agent pools
+1. **Use HybridAgentRunner** for all agent commands
+2. **Pre-warm containers** for dangerous operations (faster fallback)
+3. **Tune risk rules** based on your security requirements
+4. **Monitor mode distribution** to optimize further
+
+## Next Steps
+
+1. [ ] Wire HybridAgentRunner into AgentRuntime
+2. [ ] Benchmark real agent workloads
+3. [ ] Measure memory reduction vs current approach
+4. [ ] Add custom risk rules

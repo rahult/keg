@@ -63,7 +63,7 @@ public actor ManagedAgentsClient {
         return request
     }
 
-    private func perform<T: Decodable>(_ request: URLRequest) async throws -> T {
+    private func performData(_ request: URLRequest) async throws -> Data {
         let (data, response) = try await session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -75,6 +75,11 @@ public actor ManagedAgentsClient {
             throw ManagedAgentsError.httpError(statusCode: httpResponse.statusCode, message: errorBody)
         }
 
+        return data
+    }
+
+    private func perform<T: Decodable>(_ request: URLRequest) async throws -> T {
+        let data = try await performData(request)
         return try decoder.decode(T.self, from: data)
     }
 
@@ -93,6 +98,14 @@ public actor ManagedAgentsClient {
     public func listAgents() async throws -> AgentListResponse {
         let request = try buildRequest(path: "/v1/agents", method: "GET")
         return try await perform(request)
+    }
+
+    /// Validate API key against Managed Agents API without depending on full typed decoding.
+    /// Uses a minimal cursor-paginated list request so empty accounts still validate cleanly.
+    public func validateCredentials() async throws {
+        let request = try buildRequest(path: "/v1/agents?limit=1", method: "GET")
+        let data = try await performData(request)
+        _ = try JSONSerialization.jsonObject(with: data)
     }
 
     /// Get an agent by ID
