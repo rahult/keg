@@ -2,7 +2,7 @@
 
 Audit date: 2026-04-15
 
-This audit compares `ROADMAP.md` against the latest shared workspace state after all Agents roadmap implementation waves landed locally.
+This audit compares `ROADMAP.md` against the latest shared workspace state after all Agents roadmap implementation waves and the follow-up validation pass landed locally.
 
 ## Newly verified as implemented
 These roadmap items are now concretely implemented in code and were checked off in `ROADMAP.md`:
@@ -16,6 +16,7 @@ These roadmap items are now concretely implemented in code and were checked off 
 - `Escape: Clear selection/close`
 - `Network errors with retry`
 - `Auth errors with re-auth flow`
+- `Validation errors in forms`
 - `Timeout handling`
 - `Offline state handling`
 
@@ -28,21 +29,6 @@ These roadmap lines were not treated as remaining gaps because the product alrea
 ---
 
 ## Real remaining gaps
-
-### Validation feedback is still uneven across forms
-**Roadmap item:** `Validation errors in forms`
-
-**Current state:**
-- `SourceEditorView` now has explicit inline validation messages and test-on-save behavior.
-- Other forms still rely more on disabled actions or generic error alerts than field-level validation.
-
-**Evidence:**
-- stronger validation in `Sources/Keg/Agents/Views/SourceListView.swift`
-- still limited/uneven in:
-  - `Sources/Keg/Agents/Views/SkillListView.swift`
-  - `Sources/Keg/Views/Agents/CreateAgentSheet.swift`
-  - `Sources/Keg/Views/Agents/AgentEditorView.swift`
-  - `Sources/Keg/Views/Settings/SettingsView.swift`
 
 ### Accessibility checklist still needs manual QA proof
 **Roadmap items:**
@@ -59,6 +45,7 @@ These roadmap lines were not treated as remaining gaps because the product alrea
 
 **Evidence:**
 - `outputs/agents-accessibility-note.md`
+- `outputs/qa-manual-checklist.md`
 - improved accessibility and keyboard polish in:
   - `Sources/Keg/Views/Agents/AgentListView.swift`
   - `Sources/Keg/Agents/Views/SessionListView.swift`
@@ -69,7 +56,6 @@ These roadmap lines were not treated as remaining gaps because the product alrea
 ---
 
 ## Summary
-After final reconciliation, the remaining roadmap work is narrow:
+After final reconciliation, the remaining roadmap work is manual QA centered:
 
-1. make validation feedback more consistent across non-source forms
-2. run a real accessibility QA pass for contrast, focus indicators, Dynamic Type, and full VoiceOver/keyboard coverage
+1. run a real accessibility QA pass for contrast, focus indicators, Dynamic Type, and full VoiceOver/keyboard coverage

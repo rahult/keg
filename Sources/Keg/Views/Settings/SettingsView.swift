@@ -25,6 +25,16 @@ struct SettingsView: View {
         self.mode = mode
     }
 
+    private var apiKeyValidation: APIKeyValidation {
+        APIKeyValidation(apiKey: apiKeyInput)
+    }
+
+    private var apiKeyValidationMessage: String? {
+        let trimmed = apiKeyValidation.trimmedAPIKey
+        guard !trimmed.isEmpty else { return nil }
+        return apiKeyValidation.message
+    }
+
     var body: some View {
         Form {
             if mode == .full {
@@ -207,6 +217,12 @@ struct SettingsView: View {
             SecureField("Replace API Key", text: $apiKeyInput)
                 .textFieldStyle(.roundedBorder)
 
+            if let apiKeyValidationMessage {
+                Text(apiKeyValidationMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+
             HStack {
                 Button {
                     Task { await connect() }
@@ -220,7 +236,7 @@ struct SettingsView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(apiKeyInput.isEmpty || isConnecting)
+                .disabled(!apiKeyValidation.isValid || isConnecting)
 
                 Button("Reload Account") {
                     Task {
@@ -263,6 +279,12 @@ struct SettingsView: View {
             SecureField("API Key", text: $apiKeyInput)
                 .textFieldStyle(.roundedBorder)
 
+            if let apiKeyValidationMessage {
+                Text(apiKeyValidationMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+
             HStack {
                 Button {
                     Task { await connect() }
@@ -276,7 +298,7 @@ struct SettingsView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(apiKeyInput.isEmpty || isConnecting)
+                .disabled(!apiKeyValidation.isValid || isConnecting)
 
                 Button {
                     openAPIKeyHelp()
@@ -290,11 +312,16 @@ struct SettingsView: View {
     }
 
     private func connect() async {
+        guard apiKeyValidation.isValid else {
+            connectionError = apiKeyValidation.message
+            return
+        }
+
         isConnecting = true
         defer { isConnecting = false }
 
         do {
-            try AgentAuth.storeAPIKey(apiKeyInput)
+            try AgentAuth.storeAPIKey(apiKeyValidation.trimmedAPIKey)
 
             // Test connection against Managed Agents API using a minimal probe
             let client = try await ManagedAgentsClient.fromKeychain()

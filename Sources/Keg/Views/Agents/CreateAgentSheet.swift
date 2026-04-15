@@ -21,11 +21,21 @@ struct CreateAgentSheet: View {
         "claude-opus-4-5"
     ]
 
+    private var validation: AgentFormValidation {
+        AgentFormValidation(name: name)
+    }
+
     var body: some View {
         Form {
             Section("Basic Information") {
                 TextField("Name", text: $name)
                     .textFieldStyle(.roundedBorder)
+
+                if let message = validation.nameMessage {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
 
                 TextField("Description (optional)", text: $description)
                     .textFieldStyle(.roundedBorder)
@@ -77,7 +87,7 @@ struct CreateAgentSheet: View {
                 Button("Create") {
                     Task { await createAgent() }
                 }
-                .disabled(name.isEmpty || isCreating)
+                .disabled(!validation.isValid || isCreating)
                 .keyboardShortcut(.return)
                 .accessibilityLabel("Create new agent")
             }
@@ -111,7 +121,7 @@ struct CreateAgentSheet: View {
             let client = try await ManagedAgentsClient.fromKeychain()
 
             let params = CreateAgentParams(
-                name: name,
+                name: validation.trimmedName,
                 model: modelID,
                 system: systemPrompt.isEmpty ? nil : systemPrompt,
                 description: description.isEmpty ? nil : description

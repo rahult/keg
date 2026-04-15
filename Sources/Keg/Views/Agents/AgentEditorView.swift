@@ -34,6 +34,10 @@ struct AgentEditorView: View {
         "claude-opus-4-5"
     ]
 
+    private var validation: AgentFormValidation {
+        AgentFormValidation(name: name)
+    }
+
     init(
         agent: Agent? = nil,
         isNewAgent: Bool = false,
@@ -79,7 +83,7 @@ struct AgentEditorView: View {
                 Button(isNewAgent ? "Create" : "Save") {
                     Task { await saveAgent() }
                 }
-                .disabled(name.isEmpty || isSaving)
+                .disabled(!validation.isValid || isSaving)
                 .keyboardShortcut(.return)
                 .accessibilityLabel(isNewAgent ? "Create agent" : "Save agent changes")
             }
@@ -178,11 +182,19 @@ struct AgentEditorView: View {
                 .font(.headline)
 
             VStack(spacing: 8) {
-                HStack {
+                HStack(alignment: .top) {
                     Text("Name")
                         .frame(width: 100, alignment: .trailing)
-                    TextField("Agent name", text: $name)
-                        .textFieldStyle(.roundedBorder)
+                    VStack(alignment: .leading, spacing: 4) {
+                        TextField("Agent name", text: $name)
+                            .textFieldStyle(.roundedBorder)
+
+                        if let message = validation.nameMessage {
+                            Text(message)
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
+                    }
                 }
 
                 HStack(alignment: .top) {
@@ -366,7 +378,7 @@ struct AgentEditorView: View {
         defer { isSaving = false }
 
         let params = CreateAgentParams(
-            name: name,
+            name: validation.trimmedName,
             model: modelID,
             system: systemPrompt.isEmpty ? nil : systemPrompt,
             description: description.isEmpty ? nil : description,

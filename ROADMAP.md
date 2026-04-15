@@ -1875,7 +1875,7 @@ struct SkillEditorView: View {
 #### 9.1 Error Handling
 - [x] Network errors with retry
 - [x] Auth errors with re-auth flow
-- [ ] Validation errors in forms
+- [x] Validation errors in forms
 - [x] Timeout handling
 - [x] Offline state handling
 

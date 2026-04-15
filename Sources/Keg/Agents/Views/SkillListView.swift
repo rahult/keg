@@ -259,11 +259,22 @@ struct SkillEditorView: View {
     @State private var examples = ""
     @State private var selectedTab = 0
 
+    private var validation: SkillFormValidation {
+        SkillFormValidation(name: name, instructions: instructions)
+    }
+
     var body: some View {
         TabView(selection: $selectedTab) {
             Form {
                 Section("Basic") {
                     TextField("Name", text: $name)
+
+                    if let message = validation.nameMessage {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+
                     TextField("Description", text: $description)
                 }
 
@@ -271,6 +282,12 @@ struct SkillEditorView: View {
                     TextEditor(text: $instructions)
                         .font(.system(.body, design: .monospaced))
                         .frame(minHeight: 300)
+
+                    if let message = validation.instructionsMessage {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
                 }
             }
             .padding()
@@ -300,7 +317,7 @@ struct SkillEditorView: View {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") { save() }
                     .buttonStyle(.borderedProminent)
-                    .disabled(name.isEmpty || instructions.isEmpty)
+                    .disabled(!validation.isValid)
             }
         }
         .onAppear {
@@ -317,9 +334,9 @@ struct SkillEditorView: View {
         let now = Date()
         let newSkill = AgentSkillItem(
             id: skill?.id ?? UUID().uuidString,
-            name: name,
-            description: description,
-            instructions: instructions,
+            name: validation.trimmedName,
+            description: description.trimmingCharacters(in: .whitespacesAndNewlines),
+            instructions: validation.trimmedInstructions,
             examples: examples.isEmpty ? nil : examples,
             createdAt: skill?.createdAt ?? now,
             updatedAt: now
