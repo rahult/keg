@@ -117,6 +117,15 @@ public actor ManagedAgentsClient {
         _ = try await session.data(for: request)
     }
 
+    // MARK: - Account Operations
+
+    /// Get account information
+    /// GET /v1/account
+    public func getAccountInfo() async throws -> AccountInfo {
+        let request = try buildRequest(path: "/v1/account", method: "GET")
+        return try await perform(request)
+    }
+
     // MARK: - Environment Operations
 
     /// Create a new environment
@@ -271,5 +280,19 @@ public enum ManagedAgentsError: Error, LocalizedError {
         case .sessionNotFound(let id):
             return "Session not found: \(id)"
         }
+    }
+}
+
+// MARK: - Account Info
+
+public struct AccountInfo: Codable, Sendable {
+    public let userId: String
+    public let email: String?
+    public let plan: String?
+
+    enum CodingKeys: String, CodingKey {
+        case userId = "user_id"
+        case email
+        case plan
     }
 }
