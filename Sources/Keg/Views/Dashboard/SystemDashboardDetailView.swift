@@ -2,10 +2,12 @@ import SwiftUI
 
 /// Full system dashboard view for detail area
 struct SystemDashboardDetailView: View {
+    @Environment(AppState.self) private var appState
     @State private var metrics: SystemMetrics.Metrics?
     @State private var isLoading = true
     @State private var autoRefresh = true
 
+    private let metricsService = SystemMetrics.shared
     private let timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -42,7 +44,7 @@ struct SystemDashboardDetailView: View {
     private var headerSection: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("System Dashboard")
+                Text("Keg Dashboard")
                     .font(.largeTitle)
                     .fontWeight(.bold)
 
@@ -79,7 +81,7 @@ struct SystemDashboardDetailView: View {
             MetricTile(
                 title: "CPU",
                 value: formatPercent(metrics?.cpuUsagePercent),
-                subtitle: "Usage",
+                subtitle: "Host share",
                 icon: "cpu",
                 color: cpuColor
             )
@@ -87,23 +89,23 @@ struct SystemDashboardDetailView: View {
             MetricTile(
                 title: "Memory",
                 value: formatMemory(metrics),
-                subtitle: "Used",
+                subtitle: "Containers",
                 icon: "memorychip",
                 color: memoryColor
             )
 
             MetricTile(
-                title: "Disk",
-                value: formatPercent(metrics?.diskUsagePercent),
-                subtitle: "Used",
+                title: "Storage",
+                value: formatStorage(metrics),
+                subtitle: "Images",
                 icon: "internaldrive",
-                color: diskColor
+                color: .purple
             )
 
             MetricTile(
                 title: "Latency",
                 value: formatLatency(metrics?.latencyMs),
-                subtitle: "API Response",
+                subtitle: "Container API",
                 icon: "speedometer",
                 color: .blue
             )
@@ -114,14 +116,14 @@ struct SystemDashboardDetailView: View {
 
     private var systemStatusSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("System Status")
+            Text("Runtime Status")
                 .font(.headline)
 
             HStack(spacing: 16) {
                 StatusCard(
                     title: "Containers",
                     value: "\(metrics?.containerCount ?? 0)",
-                    subtitle: "Running",
+                    subtitle: "\(metrics?.totalContainerCount ?? 0) total",
                     icon: "cube.box.fill",
                     color: .blue
                 )
@@ -129,7 +131,7 @@ struct SystemDashboardDetailView: View {
                 StatusCard(
                     title: "Images",
                     value: "\(metrics?.imageCount ?? 0)",
-                    subtitle: "Cached",
+                    subtitle: "\(metrics?.activeImageCount ?? 0) in use",
                     icon: "photo.stack.fill",
                     color: .purple
                 )
@@ -157,16 +159,25 @@ struct SystemDashboardDetailView: View {
                     Task { await refreshMetrics() }
                 }
 
-                ActionButton(title: "Start System", icon: "play.fill") {
-                    // Start system action
+                ActionButton(title: appState.isSystemRunning ? "Stop System" : "Start System", icon: appState.isSystemRunning ? "stop.fill" : "play.fill") {
+                    Task {
+                        if appState.isSystemRunning {
+                            await appState.stopSystem()
+                        } else {
+                            await appState.startSystem()
+                        }
+                        await refreshMetrics()
+                    }
                 }
 
-                ActionButton(title: "Open Terminal", icon: "terminal") {
-                    // Open terminal action
+                ActionButton(title: "Containers", icon: "cube.box") {
+                    appState.currentArea = .keg
+                    appState.selectedKegSection = .containers
                 }
 
-                ActionButton(title: "Settings", icon: "gearshape") {
-                    // Open settings
+                ActionButton(title: "Terminal", icon: "terminal") {
+                    appState.currentArea = .keg
+                    appState.selectedKegSection = .terminal
                 }
             }
         }
@@ -185,13 +196,6 @@ struct SystemDashboardDetailView: View {
         guard let usage = metrics?.memoryUsagePercent else { return .secondary }
         if usage >= 90 { return .red }
         if usage >= 70 { return .orange }
-        return .green
-    }
-
-    private var diskColor: Color {
-        guard let usage = metrics?.diskUsagePercent else { return .secondary }
-        if usage >= 90 { return .red }
-        if usage >= 80 { return .orange }
         return .green
     }
 
@@ -238,6 +242,11 @@ struct SystemDashboardDetailView: View {
         return String(format: "%.1f GB", m.memoryUsedGB)
     }
 
+    private func formatStorage(_ metrics: SystemMetrics.Metrics?) -> String {
+        guard let m = metrics else { return "--" }
+        return String(format: "%.1f GB", m.diskUsedGB)
+    }
+
     private func formatLatency(_ ms: Double?) -> String {
         guard let ms = ms else { return "--" }
         if ms < 1 {
@@ -250,8 +259,7 @@ struct SystemDashboardDetailView: View {
         isLoading = true
         defer { isLoading = false }
 
-        let service = SystemMetrics()
-        metrics = await service.getMetrics(forceRefresh: true)
+        metrics = await metricsService.getMetrics(forceRefresh: true)
     }
 }
 
@@ -311,6 +319,10 @@ struct StatusCard: View {
                 .frame(width: 40)
 
             VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 Text(value)
                     .font(.headline)
 

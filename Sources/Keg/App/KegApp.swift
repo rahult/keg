@@ -15,9 +15,25 @@ struct KegApp: App {
         appState.selectedContainerID.map { String($0.prefix(12)) } ?? "Container"
     }
 
+    private func presentRunContainer() {
+        appState.currentArea = .keg
+        appState.selectedKegSection = .containers
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .kegRunContainer, object: nil)
+        }
+    }
+
+    private func presentNewAgent() {
+        appState.currentArea = .agents
+        appState.selectedAgentSection = .agents
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .kegNewAgent, object: nil)
+        }
+    }
+
     var body: some Scene {
         // Main window
-        WindowGroup {
+        WindowGroup(id: "main") {
             MainView()
                 .environment(appState)
                 .frame(minWidth: 900, minHeight: 600)
@@ -26,30 +42,19 @@ struct KegApp: App {
         .windowToolbarStyle(.unified(showsTitle: true))
         .defaultSize(width: 1100, height: 700)
         .commands {
-            CommandMenu("Dashboard") {
-                Button("System Dashboard") {
-                    appState.showDashboard()
+            CommandGroup(after: .newItem) {
+                Button("New Agent") {
+                    presentNewAgent()
                 }
-                .keyboardShortcut("D", modifiers: .command)
+                .keyboardShortcut("N", modifiers: [.command, .option])
 
-                Divider()
-
-                Button("Refresh Metrics") {
-                    Task {
-                        await appState.refreshMetrics()
-                    }
+                Button("Run Container...") {
+                    presentRunContainer()
                 }
-                .keyboardShortcut("R", modifiers: .command)
+                .keyboardShortcut("N", modifiers: [.command, .shift])
             }
 
             CommandMenu("Container") {
-                Button("Run Container...") {
-                    NotificationCenter.default.post(name: .kegRunContainer, object: nil)
-                }
-                .keyboardShortcut("N", modifiers: [.command, .shift])
-                .disabled(appState.currentArea != .keg || appState.selectedKegSection != .containers)
-
-                Divider()
 
                 Button(appState.selectedContainerID == nil ? "Stop Selected Container" : "Stop \(shortContainerID)") {
                     NotificationCenter.default.post(name: .kegStopContainer, object: nil)
@@ -68,7 +73,6 @@ struct KegApp: App {
                 Button("Refresh") {
                     NotificationCenter.default.post(name: .kegRefresh, object: nil)
                 }
-                .keyboardShortcut("R", modifiers: .command)
             }
 
             CommandMenu("Image") {
@@ -79,21 +83,20 @@ struct KegApp: App {
                 .disabled(appState.currentArea != .keg || appState.selectedKegSection != .images)
             }
 
-            CommandMenu("Agent") {
-                Button("Go to Agents") {
-                    appState.currentArea = .agents
-                }
-
+            CommandGroup(after: .pasteboard) {
                 Divider()
 
-                Button("New Agent") {
-                    NotificationCenter.default.post(name: .kegNewAgent, object: nil)
+                Button("Find") {
+                    NotificationCenter.default.post(name: .kegFocusSearch, object: nil)
                 }
-                .keyboardShortcut("N", modifiers: [.command, .option])
-                .disabled(appState.currentArea != .agents || appState.selectedAgentSection != .agents)
+                .keyboardShortcut("f", modifiers: .command)
             }
 
-            CommandMenu("Navigate") {
+            SidebarCommands()
+
+            CommandGroup(after: .sidebar) {
+                Divider()
+
                 Button("Go to Keg") {
                     appState.currentArea = .keg
                 }
@@ -103,20 +106,23 @@ struct KegApp: App {
                     appState.currentArea = .agents
                 }
                 .keyboardShortcut("2", modifiers: .command)
-            }
 
-            CommandMenu("Find") {
-                Button("Find") {
-                    NotificationCenter.default.post(name: .kegFocusSearch, object: nil)
-                }
-                .keyboardShortcut("f", modifiers: .command)
-            }
+                Divider()
 
-            CommandGroup(after: .toolbar) {
-                Button("Toggle Sidebar") {
-                    NotificationCenter.default.post(name: .kegToggleSidebar, object: nil)
+                Button("System Dashboard") {
+                    appState.showDashboard()
                 }
-                .keyboardShortcut("S", modifiers: [.command, .control])
+
+                Button("Browse Use Cases") {
+                    appState.currentArea = .agents
+                    appState.selectedAgentSection = .useCases
+                }
+                .keyboardShortcut("U", modifiers: [.command, .option])
+
+                Button("Refresh") {
+                    NotificationCenter.default.post(name: .kegRefresh, object: nil)
+                }
+                .keyboardShortcut("R", modifiers: .command)
             }
         }
 
@@ -178,10 +184,17 @@ private enum KegIcon {
 
 struct MainView: View {
     @Environment(AppState.self) private var appState
-    @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
+    @SceneStorage("main.sidebar-visible") private var isSidebarVisible = true
+
+    private var columnVisibility: Binding<NavigationSplitViewVisibility> {
+        Binding(
+            get: { isSidebarVisible ? .doubleColumn : .detailOnly },
+            set: { isSidebarVisible = $0 != .detailOnly }
+        )
+    }
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
+        NavigationSplitView(columnVisibility: columnVisibility) {
             SidebarView()
                 .environment(appState)
         } detail: {
@@ -189,16 +202,30 @@ struct MainView: View {
                 .environment(appState)
         }
         .navigationSplitViewStyle(.balanced)
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button {
+                    toggleSidebar()
+                } label: {
+                    Label(isSidebarVisible ? "Hide Sidebar" : "Show Sidebar", systemImage: "sidebar.left")
+                }
+                .accessibilityLabel(isSidebarVisible ? "Hide sidebar" : "Show sidebar")
+            }
+        }
         .task {
             await appState.checkSystemStatus()
             appState.startRefreshing()
         }
         .onReceive(NotificationCenter.default.publisher(for: .kegToggleSidebar)) { _ in
-            columnVisibility = columnVisibility == .detailOnly ? .doubleColumn : .detailOnly
+            toggleSidebar()
         }
         .onDisappear {
             appState.stopRefreshing()
         }
+    }
+
+    private func toggleSidebar() {
+        isSidebarVisible.toggle()
     }
 }
 
@@ -268,6 +295,8 @@ struct AgentAreaView: View {
         switch appState.selectedAgentSection {
         case .dashboard:
             AgentDashboardView()
+        case .useCases:
+            AgentUseCaseLibraryView()
         case .agents:
             AgentListView()
         case .sessions:

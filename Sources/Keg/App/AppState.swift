@@ -43,6 +43,14 @@ final class AppState {
 
     init() {
         self.agentPermissionMode = Self.loadAgentPermissionMode()
+
+        Task { @MainActor [weak self] in
+            do {
+                try AgentAuth.migrateAPIKeyIfNeeded()
+            } catch {
+            }
+            self?.refreshAgentAuthentication()
+        }
     }
 
     var isSystemRunning: Bool {
@@ -292,6 +300,7 @@ enum KegSection: String, CaseIterable, Identifiable {
 
 enum AgentSection: String, CaseIterable, Identifiable {
     case dashboard = "Dashboard"
+    case useCases = "Use Cases"
     case agents = "Agents"
     case sessions = "Sessions"
     case sources = "Sources"
@@ -303,6 +312,7 @@ enum AgentSection: String, CaseIterable, Identifiable {
     var iconName: String {
         switch self {
         case .dashboard: return "square.grid.2x2"
+        case .useCases: return "wand.and.stars"
         case .agents: return "person.2.badge.gearshape"
         case .sessions: return "clock"
         case .sources: return "square.stack.3d.up"

@@ -1,7 +1,11 @@
 import Foundation
+import ContainerAPIClient
+import ContainerResource
 
-/// System metrics service for dashboard
+/// Keg metrics service for dashboard
 actor SystemMetrics {
+    static let shared = SystemMetrics()
+
     struct Metrics: Sendable {
         var cpuUsagePercent: Double = 0
         var memoryUsedGB: Double = 0
@@ -11,14 +15,25 @@ actor SystemMetrics {
         var diskTotalGB: Double = 0
         var diskUsagePercent: Double = 0
         var containerCount: Int = 0
+        var totalContainerCount: Int = 0
         var imageCount: Int = 0
+        var activeImageCount: Int = 0
         var latencyMs: Double = 0
         var timestamp: Date = Date()
     }
 
+    private struct CPUSample: Sendable {
+        let usageUsec: UInt64
+        let timestamp: Date
+    }
+
+    private let bytesPerGB = 1_073_741_824.0
+    private let cacheInterval: TimeInterval = 2.0
+    private let containerClient = ContainerClient()
+
     private var cachedMetrics: Metrics?
     private var lastFetch: Date?
-    private let cacheInterval: TimeInterval = 2.0 // Refresh every 2 seconds
+    private var previousCPUSamples: [String: CPUSample] = [:]
 
     func getMetrics(forceRefresh: Bool = false) async -> Metrics {
         if !forceRefresh,
@@ -30,17 +45,8 @@ actor SystemMetrics {
 
         var metrics = Metrics()
         metrics.timestamp = Date()
-
-        // CPU and Memory from host_info
-        await populateCPUMemory(&metrics)
-
-        // Disk from disk_info
-        await populateDisk(&metrics)
-
-        // Container counts
-        await populateContainerCounts(&metrics)
-
-        // Latency measurement
+        populateHostCapacity(&metrics)
+        await populateKegUsage(&metrics)
         metrics.latencyMs = await measureLatency()
 
         cachedMetrics = metrics
@@ -48,150 +54,136 @@ actor SystemMetrics {
         return metrics
     }
 
-    private func populateCPUMemory(_ metrics: inout Metrics) async {
-        // Use sysctl for CPU info
-        var size = 0
-        sysctlbyname("hw.ncpu", nil, &size, nil, 0)
-        var cpuCount: Int32 = 0
-        sysctlbyname("hw.ncpu", &cpuCount, &size, nil, 0)
+    private func populateHostCapacity(_ metrics: inout Metrics) {
+        metrics.memoryTotalGB = Double(ProcessInfo.processInfo.physicalMemory) / bytesPerGB
 
-        // Get CPU usage via host_processor_info
-        var numCPUThreads: natural_t = 0
-        var cpuInfo: processor_info_array_t?
-        var numCpuInfo: mach_msg_type_number_t = 0
-
-        let result = host_processor_info(
-            mach_host_self(),
-            PROCESSOR_CPU_LOAD_INFO,
-            &numCPUThreads,
-            &cpuInfo,
-            &numCpuInfo
-        )
-
-        if result == KERN_SUCCESS, let cpuInfo = cpuInfo {
-            var totalUser: Float = 0
-            var totalSystem: Float = 0
-            var totalIdle: Float = 0
-
-            for i in 0..<Int(numCPUThreads) {
-                let offset = Int(CPU_STATE_MAX) * i
-                totalUser += Float(cpuInfo[offset + Int(CPU_STATE_USER)])
-                totalSystem += Float(cpuInfo[offset + Int(CPU_STATE_SYSTEM)])
-                totalIdle += Float(cpuInfo[offset + Int(CPU_STATE_IDLE)])
+        do {
+            let homeURL = FileManager.default.homeDirectoryForCurrentUser
+            let values = try homeURL.resourceValues(forKeys: [.volumeTotalCapacityKey])
+            if let total = values.volumeTotalCapacity {
+                metrics.diskTotalGB = Double(total) / bytesPerGB
             }
-
-            let total = totalUser + totalSystem + totalIdle
-            if total > 0 {
-                metrics.cpuUsagePercent = Double((totalUser + totalSystem) / total) * 100
-            }
-
-            // Calculate per-CPU average
-            metrics.cpuUsagePercent = metrics.cpuUsagePercent / Double(numCPUThreads)
-
-            // Deallocate
-            let sizeOfInt = MemoryLayout<integer_t>.stride
-            munmap(cpuInfo, Int(numCpuInfo) * sizeOfInt)
-        }
-
-        // Memory from host_statistics
-        var vmStats = vm_statistics64()
-        var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64>.size / MemoryLayout<integer_t>.size)
-
-        let hostPort = mach_host_self()
-        let kerr = withUnsafeMutablePointer(to: &vmStats) {
-            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
-                host_statistics64(hostPort, HOST_VM_INFO64, $0, &count)
-            }
-        }
-
-        if kerr == KERN_SUCCESS {
-            var pageSize: vm_size_t = 0
-            host_page_size(hostPort, &pageSize)
-            let pageSizeBytes = Double(pageSize)
-            let totalMemory = Double(ProcessInfo.processInfo.physicalMemory)
-
-            let activeMemory = Double(vmStats.active_count) * pageSizeBytes
-            let wiredMemory = Double(vmStats.wire_count) * pageSizeBytes
-            let compressedMemory = Double(vmStats.compressor_page_count) * pageSizeBytes
-
-            let usedBytes = activeMemory + wiredMemory + compressedMemory
-            let usedGB = usedBytes / 1_073_741_824.0
-            let totalGB = totalMemory / 1_073_741_824.0
-            metrics.memoryUsedGB = usedGB
-            metrics.memoryTotalGB = totalGB
-            metrics.memoryUsagePercent = (usedGB / totalGB) * 100
+        } catch {
+            metrics.diskTotalGB = 0
         }
     }
 
-    private func populateDisk(_ metrics: inout Metrics) async {
-        // Use FileManager for disk space
-        do {
-            let homeURL = FileManager.default.homeDirectoryForCurrentUser
-            let values = try homeURL.resourceValues(forKeys: [
-                .volumeTotalCapacityKey,
-                .volumeAvailableCapacityForImportantUsageKey
-            ])
+    private func populateKegUsage(_ metrics: inout Metrics) async {
+        let now = metrics.timestamp
+        let hostCPUCount = max(hostLogicalCPUCount(), 1)
 
-            if let total = values.volumeTotalCapacity,
-               let available = values.volumeAvailableCapacityForImportantUsage {
-                metrics.diskTotalGB = Double(total) / (1024 * 1024 * 1024)
-                metrics.diskUsedGB = metrics.diskTotalGB - (Double(available) / (1024 * 1024 * 1024))
+        do {
+            let containers = try await containerClient.list(filters: .all)
+            let runningContainers = containers.filter { $0.status == .running }
+            let activeImageReferences = Set(containers.map(\.configuration.image.reference))
+
+            metrics.totalContainerCount = containers.count
+            metrics.containerCount = runningContainers.count
+
+            var totalMemoryBytes: UInt64 = 0
+            var totalCPUPercent: Double = 0
+
+            for container in runningContainers {
+                do {
+                    let stats = try await containerClient.stats(id: container.id)
+
+                    if let used = stats.memoryUsageBytes {
+                        totalMemoryBytes += used
+                    }
+
+                    if let cpuUsageUsec = stats.cpuUsageUsec {
+                        totalCPUPercent += cpuPercent(
+                            containerID: container.id,
+                            cpuUsageUsec: cpuUsageUsec,
+                            timestamp: now,
+                            hostCPUCount: hostCPUCount
+                        )
+                    } else {
+                        previousCPUSamples.removeValue(forKey: container.id)
+                    }
+                } catch {
+                    previousCPUSamples.removeValue(forKey: container.id)
+                }
+            }
+
+            previousCPUSamples = previousCPUSamples.filter { sample in
+                runningContainers.contains { $0.id == sample.key }
+            }
+
+            metrics.cpuUsagePercent = min(max(totalCPUPercent, 0), 100)
+            metrics.memoryUsedGB = Double(totalMemoryBytes) / bytesPerGB
+            if metrics.memoryTotalGB > 0 {
+                metrics.memoryUsagePercent = (metrics.memoryUsedGB / metrics.memoryTotalGB) * 100
+            }
+
+            await populateImageUsage(&metrics, activeImageReferences: activeImageReferences)
+        } catch {
+            previousCPUSamples.removeAll()
+            await populateImageUsage(&metrics, activeImageReferences: [])
+        }
+    }
+
+    private func populateImageUsage(_ metrics: inout Metrics, activeImageReferences: Set<String>) async {
+        do {
+            let usage = try await ClientImage.calculateDiskUsage(activeReferences: activeImageReferences)
+            metrics.imageCount = usage.totalCount
+            metrics.activeImageCount = usage.activeCount
+            metrics.diskUsedGB = Double(usage.totalSize) / bytesPerGB
+            if metrics.diskTotalGB > 0 {
                 metrics.diskUsagePercent = (metrics.diskUsedGB / metrics.diskTotalGB) * 100
             }
         } catch {
-            // Use df as fallback
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/df")
-            process.arguments = ["-g", homeDirectory]
-
-            let pipe = Pipe()
-            process.standardOutput = pipe
-
-            try? process.run()
-            process.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            if let output = String(data: data, encoding: .utf8) {
-                let lines = output.components(separatedBy: "\n")
-                if lines.count > 1 {
-                    let parts = lines[1].split(separator: " ")
-                    if parts.count >= 4,
-                       let total = Double(parts[1]),
-                       let avail = Double(parts[3]) {
-                        metrics.diskTotalGB = total
-                        metrics.diskUsedGB = total - avail
-                        metrics.diskUsagePercent = (metrics.diskUsedGB / metrics.diskTotalGB) * 100
-                    }
-                }
+            do {
+                let images = try await ClientImage.list()
+                metrics.imageCount = images.count
+                metrics.activeImageCount = min(activeImageReferences.count, images.count)
+            } catch {
+                metrics.imageCount = 0
+                metrics.activeImageCount = 0
             }
         }
     }
 
-    private func populateContainerCounts(_ metrics: inout Metrics) async {
-        // Will be updated from AppState
-        // Placeholder for now
+    private func cpuPercent(
+        containerID: String,
+        cpuUsageUsec: UInt64,
+        timestamp: Date,
+        hostCPUCount: Int32
+    ) -> Double {
+        defer {
+            previousCPUSamples[containerID] = CPUSample(usageUsec: cpuUsageUsec, timestamp: timestamp)
+        }
+
+        guard let previous = previousCPUSamples[containerID], cpuUsageUsec >= previous.usageUsec else {
+            return 0
+        }
+
+        let elapsedSeconds = timestamp.timeIntervalSince(previous.timestamp)
+        guard elapsedSeconds > 0 else { return 0 }
+
+        let cpuDeltaUsec = Double(cpuUsageUsec - previous.usageUsec)
+        let hostCapacityUsec = elapsedSeconds * 1_000_000 * Double(hostCPUCount)
+        guard hostCapacityUsec > 0 else { return 0 }
+
+        return (cpuDeltaUsec / hostCapacityUsec) * 100
+    }
+
+    private func hostLogicalCPUCount() -> Int32 {
+        var cpuCount: Int32 = 0
+        var size = MemoryLayout<Int32>.size
+        sysctlbyname("hw.logicalcpu", &cpuCount, &size, nil, 0)
+        return cpuCount
     }
 
     private func measureLatency() async -> Double {
-        let start = Date()
-        // Simple ping-like measurement
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/echo")
-        process.arguments = ["ok"]
+        let start = DispatchTime.now().uptimeNanoseconds
 
         do {
-            try process.run()
-            process.waitUntilExit()
-            let duration = Date().timeIntervalSince(start) * 1000
-            return duration
+            _ = try await ClientHealthCheck.ping(timeout: .seconds(2))
+            let end = DispatchTime.now().uptimeNanoseconds
+            return Double(end - start) / 1_000_000
         } catch {
             return 0
         }
     }
 }
-
-// MARK: - Disk Usage Extension
-
-private let homeDirectory: String = {
-    FileManager.default.homeDirectoryForCurrentUser.path
-}()

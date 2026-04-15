@@ -17,6 +17,14 @@ struct AgentListView: View {
             .onChange(of: searchText) { vm.searchText = searchText }
             .onChange(of: selectedAgentID) { appState.selectedAgentID = selectedAgentID }
             .toolbar(id: "agents-toolbar") {
+                ToolbarItem(id: "use-cases", placement: .primaryAction) {
+                    Button {
+                        appState.selectedAgentSection = .useCases
+                    } label: {
+                        Label("Use Cases", systemImage: "wand.and.stars")
+                    }
+                    .accessibilityLabel("Browse macOS agent use cases")
+                }
                 ToolbarItem(id: "create", placement: .primaryAction) {
                     Button { showCreateSheet = true } label: {
                         Label("Create...", systemImage: "plus")

@@ -14,6 +14,8 @@ struct BuildView: View {
     @State private var errorMessage: String?
     @State private var showContextPicker = false
     @State private var showFilePicker = false
+    @State private var buildProcess: Process?
+    @State private var didCancelBuild = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -120,8 +122,9 @@ struct BuildView: View {
             ToolbarItem(id: "build", placement: .primaryAction) {
                 if isBuilding {
                     Button("Cancel Build") {
-                        // TODO: Cancel the build process
+                        cancelBuild()
                     }
+                    .keyboardShortcut(.cancelAction)
                 } else {
                     Button("Build") {
                         startBuild()
@@ -149,6 +152,7 @@ struct BuildView: View {
         isBuilding = true
         output = ""
         errorMessage = nil
+        didCancelBuild = false
 
         Task {
             do {
@@ -185,6 +189,10 @@ struct BuildView: View {
                 process.standardOutput = pipe
                 process.standardError = pipe
 
+                await MainActor.run {
+                    buildProcess = process
+                }
+
                 pipe.fileHandleForReading.readabilityHandler = { handle in
                     let data = handle.availableData
                     if let str = String(data: data, encoding: .utf8), !str.isEmpty {
@@ -197,17 +205,37 @@ struct BuildView: View {
                 try process.run()
                 process.waitUntilExit()
 
-                if process.terminationStatus != 0 {
-                    let remaining = pipe.fileHandleForReading.readDataToEndOfFile()
-                    if let str = String(data: remaining, encoding: .utf8) {
+                let remaining = pipe.fileHandleForReading.readDataToEndOfFile()
+                if let str = String(data: remaining, encoding: .utf8), !str.isEmpty {
+                    await MainActor.run {
                         output += str
                     }
-                    errorMessage = "Build failed (exit code \(process.terminationStatus))"
+                }
+
+                await MainActor.run {
+                    pipe.fileHandleForReading.readabilityHandler = nil
+
+                    if didCancelBuild || process.terminationReason == .uncaughtSignal {
+                        output += output.hasSuffix("\n") || output.isEmpty ? "Build canceled.\n" : "\nBuild canceled.\n"
+                    } else if process.terminationStatus != 0 {
+                        errorMessage = "Build failed (exit code \(process.terminationStatus))"
+                    }
+
+                    buildProcess = nil
+                    isBuilding = false
                 }
             } catch {
-                errorMessage = error.localizedDescription
+                await MainActor.run {
+                    errorMessage = error.localizedDescription
+                    buildProcess = nil
+                    isBuilding = false
+                }
             }
-            isBuilding = false
         }
+    }
+
+    private func cancelBuild() {
+        didCancelBuild = true
+        buildProcess?.terminate()
     }
 }

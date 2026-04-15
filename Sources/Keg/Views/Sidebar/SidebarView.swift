@@ -17,6 +17,12 @@ struct SidebarView: View {
                     .padding(.bottom, 8)
             }
 
+            if appState.currentArea == .keg {
+                SystemDashboardView()
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
+            }
+
             Divider()
                 .padding(.horizontal, 12)
 
@@ -26,35 +32,10 @@ struct SidebarView: View {
             case .agents:
                 AgentSidebarContent()
             }
-
-            Spacer()
-
-            Divider()
-                .padding(.horizontal, 12)
-
-            // Settings always at bottom
-            settingsButton
         }
         .listStyle(.sidebar)
         .navigationTitle("Keg")
-        .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 320)
-    }
-
-    private var settingsButton: some View {
-        Button {
-            appState.currentArea = .keg
-            appState.selectedKegSection = .settings
-        } label: {
-            Label(KegSection.settings.rawValue, systemImage: KegSection.settings.iconName)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(appState.currentArea == .keg && appState.selectedKegSection == .settings ? Color.accentColor.opacity(0.15) : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
-        .padding(.horizontal, 8)
-        .padding(.bottom, 8)
+        .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 340)
     }
 }
 
@@ -158,6 +139,12 @@ struct KegSidebarContent: View {
                     }
                 }
             }
+
+            Section("App") {
+                SettingsLink {
+                    Label("Settings", systemImage: "gearshape")
+                }
+            }
         }
         .listStyle(.sidebar)
     }
@@ -188,7 +175,7 @@ struct AgentSidebarContent: View {
     }
 
     private let sections: [SidebarSection] = [
-        SidebarSection(name: "Overview", items: [.dashboard, .sessions]),
+        SidebarSection(name: "Overview", items: [.dashboard, .useCases, .sessions]),
         SidebarSection(name: "Manage", items: [.agents, .skills, .sources]),
         SidebarSection(name: "Account", items: [.account]),
     ]

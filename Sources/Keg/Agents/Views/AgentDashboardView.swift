@@ -33,6 +33,13 @@ struct AgentDashboardView: View {
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
+                    appState.selectedAgentSection = .useCases
+                } label: {
+                    Label("Use Cases", systemImage: "wand.and.stars")
+                }
+                .accessibilityLabel("Browse macOS agent use cases")
+
+                Button {
                     appState.selectedAgentSection = .agents
                 } label: {
                     Label("Manage Agents", systemImage: "gearshape")
@@ -123,12 +130,17 @@ struct AgentDashboardView: View {
         ContentUnavailableView {
             Label("No Agents Yet", systemImage: "person.2.badge.gearshape")
         } description: {
-            Text("Create your first agent to get started")
+            Text("Start from a Mac-native use case or create your first agent from scratch")
         } actions: {
+            Button("Browse Use Cases") {
+                appState.selectedAgentSection = .useCases
+            }
+            .buttonStyle(.borderedProminent)
+
             Button("Create Agent") {
                 appState.selectedAgentSection = .agents
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("No Agents Yet. Create your first agent to get started.")

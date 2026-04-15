@@ -6,7 +6,9 @@ struct ImageListView: View {
     @State private var vm = ImagesVM()
     @State private var selectedImageRef: String?
     @State private var showPullSheet = false
+    @State private var showingDeleteConfirmation = false
     @State private var searchText = ""
+    @FocusState private var isSearchFocused: Bool
 
     private var wrappedImages: [IdentifiableImage] {
         vm.filteredImages.map { IdentifiableImage($0) }
@@ -48,17 +50,31 @@ struct ImageListView: View {
                     .width(min: 80, max: 120)
                 }
                 .tableStyle(.inset(alternatesRowBackgrounds: true))
+                .accessibilityLabel("Images list")
+                .accessibilityHint("Use arrow keys to change selection. Press Command Delete to remove the selected image. Press Escape to clear selection.")
                 .contextMenu(forSelectionType: String.self) { refs in
                     if let ref = refs.first {
-                        ImageContextMenu(ref: ref, vm: vm)
+                        ImageContextMenu(ref: ref) {
+                            selectedImageRef = ref
+                            showingDeleteConfirmation = true
+                        }
                     }
                 }
             }
         }
         .navigationTitle("Images")
         .searchable(text: $searchText, prompt: "Search images")
+        .searchFocused($isSearchFocused)
         .onChange(of: searchText) { vm.searchText = searchText }
         .onChange(of: selectedImageRef) { appState.selectedImageReference = selectedImageRef }
+        .onDeleteCommand {
+            if selectedImageRef != nil {
+                showingDeleteConfirmation = true
+            }
+        }
+        .onExitCommand {
+            handleEscape()
+        }
         .toolbar(id: "images-toolbar") {
             ToolbarItem(id: "pull", placement: .primaryAction) {
                 Button {
@@ -87,18 +103,66 @@ struct ImageListView: View {
         .onReceive(NotificationCenter.default.publisher(for: .kegRefresh)) { _ in
             Task { await vm.refresh() }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .kegFocusSearch)) { _ in
+            guard appState.currentArea == .keg,
+                  appState.selectedKegSection == .images else { return }
+            isSearchFocused = true
+        }
         .onDisappear {
             appState.selectedImageReference = nil
         }
         .sheet(isPresented: $showPullSheet) {
             PullImageView(vm: vm)
         }
+        .alert(deleteConfirmationTitle, isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                Task { await deleteSelectedImage() }
+            }
+            .disabled(selectedImageRef == nil)
+        } message: {
+            Text("Delete the selected image. This action cannot be undone.")
+        }
+    }
+
+    private var deleteConfirmationTitle: String {
+        if let selectedImageRef {
+            return "Delete \(selectedImageRef)?"
+        }
+        return "Delete Image"
+    }
+
+    private func handleEscape() {
+        if selectedImageRef != nil {
+            selectedImageRef = nil
+            return
+        }
+
+        if !searchText.isEmpty {
+            searchText = ""
+            return
+        }
+
+        if isSearchFocused {
+            isSearchFocused = false
+        }
+    }
+
+    @MainActor
+    private func deleteSelectedImage() async {
+        guard let selectedImageRef else { return }
+        do {
+            try await vm.delete(reference: selectedImageRef)
+            self.selectedImageRef = nil
+        } catch {
+            vm.errorMessage = error.localizedDescription
+        }
     }
 }
 
 struct ImageContextMenu: View {
     let ref: String
-    let vm: ImagesVM
+    let onDelete: () -> Void
 
     var body: some View {
         Button("Copy Reference") {
@@ -107,9 +171,7 @@ struct ImageContextMenu: View {
         }
         Divider()
         Button("Delete", role: .destructive) {
-            Task {
-                try? await vm.delete(reference: ref)
-            }
+            onDelete()
         }
     }
 }

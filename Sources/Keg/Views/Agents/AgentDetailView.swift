@@ -4,17 +4,9 @@ struct AgentDetailView: View {
     let agent: Agent
     let vm: AgentsVM
 
-    @State private var isEditing = false
-    @State private var editedAgent: Agent
-    @State private var isSaving = false
+    @State private var showEditor = false
     @State private var errorMessage: String?
     @State private var showDeleteConfirmation = false
-
-    init(agent: Agent, vm: AgentsVM) {
-        self.agent = agent
-        self.vm = vm
-        self._editedAgent = State(initialValue: agent)
-    }
 
     var body: some View {
         ScrollView {
@@ -41,26 +33,19 @@ struct AgentDetailView: View {
         .navigationTitle(agent.name)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                if isEditing {
-                    Button("Cancel") {
-                        editedAgent = agent
-                        isEditing = false
-                    }
-                    .keyboardShortcut(.escape)
-                    .accessibilityLabel("Cancel editing")
-                    Button("Save") {
-                        Task { await saveChanges() }
-                    }
-                    .disabled(isSaving)
-                    .keyboardShortcut("s", modifiers: .command)
-                    .accessibilityLabel("Save changes")
-                } else {
-                    Button("Edit") {
-                        isEditing = true
-                    }
-                    .keyboardShortcut("e", modifiers: .command)
-                    .accessibilityLabel("Edit agent")
+                Button("Edit…") {
+                    showEditor = true
                 }
+                .keyboardShortcut("e", modifiers: .command)
+                .accessibilityLabel("Edit agent")
+            }
+        }
+        .sheet(isPresented: $showEditor) {
+            AgentEditorView(agent: agent) { params in
+                let client = try await ManagedAgentsClient.fromKeychain()
+                let updated = try await client.updateAgent(id: agent.id, params: params)
+                await vm.refresh()
+                return updated
             }
         }
         .overlay(alignment: .top) {
@@ -70,7 +55,7 @@ struct AgentDetailView: View {
                 }
             }
         }
-        .confirmationDialog("Delete Agent", isPresented: $showDeleteConfirmation) {
+        .confirmationDialog("Archive Agent", isPresented: $showDeleteConfirmation) {
             Button("Archive", role: .destructive) {
                 Task { await deleteAgent() }
             }
@@ -79,20 +64,11 @@ struct AgentDetailView: View {
         }
     }
 
-    // MARK: - Sections
-
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if isEditing {
-                TextField("Name", text: $editedAgent.name)
-                    .font(.title2.bold())
-                    .textFieldStyle(.roundedBorder)
-                    .accessibilityLabel("Agent name")
-            } else {
-                Text(agent.name)
-                    .font(.title2.bold())
-                    .accessibilityLabel("Agent name: \(agent.name)")
-            }
+            Text(agent.name)
+                .font(.title2.bold())
+                .accessibilityLabel("Agent name: \(agent.name)")
 
             HStack(spacing: 16) {
                 Label("ID: \(agent.id.prefix(8))...", systemImage: "tag")
@@ -112,7 +88,7 @@ struct AgentDetailView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(buildHeaderAccessibilityLabel())
     }
-    
+
     private func buildHeaderAccessibilityLabel() -> String {
         var parts: [String] = []
         parts.append("Agent: \(agent.name)")
@@ -132,29 +108,20 @@ struct AgentDetailView: View {
             Text("Model")
                 .font(.headline)
 
-            HStack {
-                if isEditing {
-                    TextField("Model ID", text: $editedAgent.model.id)
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityLabel("Model ID")
-                } else {
-                    Text(agent.model.id)
-                        .font(.system(.body, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .accessibilityLabel("Model: \(agent.model.id)")
-                }
+            HStack(spacing: 12) {
+                Text(agent.model.id)
+                    .font(.system(.body, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Model: \(agent.model.id)")
 
-                if let speed = (isEditing ? editedAgent.model.speed : agent.model.speed) {
-                    Picker("Speed", selection: isEditing ? Binding(
-                        get: { editedAgent.model.speed ?? .standard },
-                        set: { editedAgent.model.speed = $0 }
-                    ) : .constant(speed)) {
-                        Text("Standard").tag(ModelSpeed.standard)
-                        Text("Fast").tag(ModelSpeed.fast)
-                    }
-                    .labelsHidden()
-                    .disabled(!isEditing)
-                    .accessibilityLabel("Model speed")
+                if let speed = agent.model.speed {
+                    Text(speed.rawValue.capitalized)
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(nsColor: .controlBackgroundColor))
+                        .clipShape(Capsule())
+                        .accessibilityLabel("Model speed: \(speed.rawValue)")
                 }
             }
         }
@@ -167,45 +134,22 @@ struct AgentDetailView: View {
             Text("Description")
                 .font(.headline)
 
-            if isEditing {
-                TextEditor(text: Binding(
-                    get: { editedAgent.description ?? "" },
-                    set: { editedAgent.description = $0.isEmpty ? nil : $0 }
-                ))
-                .frame(minHeight: 60)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(Color.secondary.opacity(0.3))
-                )
-            } else {
-                Text(agent.description ?? "No description")
-                    .foregroundStyle(agent.description == nil ? .tertiary : .primary)
-            }
+            Text(agent.description ?? "No description")
+                .foregroundStyle(agent.description == nil ? .tertiary : .primary)
         }
     }
 
     private var toolsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Tools")
-                    .font(.headline)
-                Spacer()
-                if isEditing {
-                    Button {
-                        // TODO: Add tool picker
-                    } label: {
-                        Label("Add", systemImage: "plus")
-                    }
-                    .buttonStyle(.bordered)
-                }
-            }
+            Text("Tools")
+                .font(.headline)
 
             if agent.tools.isEmpty {
                 Text("No tools configured")
                     .foregroundStyle(.tertiary)
             } else {
-                ForEach(Array(agent.tools.enumerated()), id: \.offset) { index, tool in
-                    ToolRow(tool: tool, isEditing: isEditing)
+                ForEach(Array(agent.tools.enumerated()), id: \.offset) { _, tool in
+                    ToolRow(tool: tool)
                 }
             }
         }
@@ -213,25 +157,14 @@ struct AgentDetailView: View {
 
     private var skillsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Skills")
-                    .font(.headline)
-                Spacer()
-                if isEditing {
-                    Button {
-                        // TODO: Add skill picker
-                    } label: {
-                        Label("Add", systemImage: "plus")
-                    }
-                    .buttonStyle(.bordered)
-                }
-            }
+            Text("Skills")
+                .font(.headline)
 
             if agent.skills.isEmpty {
                 Text("No skills configured")
                     .foregroundStyle(.tertiary)
             } else {
-                ForEach(Array(agent.skills.enumerated()), id: \.offset) { index, skill in
+                ForEach(Array(agent.skills.enumerated()), id: \.offset) { _, skill in
                     SkillRow(skill: skill)
                 }
             }
@@ -240,25 +173,14 @@ struct AgentDetailView: View {
 
     private var mcpServersSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("MCP Servers")
-                    .font(.headline)
-                Spacer()
-                if isEditing {
-                    Button {
-                        // TODO: Add MCP server
-                    } label: {
-                        Label("Add", systemImage: "plus")
-                    }
-                    .buttonStyle(.bordered)
-                }
-            }
+            Text("MCP Servers")
+                .font(.headline)
 
             if agent.mcpServers.isEmpty {
                 Text("No MCP servers configured")
                     .foregroundStyle(.tertiary)
             } else {
-                ForEach(Array(agent.mcpServers.enumerated()), id: \.offset) { index, server in
+                ForEach(Array(agent.mcpServers.enumerated()), id: \.offset) { _, server in
                     MCPServerRow(server: server)
                 }
             }
@@ -297,34 +219,7 @@ struct AgentDetailView: View {
                 showDeleteConfirmation = true
             }
             .buttonStyle(.bordered)
-            .accessibilityLabel("Archive this agent (destructive action)")
-        }
-    }
-
-    // MARK: - Actions
-
-    @MainActor
-    private func saveChanges() async {
-        isSaving = true
-        defer { isSaving = false }
-
-        do {
-            let client = try await ManagedAgentsClient.fromKeychain()
-            let params = CreateAgentParams(
-                name: editedAgent.name,
-                model: editedAgent.model.id,
-                system: editedAgent.system,
-                description: editedAgent.description,
-                tools: editedAgent.tools,
-                skills: editedAgent.skills,
-                mcpServers: editedAgent.mcpServers,
-                metadata: editedAgent.metadata
-            )
-            _ = try await client.updateAgent(id: agent.id, params: params)
-            await vm.refresh()
-            isEditing = false
-        } catch {
-            errorMessage = error.localizedDescription
+            .accessibilityLabel("Archive this agent")
         }
     }
 
@@ -334,11 +229,8 @@ struct AgentDetailView: View {
     }
 }
 
-// MARK: - Row Components
-
 struct ToolRow: View {
     let tool: AgentTool
-    let isEditing: Bool
 
     var body: some View {
         HStack {
@@ -370,16 +262,6 @@ struct ToolRow: View {
             }
 
             Spacer()
-
-            if isEditing {
-                Button {
-                    // TODO: Remove tool
-                } label: {
-                    Image(systemName: "minus.circle.fill")
-                        .foregroundStyle(.red)
-                }
-                .buttonStyle(.plain)
-            }
         }
         .padding(.vertical, 4)
     }

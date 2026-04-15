@@ -9,15 +9,22 @@ PLIST      := $(APP_NAME)/Contents/Info.plist
 ICON_FILE  := Resources/Keg.icns
 MENU_BAR_ICON_FILE := Resources/KegMenuBarTemplate.png
 LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+CODESIGN   := /usr/bin/codesign
+CODESIGN_IDENTITY ?= $(shell security find-identity -v -p codesigning 2>/dev/null | awk -F'"' '/Apple Development:|Developer ID Application:/ { print $$2; exit }')
 
-.PHONY: all build app open run test qa qa-live qa-agents clean
+.PHONY: all build sign app open run test qa qa-live qa-agents clean
 
 all: app
 
 build:
 	swift build -c release
 
-app: build
+app: build sign
+	@echo "✅ Built $(APP_NAME)"
+
+sign: build
+	@test -n "$(CODESIGN_IDENTITY)" || { echo "❌ No Apple code signing identity found. Set CODESIGN_IDENTITY or install Apple Development cert."; exit 1; }
+	@rm -rf $(APP_NAME)
 	@mkdir -p $(MACOS_DIR) $(RES_DIR)
 	@cp $(BUILD_DIR)/$(BINARY) $(MACOS_DIR)/$(BINARY)
 	@cp $(ICON_FILE) $(RES_DIR)/Keg.icns
@@ -37,7 +44,9 @@ app: build
 	@echo '  <key>LSMinimumSystemVersion</key>        <string>26.0</string>'                >> $(PLIST)
 	@echo '  <key>NSHighResolutionCapable</key>       <true/>'                              >> $(PLIST)
 	@echo '</dict></plist>'                                                                >> $(PLIST)
-	@echo "✅ Built $(APP_NAME)"
+	@$(CODESIGN) --force --sign "$(CODESIGN_IDENTITY)" --timestamp=none $(APP_NAME)
+	@$(CODESIGN) --verify --deep --strict --verbose=2 $(APP_NAME)
+	@echo "✅ Signed $(APP_NAME) with $(CODESIGN_IDENTITY)"
 
 open: app
 	@osascript -e 'tell application id "$(BUNDLE_ID)" to quit' >/dev/null 2>&1 || true
@@ -47,8 +56,8 @@ open: app
 	open -n $(APP_NAME)
 
 run: app
-	@$(BUILD_DIR)/$(BINARY) &
-	@echo "✅ Running $(BINARY) (PID: $$!)"
+	@open -n $(APP_NAME)
+	@echo "✅ Running signed $(APP_NAME)"
 
 test:
 	swift test

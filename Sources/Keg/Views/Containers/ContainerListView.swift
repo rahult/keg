@@ -6,7 +6,9 @@ struct ContainerListView: View {
     @State private var vm = ContainersVM()
     @State private var selectedContainerID: String?
     @State private var showRunSheet = false
+    @State private var showingDeleteConfirmation = false
     @State private var searchText = ""
+    @FocusState private var isSearchFocused: Bool
 
     private var wrappedContainers: [IdentifiableContainer] {
         vm.filteredContainers.map { IdentifiableContainer($0) }
@@ -84,17 +86,37 @@ struct ContainerListView: View {
                     .width(min: 100)
                 }
                 .tableStyle(.inset(alternatesRowBackgrounds: true))
+                .accessibilityLabel("Containers list")
+                .accessibilityHint("Use arrow keys to change selection. Press Command Delete to remove the selected container. Press Escape to clear selection.")
                 .contextMenu(forSelectionType: String.self) { ids in
-                    if let id = ids.first {
-                        ContainerContextMenu(id: id, container: vm.containers.first(where: { $0.id == id }), vm: vm)
+                    if let id = ids.first,
+                       let container = vm.containers.first(where: { $0.id == id }) {
+                        ContainerContextMenu(
+                            id: id,
+                            container: container,
+                            onDelete: {
+                                selectedContainerID = id
+                                showingDeleteConfirmation = true
+                            },
+                            vm: vm
+                        )
                     }
                 }
             }
         }
         .navigationTitle("Containers")
         .searchable(text: $searchText, prompt: "Search containers")
+        .searchFocused($isSearchFocused)
         .onChange(of: searchText) { vm.searchText = searchText }
         .onChange(of: selectedContainerID) { appState.selectedContainerID = selectedContainerID }
+        .onDeleteCommand {
+            if selectedContainerID != nil {
+                showingDeleteConfirmation = true
+            }
+        }
+        .onExitCommand {
+            handleEscape()
+        }
         .toolbar(id: "containers-toolbar") {
             ToolbarItem(id: "run", placement: .primaryAction) {
                 Button {
@@ -140,14 +162,28 @@ struct ContainerListView: View {
             Task { await vm.stop(id: selectedContainerID) }
         }
         .onReceive(NotificationCenter.default.publisher(for: .kegDeleteContainer)) { _ in
-            guard let selectedContainerID else { return }
-            Task { await vm.delete(id: selectedContainerID) }
+            guard selectedContainerID != nil else { return }
+            showingDeleteConfirmation = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .kegFocusSearch)) { _ in
+            guard appState.currentArea == .keg,
+                  appState.selectedKegSection == .containers else { return }
+            isSearchFocused = true
         }
         .onDisappear {
             appState.selectedContainerID = nil
         }
         .sheet(isPresented: $showRunSheet) {
             RunContainerView()
+        }
+        .alert(deleteConfirmationTitle, isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                Task { await deleteSelectedContainer() }
+            }
+            .disabled(selectedContainerID == nil)
+        } message: {
+            Text(deleteConfirmationMessage)
         }
         .inspector(isPresented: .init(
             get: { selectedContainerID != nil },
@@ -160,47 +196,79 @@ struct ContainerListView: View {
     }
 
     private func containerName(_ snapshot: ContainerSnapshot) -> String {
-        // Check labels for a name
         if let name = snapshot.configuration.labels["name"], !name.isEmpty {
             return name
         }
-        // Fallback to short ID
         return String(snapshot.id.prefix(12))
+    }
+
+    private var deleteConfirmationTitle: String {
+        guard let selectedContainerID,
+              let container = vm.containers.first(where: { $0.id == selectedContainerID }) else {
+            return "Delete Container"
+        }
+        return "Delete \(containerName(container))?"
+    }
+
+    private var deleteConfirmationMessage: String {
+        "Delete the selected container. This action cannot be undone."
+    }
+
+    private func handleEscape() {
+        if selectedContainerID != nil {
+            selectedContainerID = nil
+            return
+        }
+
+        if !searchText.isEmpty {
+            searchText = ""
+            return
+        }
+
+        if isSearchFocused {
+            isSearchFocused = false
+        }
+    }
+
+    @MainActor
+    private func deleteSelectedContainer() async {
+        guard let selectedContainerID else { return }
+        await vm.delete(id: selectedContainerID)
+        self.selectedContainerID = nil
     }
 }
 
 struct ContainerContextMenu: View {
     let id: String
-    let container: ContainerSnapshot?
+    let container: ContainerSnapshot
+    let onDelete: () -> Void
     let vm: ContainersVM
 
     private var isRunning: Bool {
-        container?.status == .running
+        container.status == .running
     }
 
     var body: some View {
         if isRunning {
             Button("Stop") { Task { await vm.stop(id: id) } }
-        } else {
-            Button("Start") { /* TODO: implement start */ }
         }
-        Button("Restart") { /* TODO: implement restart */ }
+
         Divider()
-        Button("View Logs") { /* TODO: open logs in inspector/tab */ }
-        Button("Exec Shell") { /* TODO: open terminal */ }
-        Divider()
+
         Button("Copy ID") {
             let short = id.prefix(12)
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(String(short), forType: .string)
         }
-        if let ref = container?.configuration.image.reference {
-            Button("Copy Image Reference") {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(ref, forType: .string)
-            }
+        Button("Copy Image Reference") {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(container.configuration.image.reference, forType: .string)
         }
+
         Divider()
-        Button("Delete", role: .destructive) { Task { await vm.delete(id: id) } }
+
+        Button("Delete", role: .destructive) {
+            onDelete()
+        }
     }
 }

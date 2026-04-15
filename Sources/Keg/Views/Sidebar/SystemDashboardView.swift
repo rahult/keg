@@ -5,13 +5,15 @@ struct SystemDashboardView: View {
     @State private var metrics: SystemMetrics.Metrics?
     @State private var isLoading = true
 
+    private let metricsService = SystemMetrics.shared
+
     var body: some View {
         VStack(spacing: 8) {
             // Header
             HStack {
                 Image(systemName: "gauge.with.dots.needle.bottom.50percent")
                     .foregroundStyle(.secondary)
-                Text("System")
+                Text("Keg")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -43,9 +45,9 @@ struct SystemDashboardView: View {
 
                 MetricCard(
                     icon: "internaldrive",
-                    title: "Disk",
-                    value: formatPercent(metrics?.diskUsagePercent),
-                    color: diskColor
+                    title: "Storage",
+                    value: formatStorage(metrics),
+                    color: .purple
                 )
 
                 MetricCard(
@@ -59,7 +61,7 @@ struct SystemDashboardView: View {
             // Container stats
             if let metrics = metrics {
                 HStack(spacing: 12) {
-                    Label("\(metrics.containerCount)", systemImage: "cube.box")
+                    Label("\(metrics.containerCount)/\(metrics.totalContainerCount)", systemImage: "cube.box")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
@@ -96,13 +98,6 @@ struct SystemDashboardView: View {
         return .green
     }
 
-    private var diskColor: Color {
-        guard let usage = metrics?.diskUsagePercent else { return .secondary }
-        if usage >= 90 { return .red }
-        if usage >= 80 { return .orange }
-        return .green
-    }
-
     private func formatPercent(_ value: Double?) -> String {
         guard let value = value else { return "--" }
         return String(format: "%.0f%%", min(value, 100))
@@ -111,6 +106,11 @@ struct SystemDashboardView: View {
     private func formatMemory(_ metrics: SystemMetrics.Metrics?) -> String {
         guard let m = metrics else { return "--" }
         return String(format: "%.1f GB", m.memoryUsedGB)
+    }
+
+    private func formatStorage(_ metrics: SystemMetrics.Metrics?) -> String {
+        guard let m = metrics else { return "--" }
+        return String(format: "%.1f GB", m.diskUsedGB)
     }
 
     private func formatLatency(_ ms: Double?) -> String {
@@ -125,8 +125,7 @@ struct SystemDashboardView: View {
         isLoading = true
         defer { isLoading = false }
 
-        let service = SystemMetrics()
-        metrics = await service.getMetrics(forceRefresh: true)
+        metrics = await metricsService.getMetrics(forceRefresh: true)
     }
 }
 
