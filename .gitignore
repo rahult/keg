@@ -6,3 +6,4 @@ DerivedData/
 Keg.app/
 *.dSYM/
 .pi/
+outputs/qa/

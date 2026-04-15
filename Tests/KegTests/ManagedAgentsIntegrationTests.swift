@@ -13,6 +13,10 @@ final class ManagedAgentsIntegrationTests: XCTestCase {
     private var createdEnvironmentIds: [String] = []
 
     override func setUp() async throws {
+        guard ProcessInfo.processInfo.environment["KEG_RUN_MANAGED_AGENTS"] == "1" else {
+            throw XCTSkip("Set KEG_RUN_MANAGED_AGENTS=1 to run Managed Agents integration tests")
+        }
+
         try await super.setUp()
 
         guard let apiKey = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"] else {
@@ -85,7 +89,7 @@ final class ManagedAgentsIntegrationTests: XCTestCase {
 
         XCTAssertNotNil(response.data, "List response should have data array")
         XCTAssertFalse(response.data.isEmpty, "Should have at least one agent (or be empty if none exist)")
-        print("✅ Listed agents: \(response.data.count) total, hasMore=\(response.hasMore)")
+        print("✅ Listed agents: \(response.data.count) total, hasMore=\(response.hasMore ?? false)")
 
         for agent in response.data.prefix(5) {
             print("   - \(agent.name) (id: \(agent.id), version: \(agent.version))")

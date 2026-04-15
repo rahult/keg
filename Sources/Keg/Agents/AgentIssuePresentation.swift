@@ -1,7 +1,7 @@
 import Foundation
 
 struct AgentIssuePresentation {
-    enum Kind {
+    enum Kind: Equatable {
         case auth
         case offline
         case timeout
@@ -113,7 +113,7 @@ struct AgentIssuePresentation {
     }
 }
 
-enum AgentServiceReachability {
+enum AgentServiceReachability: Equatable {
     case unknown
     case reachable
     case unreachable

@@ -205,7 +205,7 @@ actor SessionManager {
         if let store = store {
             self.store = store
         } else {
-            self.store = try await SessionStore()
+            self.store = try SessionStore()
         }
         self.cleanupInterval = cleanupInterval
         self.agentRunner = HybridAgentRunner()

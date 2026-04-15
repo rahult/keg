@@ -10,7 +10,7 @@ ICON_FILE  := Resources/Keg.icns
 MENU_BAR_ICON_FILE := Resources/KegMenuBarTemplate.png
 LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 
-.PHONY: all build app open run test clean
+.PHONY: all build app open run test qa qa-live qa-agents clean
 
 all: app
 
@@ -51,7 +51,16 @@ run: app
 	@echo "✅ Running $(BINARY) (PID: $$!)"
 
 test:
-	swift test --filter KegTests
+	swift test
+
+qa:
+	./Scripts/qa.sh
+
+qa-live:
+	KEG_RUN_CONTAINER_E2E=1 KEG_RUN_MANAGED_AGENTS=1 ./Scripts/qa.sh
+
+qa-agents:
+	KEG_RUN_MANAGED_AGENTS=1 ./Scripts/qa.sh
 
 clean:
 	swift package clean

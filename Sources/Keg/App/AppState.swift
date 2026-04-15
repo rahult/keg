@@ -29,17 +29,6 @@ final class AppState {
         }
     }
 
-    // Legacy selection (for compatibility during transition)
-    var selectedSection: NavigationSection = .containers {
-        didSet {
-            // Sync legacy to new
-            if let keg = KegSection(rawValue: selectedSection.rawValue) {
-                currentArea = .keg
-                selectedKegSection = keg
-            }
-        }
-    }
-
     var selectedContainerID: String?
     var selectedImageReference: String?
     var selectedAgentID: String?
@@ -85,19 +74,6 @@ final class AppState {
     func refreshMetrics() async {
         await checkSystemStatus()
         await refreshDashboardCounts()
-    }
-
-    // Computed for current section (used by legacy views)
-    var currentSection: NavigationSection {
-        get {
-            switch currentArea {
-            case .keg: return NavigationSection(rawValue: selectedKegSection.rawValue) ?? .containers
-            case .agents: return .agents
-            }
-        }
-        set {
-            selectedSection = newValue
-        }
     }
 
     func checkSystemStatus() async {
@@ -332,47 +308,6 @@ enum AgentSection: String, CaseIterable, Identifiable {
         case .sources: return "square.stack.3d.up"
         case .skills: return "book"
         case .account: return "gearshape"
-        }
-    }
-}
-
-// MARK: - Legacy Navigation Section (for compatibility)
-
-@available(*, deprecated, message: "Use KegSection or AgentSection instead")
-enum NavigationSection: String, CaseIterable, Identifiable, Hashable {
-    case containers = "Containers"
-    case images = "Images"
-    case builds = "Builds"
-    case compose = "Compose"
-    case terminal = "Terminal"
-    case ports = "Ports"
-    case health = "Health"
-    case devcontainers = "Dev Containers"
-    case networks = "Networks"
-    case volumes = "Volumes"
-    case registries = "Registries"
-    case kubernetes = "Kubernetes"
-    case agents = "Agents"
-    case settings = "Settings"
-
-    var id: String { rawValue }
-
-    var iconName: String {
-        switch self {
-        case .containers: return "cube.box"
-        case .images: return "photo.stack"
-        case .builds: return "hammer"
-        case .compose: return "doc.text"
-        case .terminal: return "terminal"
-        case .ports: return "bolt.horizontal.fill"
-        case .networks: return "network"
-        case .volumes: return "externaldrive"
-        case .registries: return "globe"
-        case .health: return "heart.fill"
-        case .devcontainers: return "chevron.left.forwardslash.chevron.right"
-        case .kubernetes: return "helm"
-        case .agents: return "person.2.badge.gearshape"
-        case .settings: return "gearshape"
         }
     }
 }

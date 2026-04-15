@@ -4,6 +4,33 @@ import ContainerResource
 
 final class KegE2ETests: XCTestCase {
 
+    override func setUp() async throws {
+        guard ProcessInfo.processInfo.environment["KEG_RUN_CONTAINER_E2E"] == "1" else {
+            throw XCTSkip("Set KEG_RUN_CONTAINER_E2E=1 to run container-backed end-to-end tests")
+        }
+
+        try await super.setUp()
+
+        let process = Process()
+        let pipe = Pipe()
+        process.executableURL = URL(filePath: "/usr/bin/env")
+        process.arguments = ["container", "system", "status", "--format", "json"]
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            throw XCTSkip("container CLI unavailable: \(error.localizedDescription)")
+        }
+
+        guard process.terminationStatus == 0 else {
+            let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "Unknown error"
+            throw XCTSkip("container system not ready: \(output)")
+        }
+    }
+
     func testHealthCheck() async throws {
         let health = try await ClientHealthCheck.ping(timeout: .seconds(5))
         XCTAssertEqual(health.apiServerVersion.isEmpty, false)

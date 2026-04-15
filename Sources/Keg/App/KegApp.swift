@@ -47,7 +47,7 @@ struct KegApp: App {
                     NotificationCenter.default.post(name: .kegRunContainer, object: nil)
                 }
                 .keyboardShortcut("N", modifiers: [.command, .shift])
-                .disabled(appState.selectedSection != .containers)
+                .disabled(appState.currentArea != .keg || appState.selectedKegSection != .containers)
 
                 Divider()
 
@@ -55,13 +55,13 @@ struct KegApp: App {
                     NotificationCenter.default.post(name: .kegStopContainer, object: nil)
                 }
                 .keyboardShortcut("S", modifiers: [.command, .shift])
-                .disabled(appState.selectedSection != .containers || appState.selectedContainerID == nil)
+                .disabled(appState.currentArea != .keg || appState.selectedKegSection != .containers || appState.selectedContainerID == nil)
 
                 Button(appState.selectedContainerID == nil ? "Delete Selected Container" : "Delete \(shortContainerID)") {
                     NotificationCenter.default.post(name: .kegDeleteContainer, object: nil)
                 }
                 .keyboardShortcut(.delete, modifiers: [.command])
-                .disabled(appState.selectedSection != .containers || appState.selectedContainerID == nil)
+                .disabled(appState.currentArea != .keg || appState.selectedKegSection != .containers || appState.selectedContainerID == nil)
 
                 Divider()
 
@@ -76,7 +76,7 @@ struct KegApp: App {
                     NotificationCenter.default.post(name: .kegPullImage, object: nil)
                 }
                 .keyboardShortcut("P", modifiers: [.command, .shift])
-                .disabled(appState.selectedSection != .images)
+                .disabled(appState.currentArea != .keg || appState.selectedKegSection != .images)
             }
 
             CommandMenu("Agent") {
