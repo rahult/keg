@@ -239,6 +239,8 @@ struct AgentAreaView: View {
             SourceListView()
         case .skills:
             SkillListView()
+        case .account:
+            SettingsView(mode: .agentAccount)
         }
     }
 }

@@ -56,11 +56,11 @@ struct SessionListView: View {
         ContentUnavailableView {
             Label("Authentication Required", systemImage: "person.badge.key")
         } description: {
-            Text("Connect your Claude API key in Settings to view sessions")
+            Text("Connect your Claude API key in Account to view sessions")
         } actions: {
-            Button("Open Settings") {
-                appState.currentArea = .keg
-                appState.selectedKegSection = .settings
+            Button("Open Account") {
+                appState.currentArea = .agents
+                appState.selectedAgentSection = .account
             }
             .buttonStyle(.borderedProminent)
         }

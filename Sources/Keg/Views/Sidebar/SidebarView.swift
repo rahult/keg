@@ -129,22 +129,28 @@ struct KegSidebarContent: View {
 struct AgentSidebarContent: View {
     @Environment(AppState.self) private var appState
 
+    private struct SidebarSection {
+        let name: String
+        let items: [AgentSection]
+    }
+
+    private let sections: [SidebarSection] = [
+        SidebarSection(name: "Overview", items: [.dashboard, .sessions]),
+        SidebarSection(name: "Manage", items: [.agents, .skills, .sources]),
+        SidebarSection(name: "Account", items: [.account]),
+    ]
+
     var body: some View {
         List(selection: Binding<AgentSection?>(
             get: { appState.selectedAgentSection },
             set: { if let section = $0 { appState.selectedAgentSection = section } }
         )) {
-            Section("Overview") {
-                ForEach([AgentSection.dashboard, .sessions]) { section in
-                    Label(section.rawValue, systemImage: section.iconName)
-                        .tag(section)
-                }
-            }
-
-            Section("Manage") {
-                ForEach([AgentSection.agents, .skills, .sources]) { section in
-                    Label(section.rawValue, systemImage: section.iconName)
-                        .tag(section)
+            ForEach(sections, id: \.name) { section in
+                Section(section.name) {
+                    ForEach(section.items) { item in
+                        Label(item.rawValue, systemImage: item.iconName)
+                            .tag(item)
+                    }
                 }
             }
         }

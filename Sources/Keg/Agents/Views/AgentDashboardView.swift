@@ -76,11 +76,11 @@ struct AgentDashboardView: View {
         ContentUnavailableView {
             Label("Authentication Required", systemImage: "person.badge.key")
         } description: {
-            Text("Connect your Claude API key in Settings to use Agents")
+            Text("Connect your Claude API key in Account to use Agents")
         } actions: {
-            Button("Open Settings") {
-                appState.currentArea = .keg
-                appState.selectedKegSection = .settings
+            Button("Open Account") {
+                appState.currentArea = .agents
+                appState.selectedAgentSection = .account
             }
             .buttonStyle(.borderedProminent)
         }

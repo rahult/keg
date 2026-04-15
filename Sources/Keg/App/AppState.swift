@@ -49,16 +49,18 @@ final class AppState {
         return false
     }
 
-    var isAgentAuthenticated: Bool {
-        AgentAuth.hasAPIKey()
-    }
+    var isAgentAuthenticated = AgentAuth.hasAPIKey()
 
     /// Lazy-initialized Agent API client
     var agentClient: ManagedAgentsClient? {
         get async {
-            guard AgentAuth.hasAPIKey() else { return nil }
+            guard isAgentAuthenticated else { return nil }
             return try? await ManagedAgentsClient.fromKeychain()
         }
+    }
+
+    func refreshAgentAuthentication() {
+        isAgentAuthenticated = AgentAuth.hasAPIKey()
     }
 
     // Computed for current section (used by legacy views)
@@ -258,6 +260,7 @@ enum AgentSection: String, CaseIterable, Identifiable {
     case sessions = "Sessions"
     case sources = "Sources"
     case skills = "Skills"
+    case account = "Account"
 
     var id: String { rawValue }
 
@@ -268,6 +271,7 @@ enum AgentSection: String, CaseIterable, Identifiable {
         case .sessions: return "clock"
         case .sources: return "square.stack.3d.up"
         case .skills: return "book"
+        case .account: return "gearshape"
         }
     }
 }
