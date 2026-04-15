@@ -2,7 +2,7 @@
 
 ## Summary
 Verification pass completed against:
-- `outputs/craft-notion-agents.md`
+- `outputs/craft-notion-agents-brief.md`
 - `outputs/craft-notion-agents-research-craft.md`
 - `outputs/craft-notion-agents-research-notion.md`
 - `outputs/craft-notion-agents-research-keg.md`
@@ -18,7 +18,7 @@ Verification pass completed against:
 - None.
 
 ### MINOR
-1. Some Craft implementation claims, especially around remote/headless and automation breadth, rely mainly on first-party Craft docs/README. They are acceptable as documented product capabilities, but Keg should treat them as product-pattern inspiration rather than proof of mature operational reliability.
+1. Some Craft implementation claims, especially around remote/headless and automation breadth, rely mainly on first-party Craft docs/README. Acceptable as documented product capabilities, but Keg should treat them as product-pattern inspiration rather than proof of mature operational reliability.
 2. Notion governance findings are strong, but some are Business/Enterprise-plan specific or beta-gated. Keg should copy the patterns, not the exact permission/admin taxonomy.
 3. Open Agents findings are strongest as architectural guidance, not as immediate product-UX guidance for Keg.
 4. Keg recommendations about future architecture are inferences grounded in current source layout and research findings, not verified implementation commitments.

@@ -309,7 +309,7 @@ struct SettingsView: View {
             try? AgentAuth.deleteAPIKey()
             appState.refreshAgentAuthentication()
             storedAPIKeyPreview = nil
-            connectionError = error.localizedDescription
+            connectionError = AgentIssuePresentation(error: error).message
         }
     }
 
@@ -321,7 +321,7 @@ struct SettingsView: View {
             accountInfo = nil
             appState.refreshAgentAuthentication()
         } catch {
-            connectionError = error.localizedDescription
+            connectionError = AgentIssuePresentation(error: error).message
         }
     }
 
@@ -329,9 +329,14 @@ struct SettingsView: View {
         do {
             let client = try await ManagedAgentsClient.fromKeychain()
             accountInfo = try await client.getAccountInfo()
+            appState.updateAgentServiceReachability(for: nil)
         } catch {
-            // Silently fail - not critical
+            let issue = AgentIssuePresentation(error: error)
             accountInfo = nil
+            appState.updateAgentServiceReachability(for: issue.message)
+            if issue.kind == .auth {
+                connectionError = issue.message
+            }
         }
     }
 

@@ -83,7 +83,6 @@ struct KegApp: App {
                 Button("Go to Agents") {
                     appState.currentArea = .agents
                 }
-                .keyboardShortcut("2", modifiers: .command)
 
                 Divider()
 
@@ -92,6 +91,25 @@ struct KegApp: App {
                 }
                 .keyboardShortcut("N", modifiers: [.command, .option])
                 .disabled(appState.currentArea != .agents || appState.selectedAgentSection != .agents)
+            }
+
+            CommandMenu("Navigate") {
+                Button("Go to Keg") {
+                    appState.currentArea = .keg
+                }
+                .keyboardShortcut("1", modifiers: .command)
+
+                Button("Go to Agents") {
+                    appState.currentArea = .agents
+                }
+                .keyboardShortcut("2", modifiers: .command)
+            }
+
+            CommandMenu("Find") {
+                Button("Find") {
+                    NotificationCenter.default.post(name: .kegFocusSearch, object: nil)
+                }
+                .keyboardShortcut("f", modifiers: .command)
             }
 
             CommandGroup(after: .toolbar) {
@@ -136,6 +154,7 @@ extension Notification.Name {
     static let kegPullImage = Notification.Name("keg.pullImage")
     static let kegToggleSidebar = Notification.Name("keg.toggleSidebar")
     static let kegNewAgent = Notification.Name("keg.newAgent")
+    static let kegFocusSearch = Notification.Name("keg.focusSearch")
 }
 
 // MARK: - Icons

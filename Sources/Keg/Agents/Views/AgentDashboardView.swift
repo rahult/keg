@@ -9,17 +9,22 @@ struct AgentDashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 headerSection
-                
+
                 if !appState.isAgentAuthenticated {
                     authenticationRequiredView
                 } else if vm.isLoading && vm.activeAgents.isEmpty {
                     loadingView
+                } else if let issue = currentIssue,
+                          issue.showsUnavailableState,
+                          vm.activeAgents.isEmpty,
+                          vm.recentSessions.isEmpty {
+                    unavailableStateView(issue)
                 } else if vm.activeAgents.isEmpty && vm.recentSessions.isEmpty {
                     emptyStateView
                 } else {
                     contentView
                 }
-                
+
                 Spacer()
             }
             .padding(20)
@@ -47,10 +52,18 @@ struct AgentDashboardView: View {
         .task {
             await refresh()
         }
+        .onChange(of: vm.error) { _, newValue in
+            appState.updateAgentServiceReachability(for: newValue)
+        }
         .overlay(alignment: .top) {
-            if let error = vm.error {
-                ErrorBanner(message: error) {
+            if let issue = currentIssue {
+                ErrorBanner(
+                    message: issue.message,
+                    actionTitle: issue.actionTitle,
+                    onAction: { handle(issue: issue) }
+                ) {
                     vm.error = nil
+                    appState.updateAgentServiceReachability(for: nil)
                 }
             }
         }
@@ -59,7 +72,12 @@ struct AgentDashboardView: View {
     private func refresh() async {
         if let client = await appState.agentClient {
             await vm.load(client: client)
+            appState.updateAgentServiceReachability(for: vm.error)
         }
+    }
+
+    private var currentIssue: AgentIssuePresentation? {
+        AgentIssuePresentation(message: vm.error)
     }
     
     private var headerSection: some View {
@@ -114,6 +132,29 @@ struct AgentDashboardView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("No Agents Yet. Create your first agent to get started.")
+    }
+
+    private func unavailableStateView(_ issue: AgentIssuePresentation) -> some View {
+        ContentUnavailableView {
+            Label("Agents Unavailable", systemImage: "wifi.exclamationmark")
+        } description: {
+            Text(issue.message)
+        } actions: {
+            Button(issue.actionTitle) {
+                handle(issue: issue)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+    }
+
+    private func handle(issue: AgentIssuePresentation) {
+        switch issue.kind {
+        case .auth:
+            appState.currentArea = .agents
+            appState.selectedAgentSection = .account
+        case .offline, .timeout, .generic:
+            Task { await refresh() }
+        }
     }
     
     private var contentView: some View {
@@ -297,7 +338,7 @@ final class AgentDashboardVM {
             recentSessions = sessions.sorted { $0.started > $1.started }
             
         } catch {
-            self.error = error.localizedDescription
+            self.error = AgentIssuePresentation(error: error).message
         }
     }
 }

@@ -13,6 +13,7 @@ struct SessionDetailView: View {
     @State private var showingDeleteAlert = false
     @State private var showingExportSheet = false
     @State private var exportURL: URL?
+    @State private var labelDraft = ""
     
     init(session: Session, agent: Agent? = nil) {
         self.session = session
@@ -74,7 +75,16 @@ struct SessionDetailView: View {
             }
         }
         .task {
-            await loadEvents()
+            await loadSessionData()
+        }
+        .onChange(of: vm.error) { _, newValue in
+            appState.updateAgentServiceReachability(for: newValue)
+        }
+        .onAppear {
+            labelDraft = vm.workflowState.labels.joined(separator: ", ")
+        }
+        .onChange(of: vm.workflowState.labels) { _, labels in
+            labelDraft = labels.joined(separator: ", ")
         }
         .alert("Delete Session", isPresented: $showingDeleteAlert) {
             Button("Cancel", role: .cancel) {}
@@ -98,21 +108,56 @@ struct SessionDetailView: View {
             }
         }
         .overlay(alignment: .top) {
-            if let error = vm.exportError ?? (vm.error != nil && vm.events.isEmpty ? vm.error : nil) {
-                ErrorBanner(message: error) {
+            if let issue = bannerIssue {
+                ErrorBanner(
+                    message: issue.message,
+                    actionTitle: issue.actionTitle,
+                    onAction: { handle(issue: issue) }
+                ) {
                     if vm.exportError != nil {
                         vm.exportError = nil
                     } else {
                         vm.error = nil
+                        appState.updateAgentServiceReachability(for: nil)
                     }
                 }
             }
         }
     }
     
+    private func loadSessionData() async {
+        await vm.loadLocalState()
+        if let client = await appState.agentClient {
+            await vm.loadEvents(client: client)
+            appState.updateAgentServiceReachability(for: vm.error)
+        }
+    }
+
     private func loadEvents() async {
         if let client = await appState.agentClient {
             await vm.loadEvents(client: client)
+            appState.updateAgentServiceReachability(for: vm.error)
+        }
+    }
+
+    private var currentIssue: AgentIssuePresentation? {
+        AgentIssuePresentation(message: vm.error)
+    }
+
+    private var bannerIssue: AgentIssuePresentation? {
+        if let exportError = vm.exportError {
+            return AgentIssuePresentation(message: exportError)
+        }
+        return vm.error != nil && vm.events.isEmpty ? currentIssue : nil
+    }
+
+    private func handle(issue: AgentIssuePresentation) {
+        switch issue.kind {
+        case .auth:
+            appState.currentArea = .agents
+            appState.selectedAgentSection = .account
+        case .offline, .timeout, .generic:
+            Task { await loadEvents() }
         }
     }
     
@@ -122,7 +167,7 @@ struct SessionDetailView: View {
                 try await client.deleteSession(id: session.id)
                 dismiss()
             } catch {
-                vm.error = error.localizedDescription
+                vm.error = AgentIssuePresentation(error: error).message
             }
         }
     }
@@ -144,7 +189,7 @@ struct SessionDetailView: View {
     // MARK: - Header
     
     private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(agent?.name ?? "Unknown Agent")
@@ -190,6 +235,9 @@ struct SessionDetailView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+            workflowSection
+            activitySection
         }
         .padding()
         .background(Color(nsColor: .controlBackgroundColor))
@@ -208,18 +256,20 @@ struct SessionDetailView: View {
     }
     
     private var errorView: some View {
-        ContentUnavailableView {
-            Label("Failed to Load", systemImage: "exclamationmark.triangle")
+        let issue = currentIssue ?? AgentIssuePresentation(kind: .generic, message: vm.error ?? "Unknown error")
+
+        return ContentUnavailableView {
+            Label(issue.kind == .auth ? "Authentication Required" : "Failed to Load", systemImage: issue.kind == .auth ? "person.badge.key" : "exclamationmark.triangle")
         } description: {
-            Text(vm.error ?? "Unknown error")
+            Text(issue.message)
         } actions: {
-            Button("Retry") {
-                Task { await loadEvents() }
+            Button(issue.actionTitle) {
+                handle(issue: issue)
             }
             .buttonStyle(.borderedProminent)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Failed to load transcript. \(vm.error ?? "Unknown error"). Click Retry to try again.")
+        .accessibilityLabel("Session transcript unavailable. \(issue.message)")
     }
     
     private var transcriptView: some View {
@@ -237,6 +287,101 @@ struct SessionDetailView: View {
                 if let lastIndex = vm.displayEvents.indices.last {
                     withAnimation {
                         proxy.scrollTo(lastIndex, anchor: .bottom)
+                    }
+                }
+            }
+        }
+    }
+
+    private var workflowSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Workflow")
+                .font(.subheadline)
+                .fontWeight(.medium)
+
+            HStack {
+                Toggle(isOn: Binding(
+                    get: { vm.workflowState.isFlagged },
+                    set: { isFlagged in
+                        Task { await vm.setFlagged(isFlagged) }
+                    }
+                )) {
+                    Label("Flagged", systemImage: vm.workflowState.isFlagged ? "flag.fill" : "flag")
+                }
+                .toggleStyle(.switch)
+                .controlSize(.small)
+
+                Picker("Workflow Status", selection: Binding(
+                    get: { vm.workflowState.workflowStatus },
+                    set: { newStatus in
+                        Task { await vm.setWorkflowStatus(newStatus) }
+                    }
+                )) {
+                    ForEach(SessionWorkflowState.WorkflowStatus.allCases) { status in
+                        Text(status.rawValue).tag(status)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
+            HStack {
+                TextField("Labels (comma-separated)", text: $labelDraft)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit {
+                        Task { await vm.updateLabels(from: labelDraft) }
+                    }
+
+                Button("Save Labels") {
+                    Task { await vm.updateLabels(from: labelDraft) }
+                }
+                .controlSize(.small)
+            }
+
+            if vm.workflowState.labels.isEmpty {
+                Text("No labels")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            } else {
+                Text(vm.workflowState.labels.joined(separator: ", "))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var activitySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Activity")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Spacer()
+                Text("\(vm.activityEntries.count)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if vm.activityEntries.isEmpty {
+                Text("No local activity yet")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            } else {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(vm.activityEntries.prefix(6)) { entry in
+                        HStack(alignment: .top, spacing: 8) {
+                            Circle()
+                                .fill(Color.accentColor)
+                                .frame(width: 6, height: 6)
+                                .padding(.top, 5)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(entry.message)
+                                    .font(.caption)
+                                Text(entry.timestamp, style: .relative)
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
                     }
                 }
             }
@@ -468,6 +613,8 @@ final class SessionDetailVM {
     var isLoading = false
     var error: String?
     var exportError: String?
+    var workflowState: SessionWorkflowState
+    var activityEntries: [SessionActivityEntry] = []
     
     var displayEvents: [SessionEvent] {
         events
@@ -492,21 +639,93 @@ final class SessionDetailVM {
     
     init(session: Session) {
         self.session = session
+        self.workflowState = SessionWorkflowState(sessionId: session.id)
     }
-    
+
+    func loadLocalState() async {
+        do {
+            let states = try await AgentStorage.shared.loadSessionWorkflowStates()
+            workflowState = states.first(where: { $0.sessionId == session.id }) ?? SessionWorkflowState(sessionId: session.id)
+
+            let existingActivities = try await AgentStorage.shared.loadSessionActivityEntries(sessionId: session.id)
+            if existingActivities.isEmpty {
+                let initialEntry = SessionActivityEntry(
+                    sessionId: session.id,
+                    timestamp: session.createdAt,
+                    kind: "session",
+                    message: "Remote session created"
+                )
+                try await AgentStorage.shared.appendSessionActivityEntry(initialEntry)
+                activityEntries = [initialEntry]
+            } else {
+                activityEntries = existingActivities.sorted { $0.timestamp > $1.timestamp }
+            }
+        } catch {
+            self.error = AgentIssuePresentation(error: error).message
+        }
+    }
+
     func loadEvents(client: ManagedAgentsClient?) async {
         guard let client else {
             error = "Not authenticated"
             return
         }
-        
+
         isLoading = true
         defer { isLoading = false }
-        
+
         do {
             events = try await client.getEvents(sessionId: session.id)
+            await appendActivity(kind: "refresh", message: "Transcript refreshed in Keg")
         } catch {
-            self.error = error.localizedDescription
+            self.error = AgentIssuePresentation(error: error).message
+        }
+    }
+
+    func setFlagged(_ isFlagged: Bool) async {
+        workflowState.isFlagged = isFlagged
+        workflowState.updatedAt = Date()
+        await persistWorkflowState(activityMessage: isFlagged ? "Session flagged" : "Session unflagged")
+    }
+
+    func setWorkflowStatus(_ status: SessionWorkflowState.WorkflowStatus) async {
+        workflowState.workflowStatus = status
+        workflowState.updatedAt = Date()
+        await persistWorkflowState(activityMessage: "Workflow status changed to \(status.rawValue)")
+    }
+
+    func updateLabels(from labelString: String) async {
+        workflowState.labels = labelString
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        workflowState.updatedAt = Date()
+        await persistWorkflowState(activityMessage: workflowState.labels.isEmpty ? "Labels cleared" : "Labels updated to \(workflowState.labels.joined(separator: ", "))")
+    }
+
+    private func persistWorkflowState(activityMessage: String) async {
+        do {
+            var states = try await AgentStorage.shared.loadSessionWorkflowStates()
+            if let index = states.firstIndex(where: { $0.sessionId == session.id }) {
+                states[index] = workflowState
+            } else {
+                states.append(workflowState)
+            }
+            try await AgentStorage.shared.saveSessionWorkflowStates(states)
+            await appendActivity(kind: "workflow", message: activityMessage)
+        } catch {
+            self.error = AgentIssuePresentation(error: error).message
+        }
+    }
+
+    private func appendActivity(kind: String, message: String) async {
+        let entry = SessionActivityEntry(sessionId: session.id, kind: kind, message: message)
+        do {
+            try await AgentStorage.shared.appendSessionActivityEntry(entry)
+            activityEntries.insert(entry, at: 0)
+            activityEntries.sort { $0.timestamp > $1.timestamp }
+        } catch {
+            self.error = AgentIssuePresentation(error: error).message
         }
     }
     

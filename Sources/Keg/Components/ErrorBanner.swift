@@ -3,7 +3,21 @@ import SwiftUI
 /// Error banner component that displays at the top of the view
 struct ErrorBanner: View {
     let message: String
+    let actionTitle: String?
+    let onAction: (() -> Void)?
     let onDismiss: () -> Void
+
+    init(
+        message: String,
+        actionTitle: String? = nil,
+        onAction: (() -> Void)? = nil,
+        onDismiss: @escaping () -> Void
+    ) {
+        self.message = message
+        self.actionTitle = actionTitle
+        self.onAction = onAction
+        self.onDismiss = onDismiss
+    }
     
     var body: some View {
         HStack(spacing: 12) {
@@ -16,6 +30,16 @@ struct ErrorBanner: View {
                 .lineLimit(3)
             
             Spacer()
+
+            if let actionTitle, let onAction {
+                Button(actionTitle) {
+                    onAction()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.white.opacity(0.2))
+                .foregroundStyle(.white)
+                .accessibilityLabel(actionTitle)
+            }
             
             Button {
                 onDismiss()

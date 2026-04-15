@@ -234,11 +234,11 @@ struct AgentDetailView: View {
 ```
 
 ### Verification
-- [ ] Sidebar shows Keg/Agents picker
-- [ ] Switching areas changes sidebar content
-- [ ] Switching areas changes detail view
-- [ ] Existing Keg navigation still works
-- [ ] Keyboard shortcuts (Cmd+1 for Keg, Cmd+2 for Agents?)
+- [x] Sidebar shows Keg/Agents picker
+- [x] Switching areas changes sidebar content
+- [x] Switching areas changes detail view
+- [x] Existing Keg navigation still works
+- [x] Keyboard shortcuts (Cmd+1 for Keg, Cmd+2 for Agents?)
 
 ---
 
@@ -391,10 +391,10 @@ CommandMenu("Agent") {
 ```
 
 ### Verification
-- [ ] All 5 Agents screens accessible via sidebar
-- [ ] All screens show placeholder content
-- [ ] Navigation between screens works
-- [ ] No crashes or errors
+- [x] All 5 Agents screens accessible via sidebar
+- [x] All screens available (placeholder shell phase has been surpassed by implemented content)
+- [x] Navigation between screens works
+- [x] No crashes or errors
 
 ---
 
@@ -468,10 +468,10 @@ Section("Claude Agents API") {
 ```
 
 ### Verification
-- [ ] API key stored in Keychain
-- [ ] Connection tested on save
-- [ ] Error shown on invalid key
-- [ ] Disconnect clears key
+- [x] API key stored in Keychain
+- [x] Connection tested on save
+- [x] Error shown on invalid key
+- [x] Disconnect clears key
 
 ---
 
@@ -681,12 +681,12 @@ struct AgentCard: View {
 ```
 
 ### Verification
-- [ ] Dashboard loads agents from API
-- [ ] Dashboard loads recent sessions
-- [ ] Cards show correct info
-- [ ] Refresh works
-- [ ] Empty state when no agents
-- [ ] Error banner on failure
+- [x] Dashboard loads agents from API
+- [x] Dashboard loads recent sessions
+- [x] Cards show correct info
+- [x] Refresh works
+- [x] Empty state when no agents
+- [x] Error banner on failure
 
 ---
 
@@ -995,14 +995,14 @@ struct AgentEditorView: View {
 ```
 
 ### Verification
-- [ ] List all agents from API
-- [ ] Create new agent via sheet
-- [ ] Edit existing agent via sheet
-- [ ] Duplicate agent
-- [ ] Archive/delete agent
-- [ ] Search filters agents
-- [ ] Context menu works
-- [ ] Keyboard shortcuts work
+- [x] List all agents from API
+- [x] Create new agent via sheet
+- [x] Edit existing agent via detail/editor flow
+- [x] Duplicate agent
+- [x] Archive/delete agent
+- [x] Search filters agents
+- [x] Context menu works
+- [x] Keyboard shortcuts work
 
 ---
 
@@ -1389,14 +1389,14 @@ struct EventRow: View {
 ```
 
 ### Verification
-- [ ] Session list loads from API
-- [ ] Filter by agent works
-- [ ] Filter by date works
-- [ ] Search sessions works
-- [ ] Click session opens detail view
-- [ ] Transcript displays correctly
-- [ ] Copy transcript works
-- [ ] Context menu works
+- [x] Session list loads from API
+- [x] Filter by agent works
+- [x] Filter by date works
+- [x] Search sessions works
+- [x] Click session opens detail view
+- [x] Transcript displays correctly
+- [x] Copy transcript works
+- [x] Context menu works
 
 ---
 
@@ -1740,14 +1740,14 @@ struct SourceEditorView: View {
 ```
 
 ### Verification
-- [ ] Source list displays all sources
-- [ ] Add MCP source works
-- [ ] Add REST source works
-- [ ] Add Files source works
-- [ ] Test connection works
-- [ ] Enable/disable sources
-- [ ] Delete sources
-- [ ] Search/filter works
+- [x] Source list displays all sources
+- [x] Add MCP source works
+- [x] Add REST source works
+- [x] Add Files source works
+- [x] Test connection works
+- [x] Enable/disable sources
+- [x] Delete sources
+- [x] Search/filter works
 
 ---
 
@@ -1853,14 +1853,14 @@ struct SkillEditorView: View {
 ```
 
 ### Verification
-- [ ] Skill list displays all skills
-- [ ] Create skill via editor
-- [ ] Edit existing skill
-- [ ] YAML + Markdown tabs
-- [ ] Import skill from file
-- [ ] Export skill to file
-- [ ] Delete skills
-- [ ] Search/filter works
+- [x] Skill list displays all skills
+- [x] Create skill via editor
+- [x] Edit existing skill
+- [x] YAML + Markdown tabs
+- [x] Import skill from file
+- [x] Export skill to file
+- [x] Delete skills
+- [x] Search/filter works
 
 ---
 
@@ -1873,25 +1873,25 @@ struct SkillEditorView: View {
 ### Tasks
 
 #### 9.1 Error Handling
-- [ ] Network errors with retry
-- [ ] Auth errors with re-auth flow
+- [x] Network errors with retry
+- [x] Auth errors with re-auth flow
 - [ ] Validation errors in forms
-- [ ] Timeout handling
-- [ ] Offline state handling
+- [x] Timeout handling
+- [x] Offline state handling
 
 #### 9.2 Empty States
-- [ ] Dashboard empty: "No agents yet"
-- [ ] Agents empty: Create first agent CTA
-- [ ] Sessions empty: "Start a conversation"
-- [ ] Sources empty: Add first source CTA
-- [ ] Skills empty: Import or create skill CTA
+- [x] Dashboard empty: "No agents yet"
+- [x] Agents empty: Create first agent CTA
+- [x] Sessions empty: "Start a conversation"
+- [x] Sources empty: Add first source CTA
+- [x] Skills empty: Import or create skill CTA
 
 #### 9.3 Keyboard Shortcuts
-- [ ] Cmd+N: New agent
-- [ ] Cmd+Delete: Delete selected
-- [ ] Cmd+F: Focus search
-- [ ] Escape: Clear selection/close
-- [ ] Cmd+1/2: Switch areas
+- [x] Cmd+N: New agent
+- [x] Cmd+Delete: Delete selected
+- [x] Cmd+F: Focus search
+- [x] Escape: Clear selection/close
+- [x] Cmd+1/2: Switch areas
 
 #### 9.4 Accessibility
 - [ ] VoiceOver labels on all controls

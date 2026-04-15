@@ -11,6 +11,12 @@ struct SidebarView: View {
                 .padding(.top, 12)
                 .padding(.bottom, 8)
 
+            if appState.currentArea == .agents {
+                AgentPermissionModeControl()
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
+            }
+
             Divider()
                 .padding(.horizontal, 12)
 
@@ -73,6 +79,51 @@ struct AreaPicker: View {
         }
         .pickerStyle(.segmented)
         .controlSize(.small)
+        .accessibilityHint("Switch between the Keg and Agents areas")
+    }
+}
+
+// MARK: - Agent Permission Mode
+
+struct AgentPermissionModeControl: View {
+    @Environment(AppState.self) private var appState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: appState.agentPermissionMode.iconName)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("Mode")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+
+            Picker("Agent Permission Mode", selection: Binding(
+                get: { appState.agentPermissionMode },
+                set: { appState.agentPermissionMode = $0 }
+            )) {
+                ForEach(AgentPermissionMode.allCases) { mode in
+                    Text(mode.rawValue)
+                        .tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .controlSize(.small)
+            .accessibilityHint("Choose how much autonomy agents have in this workspace")
+
+            Text(appState.agentPermissionMode.summary)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .accessibilityLabel(appState.agentPermissionMode.summary)
+        }
+        .padding(10)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Agent permission mode")
+        .accessibilityValue(appState.agentPermissionMode.rawValue)
     }
 }
 

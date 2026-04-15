@@ -11,6 +11,8 @@ enum SystemStatus: Sendable {
 @Observable
 @MainActor
 final class AppState {
+    private static let agentPermissionModeDefaultsKey = "agents.permission-mode"
+
     // Docker API server
     private var dockerServerTask: Task<Void, Never>?
     var isDockerAPIRunning = false
@@ -21,6 +23,11 @@ final class AppState {
     var currentArea: AppArea = .keg
     var selectedKegSection: KegSection = .containers
     var selectedAgentSection: AgentSection = .dashboard
+    var agentPermissionMode: AgentPermissionMode {
+        didSet {
+            UserDefaults.standard.set(agentPermissionMode.rawValue, forKey: Self.agentPermissionModeDefaultsKey)
+        }
+    }
 
     // Legacy selection (for compatibility during transition)
     var selectedSection: NavigationSection = .containers {
@@ -37,12 +44,17 @@ final class AppState {
     var selectedImageReference: String?
     var selectedAgentID: String?
     var selectedSessionID: String?
+    var agentServiceReachability: AgentServiceReachability = .unknown
     var isRefreshing = false
     var runningContainerCount = 0
     var unhealthyContainerCount = 0
 
     private let containerClient = ContainerClient()
     private var refreshTimer: Timer?
+
+    init() {
+        self.agentPermissionMode = Self.loadAgentPermissionMode()
+    }
 
     var isSystemRunning: Bool {
         if case .running = systemStatus { return true }
@@ -206,6 +218,40 @@ final class AppState {
         } catch {
             runningContainerCount = 0
             unhealthyContainerCount = 0
+        }
+    }
+
+    private static func loadAgentPermissionMode() -> AgentPermissionMode {
+        guard let rawValue = UserDefaults.standard.string(forKey: agentPermissionModeDefaultsKey),
+              let mode = AgentPermissionMode(rawValue: rawValue) else {
+            return .ask
+        }
+        return mode
+    }
+}
+
+// MARK: - Agent Permission Mode
+
+enum AgentPermissionMode: String, CaseIterable, Identifiable {
+    case explore = "Explore"
+    case ask = "Ask"
+    case execute = "Execute"
+
+    var id: String { rawValue }
+
+    var iconName: String {
+        switch self {
+        case .explore: return "binoculars"
+        case .ask: return "questionmark.circle"
+        case .execute: return "bolt.fill"
+        }
+    }
+
+    var summary: String {
+        switch self {
+        case .explore: return "Research-first mode"
+        case .ask: return "Confirm before changes"
+        case .execute: return "Trusted autonomous execution"
         }
     }
 }

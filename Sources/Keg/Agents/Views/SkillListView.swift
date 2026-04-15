@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Skill List - Manage reusable agent skills
 struct SkillListView: View {
@@ -6,6 +7,12 @@ struct SkillListView: View {
     @Environment(AppState.self) private var appState
     @State private var showEditor = false
     @State private var editingSkill: AgentSkillItem?
+    @State private var showImportPicker = false
+    @State private var showExportSheet = false
+    @State private var exportDocument = SkillExportDocument(data: Data())
+    @State private var exportFilename = "skill"
+    @State private var selectedSkillID: String?
+    @FocusState private var isSearchFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -17,8 +24,9 @@ struct SkillListView: View {
         }
         .navigationTitle("Skills")
         .searchable(text: $vm.searchText, prompt: "Search skills")
+        .searchFocused($isSearchFocused)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
                 Button {
                     editingSkill = nil
                     showEditor = true
@@ -27,6 +35,13 @@ struct SkillListView: View {
                 }
                 .accessibilityLabel("Create new skill")
                 .keyboardShortcut("n", modifiers: .command)
+
+                Button {
+                    showImportPicker = true
+                } label: {
+                    Label("Import Skill", systemImage: "square.and.arrow.down")
+                }
+                .accessibilityLabel("Import skill")
             }
             ToolbarItem(placement: .automatic) {
                 Button {
@@ -41,6 +56,27 @@ struct SkillListView: View {
         .task {
             await vm.load()
         }
+        .onChange(of: vm.error) { _, newValue in
+            appState.updateAgentServiceReachability(for: newValue)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .kegFocusSearch)) { _ in
+            guard appState.currentArea == .agents,
+                  appState.selectedAgentSection == .skills else { return }
+            isSearchFocused = true
+        }
+        .onDeleteCommand {
+            if let selectedSkillID {
+                vm.deleteSkill(id: selectedSkillID)
+                self.selectedSkillID = nil
+            }
+        }
+        .onExitCommand {
+            if showEditor {
+                showEditor = false
+            } else if selectedSkillID != nil {
+                selectedSkillID = nil
+            }
+        }
         .sheet(isPresented: $showEditor) {
             SkillEditorView(skill: editingSkill) { newSkill in
                 if editingSkill != nil {
@@ -50,12 +86,71 @@ struct SkillListView: View {
                 }
             }
         }
+        .fileImporter(isPresented: $showImportPicker, allowedContentTypes: [.json], allowsMultipleSelection: false) { result in
+            switch result {
+            case .success(let urls):
+                guard let url = urls.first else { return }
+                Task { await vm.importSkill(from: url) }
+            case .failure(let error):
+                vm.error = error.localizedDescription
+            }
+        }
+        .fileExporter(
+            isPresented: $showExportSheet,
+            document: exportDocument,
+            contentType: .json,
+            defaultFilename: exportFilename
+        ) { result in
+            switch result {
+            case .success:
+                break
+            case .failure(let error):
+                vm.error = error.localizedDescription
+            }
+        }
+        .overlay(alignment: .top) {
+            if let issue = currentIssue {
+                ErrorBanner(
+                    message: issue.message,
+                    actionTitle: issue.actionTitle,
+                    onAction: { handle(issue: issue) }
+                ) {
+                    vm.error = nil
+                    appState.updateAgentServiceReachability(for: nil)
+                }
+            }
+        }
     }
-    
+
     private func refresh() async {
         await vm.load()
+        appState.updateAgentServiceReachability(for: vm.error)
     }
-    
+
+    private var currentIssue: AgentIssuePresentation? {
+        AgentIssuePresentation(message: vm.error)
+    }
+
+    private func handle(issue: AgentIssuePresentation) {
+        switch issue.kind {
+        case .auth:
+            appState.currentArea = .agents
+            appState.selectedAgentSection = .account
+        case .offline, .timeout, .generic:
+            Task { await refresh() }
+        }
+    }
+
+    private func beginExport(for skill: AgentSkillItem) {
+        Task {
+            if let document = await vm.exportDocument(for: skill) {
+                exportDocument = document
+                exportFilename = skill.name.replacingOccurrences(of: "/", with: "-")
+                showExportSheet = true
+            }
+        }
+    }
+
     private var authenticationRequiredView: some View {
         ContentUnavailableView {
             Label("Authentication Required", systemImage: "person.badge.key")
@@ -76,7 +171,7 @@ struct SkillListView: View {
             if vm.skills.isEmpty && !vm.isLoading {
                 emptyStateView
             } else {
-                Table(vm.filteredSkills) {
+                Table(vm.filteredSkills, selection: $selectedSkillID) {
                     TableColumn("Name") { skill in
                         Text(skill.name)
                             .fontWeight(.medium)
@@ -101,29 +196,24 @@ struct SkillListView: View {
                     .width(100)
                 }
                 .tableStyle(.inset(alternatesRowBackgrounds: true))
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Skills list")
+                .accessibilityValue("\(vm.filteredSkills.count) skills")
+                .accessibilityHint("Use arrow keys to change selection. Press Delete to remove the selected skill. Press Escape to clear selection.")
                 .contextMenu(forSelectionType: String.self) { ids in
                     if let id = ids.first,
-                       let skill = vm.skills.first(where: { $0.id == id }) {
+                       let skill = vm.filteredSkills.first(where: { $0.id == id }) {
                         Button("Edit") {
                             editingSkill = skill
                             showEditor = true
                         }
                         .accessibilityLabel("Edit skill \(skill.name)")
                         Button("Duplicate") {
-                            let copy = AgentSkillItem(
-                                id: UUID().uuidString,
-                                name: "\(skill.name) (Copy)",
-                                description: skill.description,
-                                instructions: skill.instructions,
-                                examples: skill.examples,
-                                createdAt: Date(),
-                                updatedAt: Date()
-                            )
-                            vm.addSkill(copy)
+                            vm.duplicateSkill(skill)
                         }
                         Divider()
                         Button("Export") {
-                            // TODO: Export skill
+                            beginExport(for: skill)
                         }
                         Divider()
                         Button("Delete", role: .destructive) {
@@ -134,17 +224,23 @@ struct SkillListView: View {
             }
         }
     }
-    
+
     private var emptyStateView: some View {
         ContentUnavailableView {
             Label("No Skills", systemImage: "book")
         } description: {
             Text("Create reusable instructions for your agents")
         } actions: {
-            Button("Create Skill") {
-                showEditor = true
+            HStack {
+                Button("Create Skill") {
+                    showEditor = true
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button("Import Skill") {
+                    showImportPicker = true
+                }
             }
-            .buttonStyle(.borderedProminent)
         }
         .accessibilityLabel("No skills available")
     }
@@ -156,13 +252,13 @@ struct SkillEditorView: View {
     let skill: AgentSkillItem?
     let onSave: (AgentSkillItem) -> Void
     @Environment(\.dismiss) private var dismiss
-    
+
     @State private var name = ""
     @State private var description = ""
     @State private var instructions = ""
     @State private var examples = ""
     @State private var selectedTab = 0
-    
+
     var body: some View {
         TabView(selection: $selectedTab) {
             Form {
@@ -170,7 +266,7 @@ struct SkillEditorView: View {
                     TextField("Name", text: $name)
                     TextField("Description", text: $description)
                 }
-                
+
                 Section("Instructions") {
                     TextEditor(text: $instructions)
                         .font(.system(.body, design: .monospaced))
@@ -182,7 +278,7 @@ struct SkillEditorView: View {
                 Label("YAML", systemImage: "doc.text")
             }
             .tag(0)
-            
+
             VStack(alignment: .leading, spacing: 12) {
                 Text("Examples & Usage Guide")
                     .font(.headline)
@@ -216,7 +312,7 @@ struct SkillEditorView: View {
             }
         }
     }
-    
+
     private func save() {
         let now = Date()
         let newSkill = AgentSkillItem(
@@ -252,25 +348,97 @@ final class SkillListVM {
     }
 
     func load() async {
-        // TODO: Load from local storage
-        isLoading = false
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            skills = try await AgentStorage.shared.loadSkills()
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
-    
+
     func addSkill(_ skill: AgentSkillItem) {
         skills.insert(skill, at: 0)
-        // TODO: Save to storage
+        Task { await persistSkills() }
     }
-    
+
     func updateSkill(_ skill: AgentSkillItem) {
         if let index = skills.firstIndex(where: { $0.id == skill.id }) {
             skills[index] = skill
+            Task { await persistSkills() }
         }
-        // TODO: Save to storage
     }
-    
+
+    func duplicateSkill(_ skill: AgentSkillItem) {
+        let now = Date()
+        let copy = AgentSkillItem(
+            id: UUID().uuidString,
+            name: "\(skill.name) (Copy)",
+            description: skill.description,
+            instructions: skill.instructions,
+            examples: skill.examples,
+            createdAt: now,
+            updatedAt: now
+        )
+        addSkill(copy)
+    }
+
     func deleteSkill(id: String) {
         skills.removeAll { $0.id == id }
-        // TODO: Remove from storage
+        Task { await persistSkills() }
+    }
+
+    func importSkill(from url: URL) async {
+        do {
+            let data = try Data(contentsOf: url)
+            let skill = try await AgentStorage.shared.importSkill(from: data)
+            skills.insert(skill, at: 0)
+            try await AgentStorage.shared.saveSkills(skills)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    func exportDocument(for skill: AgentSkillItem) async -> SkillExportDocument? {
+        do {
+            let data = try await AgentStorage.shared.exportSkill(skill)
+            return SkillExportDocument(data: data)
+        } catch {
+            self.error = error.localizedDescription
+            return nil
+        }
+    }
+
+    private func persistSkills() async {
+        do {
+            try await AgentStorage.shared.saveSkills(skills)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+}
+
+// MARK: - Export Document
+
+struct SkillExportDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.json] }
+
+    var data: Data
+
+    init(data: Data) {
+        self.data = data
+    }
+
+    init(configuration: ReadConfiguration) throws {
+        guard let data = configuration.file.regularFileContents else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        self.data = data
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: data)
     }
 }
 

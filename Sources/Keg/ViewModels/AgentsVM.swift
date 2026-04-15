@@ -34,7 +34,7 @@ final class AgentsVM {
             agents = response.data
             errorMessage = nil
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = AgentIssuePresentation(error: error).message
         }
     }
 
@@ -44,7 +44,7 @@ final class AgentsVM {
             try await client.archiveAgent(id: id)
             agents.removeAll { $0.id == id }
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = AgentIssuePresentation(error: error).message
         }
     }
 
@@ -55,8 +55,24 @@ final class AgentsVM {
             agents.insert(agent, at: 0)
             return agent
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = AgentIssuePresentation(error: error).message
             return nil
         }
     }
+
+    func duplicate(agent: Agent) async -> Agent? {
+        let params = CreateAgentParams(
+            name: "\(agent.name) (Copy)",
+            model: agent.model.id,
+            system: agent.system,
+            description: agent.description,
+            tools: agent.tools.isEmpty ? nil : agent.tools,
+            skills: agent.skills.isEmpty ? nil : agent.skills,
+            mcpServers: agent.mcpServers.isEmpty ? nil : agent.mcpServers,
+            callableAgents: agent.callableAgents,
+            metadata: agent.metadata
+        )
+        return await createAgent(params)
+    }
 }
+

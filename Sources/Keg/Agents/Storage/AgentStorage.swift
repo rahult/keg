@@ -52,6 +52,61 @@ struct SkillExportFile: Codable {
     let examples: String?
 }
 
+struct SessionWorkflowState: Codable, Identifiable {
+    let sessionId: String
+    var isFlagged: Bool
+    var workflowStatus: WorkflowStatus
+    var labels: [String]
+    var updatedAt: Date
+
+    var id: String { sessionId }
+
+    init(
+        sessionId: String,
+        isFlagged: Bool = false,
+        workflowStatus: WorkflowStatus = .inbox,
+        labels: [String] = [],
+        updatedAt: Date = Date()
+    ) {
+        self.sessionId = sessionId
+        self.isFlagged = isFlagged
+        self.workflowStatus = workflowStatus
+        self.labels = labels
+        self.updatedAt = updatedAt
+    }
+
+    enum WorkflowStatus: String, Codable, CaseIterable, Identifiable {
+        case inbox = "Inbox"
+        case inProgress = "In Progress"
+        case needsReview = "Needs Review"
+        case done = "Done"
+
+        var id: String { rawValue }
+    }
+}
+
+struct SessionActivityEntry: Identifiable, Codable {
+    let id: UUID
+    let sessionId: String
+    let timestamp: Date
+    let kind: String
+    let message: String
+
+    init(
+        id: UUID = UUID(),
+        sessionId: String,
+        timestamp: Date = Date(),
+        kind: String,
+        message: String
+    ) {
+        self.id = id
+        self.sessionId = sessionId
+        self.timestamp = timestamp
+        self.kind = kind
+        self.message = message
+    }
+}
+
 // MARK: - Storage Service
 
 /// Local JSON file storage for agent data (sources, skills)
@@ -142,6 +197,43 @@ actor AgentStorage {
             createdAt: now,
             updatedAt: now
         )
+    }
+
+    // MARK: - Session Workflow
+
+    private var sessionWorkflowURL: URL { storageDirectory.appendingPathComponent("session-workflow.json") }
+    private var sessionActivityURL: URL { storageDirectory.appendingPathComponent("session-activity.json") }
+
+    func loadSessionWorkflowStates() throws -> [SessionWorkflowState] {
+        guard fileManager.fileExists(atPath: sessionWorkflowURL.path) else {
+            return []
+        }
+        let data = try Data(contentsOf: sessionWorkflowURL)
+        return try decoder.decode([SessionWorkflowState].self, from: data)
+    }
+
+    func saveSessionWorkflowStates(_ states: [SessionWorkflowState]) throws {
+        try ensureDirectoryExists()
+        let data = try encoder.encode(states)
+        try data.write(to: sessionWorkflowURL, options: .atomic)
+    }
+
+    func loadSessionActivityEntries(sessionId: String? = nil) throws -> [SessionActivityEntry] {
+        guard fileManager.fileExists(atPath: sessionActivityURL.path) else {
+            return []
+        }
+        let data = try Data(contentsOf: sessionActivityURL)
+        let entries = try decoder.decode([SessionActivityEntry].self, from: data)
+        guard let sessionId else { return entries }
+        return entries.filter { $0.sessionId == sessionId }
+    }
+
+    func appendSessionActivityEntry(_ entry: SessionActivityEntry) throws {
+        var entries = try loadSessionActivityEntries()
+        entries.append(entry)
+        try ensureDirectoryExists()
+        let data = try encoder.encode(entries.sorted { $0.timestamp > $1.timestamp })
+        try data.write(to: sessionActivityURL, options: .atomic)
     }
 }
 
