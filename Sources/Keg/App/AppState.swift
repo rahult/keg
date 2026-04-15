@@ -34,11 +34,15 @@ final class AppState {
     var selectedAgentID: String?
     var selectedSessionID: String?
     var agentServiceReachability: AgentServiceReachability = .unknown
+    var agentAutomationState = AgentAutomationState()
+    var agentApprovalItems: [AgentApprovalItem] = []
     var isRefreshing = false
+    var isRefreshingAgentAutomation = false
     var runningContainerCount = 0
     var unhealthyContainerCount = 0
 
     private let containerClient = ContainerClient()
+    private let agentAutomationService = AgentAutomationService()
     private var refreshTimer: Timer?
 
     init() {
@@ -50,6 +54,7 @@ final class AppState {
             } catch {
             }
             self?.refreshAgentAuthentication()
+            await self?.refreshAgentAutomation()
         }
     }
 
@@ -70,6 +75,41 @@ final class AppState {
 
     func refreshAgentAuthentication() {
         isAgentAuthenticated = AgentAuth.hasAPIKey()
+    }
+
+    var pendingAgentApprovals: [AgentApprovalItem] {
+        agentApprovalItems.filter { $0.status == .pending }
+    }
+
+    func refreshAgentAutomation() async {
+        guard !isRefreshingAgentAutomation else { return }
+        isRefreshingAgentAutomation = true
+        defer { isRefreshingAgentAutomation = false }
+        agentAutomationState = await agentAutomationService.captureState()
+    }
+
+    func requestAgentNotificationAccess() async {
+        agentAutomationState.notificationStatus = await agentAutomationService.requestNotificationAuthorization()
+    }
+
+    func queueApprovalPreview(for useCase: AgentUseCase) async {
+        let item = AgentApprovalItem.preview(for: useCase, context: agentAutomationState.context)
+        agentApprovalItems.insert(item, at: 0)
+        await agentAutomationService.scheduleNotification(for: item)
+    }
+
+    func approveAgentApproval(_ id: UUID) {
+        guard let index = agentApprovalItems.firstIndex(where: { $0.id == id }) else { return }
+        agentApprovalItems[index].status = .approved
+    }
+
+    func rejectAgentApproval(_ id: UUID) {
+        guard let index = agentApprovalItems.firstIndex(where: { $0.id == id }) else { return }
+        agentApprovalItems[index].status = .rejected
+    }
+
+    func clearResolvedAgentApprovals() {
+        agentApprovalItems.removeAll { $0.status != .pending }
     }
 
     /// Show the system dashboard in the detail area

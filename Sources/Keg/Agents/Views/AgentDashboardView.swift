@@ -9,6 +9,7 @@ struct AgentDashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 headerSection
+                liveContextSection
 
                 if !appState.isAgentAuthenticated {
                     authenticationRequiredView
@@ -80,10 +81,14 @@ struct AgentDashboardView: View {
     }
     
     private func refresh() async {
+        async let automationRefresh: Void = appState.refreshAgentAutomation()
+
         if let client = await appState.agentClient {
             await vm.load(client: client)
             appState.updateAgentServiceReachability(for: vm.error)
         }
+
+        _ = await automationRefresh
     }
 
     private var currentIssue: AgentIssuePresentation? {
@@ -103,20 +108,34 @@ struct AgentDashboardView: View {
         .accessibilityLabel("Agents Dashboard. Overview of your AI agents and recent activity.")
     }
     
+    private var liveContextSection: some View {
+        AgentLiveContextPanel(
+            automation: appState.agentAutomationState,
+            pendingApprovalCount: appState.pendingAgentApprovals.count,
+            isRefreshing: appState.isRefreshingAgentAutomation,
+            onRefresh: {
+                Task { await appState.refreshAgentAutomation() }
+            },
+            onRequestNotifications: appState.agentAutomationState.notificationStatus == .notDetermined || appState.agentAutomationState.notificationStatus == .unknown ? {
+                Task { await appState.requestAgentNotificationAccess() }
+            } : nil
+        )
+    }
+
     private var authenticationRequiredView: some View {
         ContentUnavailableView {
             Label("Authentication Required", systemImage: "person.badge.key")
         } description: {
-            Text("Connect your Claude API key in Account to use Agents")
+            Text("Connect your Claude API key in Settings to use Agents")
         } actions: {
-            Button("Open Account") {
-                appState.currentArea = .agents
-                appState.selectedAgentSection = .account
+            Button("Open Settings") {
+                appState.openSettings()
             }
             .buttonStyle(.borderedProminent)
+            .accessibilityHint("Open app settings")
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Authentication Required. Connect your Claude API key in Account to use Agents.")
+        .accessibilityLabel("Authentication Required. Connect your Claude API key in Settings to use Agents.")
     }
     
     private var loadingView: some View {
@@ -139,11 +158,13 @@ struct AgentDashboardView: View {
                 appState.selectedAgentSection = .useCases
             }
             .buttonStyle(.borderedProminent)
+            .accessibilityHint("Open the template library")
 
             Button("Create Agent") {
                 appState.selectedAgentSection = .agents
             }
             .buttonStyle(.bordered)
+            .accessibilityHint("Open the agents list to create a new agent")
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("No Agents Yet. Create your first agent to get started.")
@@ -159,14 +180,14 @@ struct AgentDashboardView: View {
                 handle(issue: issue)
             }
             .buttonStyle(.borderedProminent)
+            .accessibilityHint("Resolve the current agents availability issue")
         }
     }
 
     private func handle(issue: AgentIssuePresentation) {
         switch issue.kind {
         case .auth:
-            appState.currentArea = .agents
-            appState.selectedAgentSection = .account
+            appState.openSettings()
         case .offline, .timeout, .generic:
             Task { await refresh() }
         }
@@ -244,6 +265,8 @@ struct AgentDashboardView: View {
                 }
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .accessibilityLabel("Recent sessions table")
+            .accessibilityHint("Use arrow keys to review recent sessions")
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(vm.recentSessions.count) recent sessions")

@@ -15,6 +15,10 @@ struct SidebarView: View {
                 AgentPermissionModeControl()
                     .padding(.horizontal, 12)
                     .padding(.bottom, 8)
+
+                AgentAccountStatusCard()
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
             }
 
             if appState.currentArea == .keg {
@@ -36,6 +40,9 @@ struct SidebarView: View {
         .listStyle(.sidebar)
         .navigationTitle("Keg")
         .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 340)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Sidebar")
+        .accessibilityHint("Choose an area and section")
     }
 }
 
@@ -60,6 +67,7 @@ struct AreaPicker: View {
         }
         .pickerStyle(.segmented)
         .controlSize(.small)
+        .accessibilityLabel("Area picker")
         .accessibilityHint("Switch between the Keg and Agents areas")
     }
 }
@@ -102,9 +110,50 @@ struct AgentPermissionModeControl: View {
         .padding(10)
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8))
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
         .accessibilityLabel("Agent permission mode")
         .accessibilityValue(appState.agentPermissionMode.rawValue)
+    }
+}
+
+struct AgentAccountStatusCard: View {
+    @Environment(AppState.self) private var appState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: appState.isAgentAuthenticated ? "checkmark.circle.fill" : "person.badge.key")
+                    .font(.caption)
+                    .foregroundStyle(appState.isAgentAuthenticated ? .green : .secondary)
+                Text("Claude")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+
+            Text(appState.isAgentAuthenticated ? "Connected" : "Not connected")
+                .font(.subheadline.weight(.medium))
+
+            Text(appState.isAgentAuthenticated ? "Manage your Claude API key in Settings." : "Connect your Claude API key in Settings to use Agents.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+
+            Button("Open Settings") {
+                appState.openSettings()
+            }
+            .buttonStyle(.link)
+            .controlSize(.small)
+            .padding(.top, 2)
+            .accessibilityHint("Open app settings to manage the Claude API key")
+        }
+        .padding(10)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .task {
+            appState.refreshAgentAuthentication()
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(appState.isAgentAuthenticated ? "Claude connected. Open Settings to manage your API key." : "Claude not connected. Open Settings to connect your API key.")
     }
 }
 
@@ -144,9 +193,12 @@ struct KegSidebarContent: View {
                 SettingsLink {
                     Label("Settings", systemImage: "gearshape")
                 }
+                .accessibilityHint("Open app settings")
             }
         }
         .listStyle(.sidebar)
+        .accessibilityLabel("Keg sections")
+        .accessibilityHint("Use arrow keys to move between Keg sections")
     }
 
     @ViewBuilder
@@ -177,7 +229,6 @@ struct AgentSidebarContent: View {
     private let sections: [SidebarSection] = [
         SidebarSection(name: "Overview", items: [.dashboard, .useCases, .sessions]),
         SidebarSection(name: "Manage", items: [.agents, .skills, .sources]),
-        SidebarSection(name: "Account", items: [.account]),
     ]
 
     var body: some View {
@@ -193,8 +244,17 @@ struct AgentSidebarContent: View {
                     }
                 }
             }
+
+            Section("App") {
+                SettingsLink {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                .accessibilityHint("Open app settings")
+            }
         }
         .listStyle(.sidebar)
+        .accessibilityLabel("Agent sections")
+        .accessibilityHint("Use arrow keys to move between agent sections")
     }
 }
 

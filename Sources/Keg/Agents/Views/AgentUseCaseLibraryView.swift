@@ -13,19 +13,48 @@ struct AgentUseCaseLibraryView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 headerSection
+                liveContextBar
                 principlesSection
 
                 LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
                     ForEach(AgentUseCase.all) { useCase in
-                        AgentUseCaseCard(useCase: useCase) {
-                            selectedUseCase = useCase
-                        }
+                        AgentUseCaseCard(
+                            useCase: useCase,
+                            checks: useCase.capabilityChecks(using: appState.agentAutomationState),
+                            isRefreshingContext: appState.isRefreshingAgentAutomation,
+                            pendingReviewCount: appState.pendingAgentApprovals.filter { $0.useCaseID == useCase.id }.count,
+                            onRefreshContext: {
+                                Task { await appState.refreshAgentAutomation() }
+                            },
+                            onRequestNotifications: {
+                                Task { await appState.requestAgentNotificationAccess() }
+                            },
+                            onQueueReview: {
+                                Task { await appState.queueApprovalPreview(for: useCase) }
+                            },
+                            onCreate: {
+                                selectedUseCase = useCase
+                            }
+                        )
                     }
                 }
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Agent use case templates")
+                .accessibilityValue("\(AgentUseCase.all.count) templates")
             }
             .padding(20)
         }
         .navigationTitle("Use Cases")
+        .onExitCommand {
+            if selectedUseCase != nil {
+                selectedUseCase = nil
+                return
+            }
+
+            if showBlankCreateSheet {
+                showBlankCreateSheet = false
+            }
+        }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
@@ -69,6 +98,60 @@ struct AgentUseCaseLibraryView: View {
         .accessibilityLabel("Mac-native agent starting points. Start from concrete workflows instead of generic chat.")
     }
 
+    private var liveContextBar: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Live Mac context")
+                        .font(.headline)
+                    Text(contextSummary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if appState.isRefreshingAgentAutomation {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+
+                Button {
+                    Task { await appState.refreshAgentAutomation() }
+                } label: {
+                    Label("Refresh Context", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+
+                if appState.agentAutomationState.notificationStatus == .unknown || appState.agentAutomationState.notificationStatus == .notDetermined {
+                    Button {
+                        Task { await appState.requestAgentNotificationAccess() }
+                    } label: {
+                        Label("Request Notifications", systemImage: "bell.badge")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+
+            if !appState.pendingAgentApprovals.isEmpty {
+                Text("\(appState.pendingAgentApprovals.count) review item(s) queued for approval.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(16)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var contextSummary: String {
+        let context = appState.agentAutomationState.context
+        let activeApp = context.activeAppName ?? "No active app"
+        let files = context.selectedFileCount == 0 ? "no Finder items" : "\(context.selectedFileCount) Finder item(s)"
+        let terminal = context.hasTerminalSnapshot ? "terminal ready" : "no terminal snapshot"
+        return "\(activeApp) • \(files) • \(terminal) • \(appState.agentAutomationState.notificationStatus.summary)"
+    }
+
     private var principlesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Implementation lens")
@@ -85,11 +168,19 @@ struct AgentUseCaseLibraryView: View {
         .padding(16)
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Implementation lens. Lead with explicit entry points, keep risky work reviewable, and use templates to seed strong agent prompts.")
     }
 }
 
 private struct AgentUseCaseCard: View {
     let useCase: AgentUseCase
+    let checks: [AgentCapabilityCheck]
+    let isRefreshingContext: Bool
+    let pendingReviewCount: Int
+    let onRefreshContext: () -> Void
+    let onRequestNotifications: () -> Void
+    let onQueueReview: () -> Void
     let onCreate: () -> Void
 
     var body: some View {
@@ -128,6 +219,8 @@ private struct AgentUseCaseCard: View {
                     .foregroundStyle(.secondary)
             }
 
+            AgentCapabilityChecklistView(checks: checks)
+
             VStack(alignment: .leading, spacing: 6) {
                 Text("Example asks")
                     .font(.caption.weight(.semibold))
@@ -140,24 +233,61 @@ private struct AgentUseCaseCard: View {
                 }
             }
 
-            Spacer(minLength: 0)
+            HStack(spacing: 8) {
+                Button(action: onRefreshContext) {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+                .disabled(isRefreshingContext)
 
-            Button(action: onCreate) {
-                Label("Create Agent", systemImage: "plus.circle.fill")
-                    .frame(maxWidth: .infinity)
+                if checks.contains(where: { $0.capability == .notifications && $0.status != .ready }) {
+                    Button(action: onRequestNotifications) {
+                        Label("Notifications", systemImage: "bell.badge")
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                Spacer()
+
+                if pendingReviewCount > 0 {
+                    Text("\(pendingReviewCount) queued")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.secondary.opacity(0.12))
+                        .clipShape(Capsule())
+                }
             }
-            .buttonStyle(.borderedProminent)
+
+            HStack(spacing: 8) {
+                Button(action: onQueueReview) {
+                    Label("Queue Review", systemImage: "checklist")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityLabel("Queue review for \(useCase.title)")
+
+                Button(action: onCreate) {
+                    Label("Create Agent", systemImage: "plus.circle.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityLabel("Create \(useCase.title) agent")
+                .accessibilityHint("Opens the create agent sheet with this use case prefilled")
+            }
         }
         .padding(16)
-        .frame(maxWidth: .infinity, minHeight: 260, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 380, alignment: .topLeading)
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay {
             RoundedRectangle(cornerRadius: 14)
                 .strokeBorder(Color.secondary.opacity(0.12))
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(useCase.title). \(useCase.summary) Why Mac specific: \(useCase.macAdvantage)")
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(useCase.title) template")
+        .accessibilityHint(useCase.summary)
     }
 }
 
