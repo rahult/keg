@@ -1,34 +1,35 @@
-# Craft + Notion Agents Synthesis for Keg
+# Craft + Notion + Open Agents Synthesis for Keg
 
 ## Goal
-Translate the strongest, most implementation-relevant patterns from Craft Agents and Notion Agents into a concrete feature roadmap for Keg's existing Agents area.
+Translate the strongest, most implementation-relevant patterns from Craft Agents, Notion Agents, and Open Agents into a concrete feature roadmap for Keg's existing Agents area.
 
 ## Short Answer
-Keg should **not** try to copy both products wholesale. The best path is:
+Keg should **not** try to copy all three products wholesale. The best path is:
 1. **Finish existing Sources + Skills foundation**
 2. **Add visible permission modes and run/audit history**
 3. **Introduce session workflow metadata (status, labels, flags, background-state)**
 4. **Only then add automations / scheduled agents**
 5. **Defer remote/headless multi-client architecture until local-first workflows are solid**
 
-Craft contributes the best patterns for **agent-native desktop UX**. Notion contributes the best patterns for **governance, automation safety, and shared/autonomous agents**.
+Craft contributes the best patterns for **agent-native desktop UX**. Notion contributes the best patterns for **governance, automation safety, and shared/autonomous agents**. Open Agents contributes the best patterns for **durable orchestration and sandbox/runtime separation**.
 
 ## Feature Matrix
 
-| Capability | Craft Agents | Notion Agents | Keg today | Implication for Keg |
-|---|---|---|---|---|
-| Personal/manual agent chat | Yes | Yes (Notion Agent) | Yes | Keep |
-| Shared/autonomous agent mode | Implicit via automation/shared sessions | Explicit Custom Agents | No | Add later as separate concept |
-| MCP + REST + files sources | Strong | MCP + app integrations + Notion content | Partial shell | Finish now |
-| Local skills / reusable instructions | Strong | Strong | Partial shell | Finish now |
-| Multi-session workflow inbox | Strong | Moderate | Partial dashboard/session list | Add metadata/status/flags |
-| Permission modes visible in UX | Strong | Tool/agent permission controls | No | High priority |
-| Agent-specific access model | Weak-medium | Strong | No | High priority before automation |
-| Activity/run log | Medium | Strong | Weak | High priority |
-| Schedules + triggers | Strong | Strong | No | Medium priority |
-| Quotas / budget limits | Weak | Strong | No | Add with automation |
-| Remote/headless multi-client | Strong | Not core | No | Strategic, defer |
-| Reversible edits / version history | Not core | Strong | No | Needed where Keg writes local state |
+| Capability | Craft Agents | Notion Agents | Open Agents | Keg today | Implication for Keg |
+|---|---|---|---|---|---|
+| Personal/manual agent chat | Yes | Yes (Notion Agent) | Light web chat | Yes | Keep |
+| Shared/autonomous agent mode | Implicit via automation/shared sessions | Explicit Custom Agents | Background coding sessions | No | Add later as separate concept |
+| MCP + REST + files sources | Strong | MCP + app integrations + Notion content | Weak / not primary | Partial shell | Finish now |
+| Local skills / reusable instructions | Strong | Strong | Present in runtime, not main differentiator | Partial shell | Finish now |
+| Multi-session workflow inbox | Strong | Moderate | Moderate | Partial dashboard/session list | Add metadata/status/flags |
+| Permission modes visible in UX | Strong | Tool/agent permission controls | Weak / not primary | No | High priority |
+| Agent-specific access model | Weak-medium | Strong | Weak | No | High priority before automation |
+| Activity/run log | Medium | Strong | Medium | Weak | High priority |
+| Schedules + triggers | Strong | Strong | Workflow-driven background runs | No | Medium priority |
+| Quotas / budget limits | Weak | Strong | Weak | No | Add with automation |
+| Remote/headless multi-client | Strong | Not core | Strong | No | Strategic, defer |
+| Durable orchestration outside execution env | Weak | Weak | Strong | No | Strategic architecture reference |
+| Reversible edits / version history | Not core | Strong | Weak | No | Needed where Keg writes local state |
 
 ## Where Craft is Most Useful
 
@@ -62,6 +63,17 @@ Keg has session history but not a strong run-level provenance layer.
 
 ### 3. Autonomous agent product boundary
 Notion keeps autonomous/shared agents separate from the personal assistant. Keg should do the same instead of bolting triggers directly onto the current basic agent object without distinction.
+
+## Where Open Agents is Most Useful
+
+### 1. Durable orchestration separated from execution substrate
+Open Agents is the clearest reference for keeping workflow orchestration outside the sandbox/container itself. That matters if Keg later wants long-running or remote agent runs instead of purely UI-bound sessions.
+
+### 2. Resumable background execution
+Open Agents assumes clients disconnect while work continues. Reconnectable streams, resumable workflows, and snapshot-based sandbox restore are the right architectural references if Keg ever grows into headless or remote execution.
+
+### 3. Deep git/session coupling for coding-agent workflows
+If Keg chooses to become a coding-agent product, Open Agents shows how branch-per-session, repo cloning, and optional auto-commit/PR creation can be part of the runtime model rather than bolted on later.
 
 ## Recommended Keg Architecture Direction
 
@@ -125,6 +137,7 @@ Keg's current model is too thin. It would blur chat sessions and workflow automa
 ## Phase 5 — Strategic / optional
 - remote headless Keg Agents service
 - thin-client or multi-client UI
+- durable workflow orchestration outside execution VM/container
 - team/shared workspaces
 - admin-level policy and analytics
 
@@ -176,10 +189,11 @@ If Keg wants one high-confidence tranche next, it should be:
 4. How much reversibility can Keg guarantee for source writes outside its own local store?
 
 ## Final Recommendation
-Keg should copy **Craft's UX grammar** and **Notion's governance grammar**.
+Keg should copy **Craft's UX grammar**, **Notion's governance grammar**, and later **Open Agents' runtime grammar**.
 
 In practical terms:
 - from Craft: sources, skills, multi-session workflow, permission modes, agent-native configuration, eventually automations
 - from Notion: explicit access model, activity log, reversibility mindset, autonomous/manual split, quotas/limits
+- from Open Agents: durable orchestration outside the execution environment, resumable background runs, and clearer separation between workflow control plane and sandbox/container substrate
 
-The best next build is **not** remote agents or enterprise controls. It is finishing the half-built local substrate so Keg can safely grow into autonomous workflows.
+The best next build is still **not** remote agents or enterprise controls. It is finishing the half-built local substrate so Keg can safely grow into autonomous workflows first.

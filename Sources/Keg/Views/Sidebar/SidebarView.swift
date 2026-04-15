@@ -6,15 +6,10 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // System Dashboard at top
-            SystemDashboardView()
-                .padding(.horizontal, 8)
-                .padding(.top, 8)
-
             AreaPicker()
                 .padding(.horizontal, 12)
-                .padding(.top, 8)
-                .padding(.bottom, 4)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
 
             Divider()
                 .padding(.horizontal, 12)
@@ -92,6 +87,7 @@ struct KegSidebarContent: View {
     }
 
     private let sections: [SidebarSection] = [
+        SidebarSection(name: "Overview", items: [.dashboard]),
         SidebarSection(name: "Workloads", items: [.containers, .compose, .kubernetes]),
         SidebarSection(name: "Content", items: [.images, .builds]),
         SidebarSection(name: "System", items: [.networks, .volumes, .registries]),

@@ -26,6 +26,22 @@ struct KegApp: App {
         .windowToolbarStyle(.unified(showsTitle: true))
         .defaultSize(width: 1100, height: 700)
         .commands {
+            CommandMenu("Dashboard") {
+                Button("System Dashboard") {
+                    appState.showDashboard()
+                }
+                .keyboardShortcut("D", modifiers: .command)
+
+                Divider()
+
+                Button("Refresh Metrics") {
+                    Task {
+                        await appState.refreshMetrics()
+                    }
+                }
+                .keyboardShortcut("R", modifiers: .command)
+            }
+
             CommandMenu("Container") {
                 Button("Run Container...") {
                     NotificationCenter.default.post(name: .kegRunContainer, object: nil)
@@ -192,6 +208,8 @@ struct KegDetailView: View {
 
     var body: some View {
         switch appState.selectedKegSection {
+        case .dashboard:
+            SystemDashboardDetailView()
         case .containers:
             ContainerListView()
         case .images:

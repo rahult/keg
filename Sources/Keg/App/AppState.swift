@@ -63,6 +63,18 @@ final class AppState {
         isAgentAuthenticated = AgentAuth.hasAPIKey()
     }
 
+    /// Show the system dashboard in the detail area
+    func showDashboard() {
+        currentArea = .keg
+        selectedKegSection = .dashboard
+    }
+
+    /// Refresh system metrics
+    func refreshMetrics() async {
+        await checkSystemStatus()
+        await refreshDashboardCounts()
+    }
+
     // Computed for current section (used by legacy views)
     var currentSection: NavigationSection {
         get {
@@ -217,6 +229,7 @@ enum AppArea: String, CaseIterable, Identifiable {
 // MARK: - Keg Sections
 
 enum KegSection: String, CaseIterable, Identifiable {
+    case dashboard = "Dashboard"
     case containers = "Containers"
     case compose = "Compose"
     case kubernetes = "Kubernetes"
@@ -235,6 +248,7 @@ enum KegSection: String, CaseIterable, Identifiable {
 
     var iconName: String {
         switch self {
+        case .dashboard: return "square.grid.2x2"
         case .containers: return "cube.box"
         case .compose: return "doc.text"
         case .kubernetes: return "helm"

@@ -8,6 +8,7 @@
   - Verified Keg already has usable account/auth, agent CRUD, session list/detail, and local storage primitives for skills/sources
   - Identified biggest gaps: skills/sources persistence wiring, source testing/runtime activation, permission modes, run history, and automation triggers
   - Recommended immediate tranche: finish Sources + Skills, then add permission modes and run logs before any automation or shared/autonomous agent layer
+  - Follow-up extension added Open Agents as third comparison target; reinforced long-term recommendation to separate workflow orchestration from execution substrate if Keg later adopts remote/headless agent runs
 
 ### Added
 - **Agent Area Foundation**: Initial Managed Agents API implementation for Keg

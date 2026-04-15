@@ -76,3 +76,4 @@ Research target is Keg's existing Agents area. Goal: identify highest-value feat
 - Round 1 complete: feature inventories and Keg audit written to dedicated research files.
 - Round 2 complete: unified synthesis shows best next move is finishing Sources + Skills, then adding permission modes and run history before automations.
 - Resolved strategy choice: copy Craft's UX patterns and Notion's governance patterns, not their entire product surfaces.
+- Follow-up extension added: incorporated Open Agents as an architectural comparison target; conclusion unchanged for immediate roadmap, but remote/headless guidance now points to durable workflow orchestration and sandbox/runtime separation patterns from Open Agents.
