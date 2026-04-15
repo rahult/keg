@@ -25,6 +25,8 @@ struct SkillListView: View {
                 } label: {
                     Label("Create Skill", systemImage: "plus")
                 }
+                .accessibilityLabel("Create new skill")
+                .keyboardShortcut("n", modifiers: .command)
             }
             ToolbarItem(placement: .automatic) {
                 Button {
@@ -33,6 +35,7 @@ struct SkillListView: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .keyboardShortcut("r", modifiers: .command)
+                .accessibilityLabel("Refresh skill list")
             }
         }
         .task {
@@ -65,8 +68,9 @@ struct SkillListView: View {
             }
             .buttonStyle(.borderedProminent)
         }
+        .accessibilityLabel("Authentication required to manage skills")
     }
-    
+
     private var skillTable: some View {
         Group {
             if vm.skills.isEmpty && !vm.isLoading {
@@ -76,20 +80,23 @@ struct SkillListView: View {
                     TableColumn("Name") { skill in
                         Text(skill.name)
                             .fontWeight(.medium)
+                            .accessibilityLabel("Skill name: \(skill.name)")
                     }
                     .width(min: 150)
-                    
+
                     TableColumn("Description") { skill in
                         Text(skill.description)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
+                            .accessibilityLabel("Description: \(skill.description)")
                     }
                     .width(min: 200)
-                    
+
                     TableColumn("Updated") { skill in
                         Text(skill.updatedAt, style: .relative)
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                            .accessibilityLabel("Updated \(skill.updatedAt, format: .dateTime)")
                     }
                     .width(100)
                 }
@@ -101,6 +108,7 @@ struct SkillListView: View {
                             editingSkill = skill
                             showEditor = true
                         }
+                        .accessibilityLabel("Edit skill \(skill.name)")
                         Button("Duplicate") {
                             let copy = AgentSkillItem(
                                 id: UUID().uuidString,
@@ -138,6 +146,7 @@ struct SkillListView: View {
             }
             .buttonStyle(.borderedProminent)
         }
+        .accessibilityLabel("No skills available")
     }
 }
 
@@ -263,16 +272,6 @@ final class SkillListVM {
         skills.removeAll { $0.id == id }
         // TODO: Remove from storage
     }
-}
-
-struct AgentSkillItem: Identifiable, Codable {
-    let id: String
-    var name: String
-    var description: String
-    var instructions: String
-    var examples: String?
-    var createdAt: Date
-    var updatedAt: Date
 }
 
 #Preview {

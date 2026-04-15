@@ -24,14 +24,17 @@ struct SourceListView: View {
                         editingSource = nil
                         showEditor = true
                     }
+                    .accessibilityLabel("Add MCP server source")
                     Button("REST API") {
                         editingSource = nil
                         showEditor = true
                     }
+                    .accessibilityLabel("Add REST API source")
                     Button("File System") {
                         editingSource = nil
                         showEditor = true
                     }
+                    .accessibilityLabel("Add file system source")
                 } label: {
                     Label("Add Source", systemImage: "plus")
                 }
@@ -43,6 +46,7 @@ struct SourceListView: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .keyboardShortcut("r", modifiers: .command)
+                .accessibilityLabel("Refresh source list")
             }
         }
         .task {
@@ -75,8 +79,9 @@ struct SourceListView: View {
             }
             .buttonStyle(.borderedProminent)
         }
+        .accessibilityLabel("Authentication required to manage sources")
     }
-    
+
     private var sourceTable: some View {
         Group {
             if vm.sources.isEmpty && !vm.isLoading {
@@ -121,8 +126,9 @@ struct SourceListView: View {
             }
             .buttonStyle(.borderedProminent)
         }
+        .accessibilityLabel("No sources available")
     }
-    
+
     private func statusColor(_ status: AgentSource.ConnectionStatus) -> Color {
         switch status {
         case .connected: return .green
@@ -293,27 +299,6 @@ final class SourceListVM {
     func deleteSource(id: String) {
         sources.removeAll { $0.id == id }
         // TODO: Remove from storage
-    }
-}
-
-struct AgentSource: Identifiable, Codable {
-    let id: String
-    var name: String
-    var type: SourceType
-    var isEnabled: Bool
-    var status: ConnectionStatus
-
-    enum SourceType: String, Codable {
-        case mcp
-        case rest
-        case files
-    }
-
-    enum ConnectionStatus: String, Codable {
-        case connected
-        case disconnected
-        case error
-        case unknown
     }
 }
 
