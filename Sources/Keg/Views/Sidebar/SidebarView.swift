@@ -5,10 +5,15 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // System Dashboard at top
+            SystemDashboardView()
+                .padding(.horizontal, 8)
+                .padding(.top, 8)
+
             AreaPicker()
                 .padding(.horizontal, 12)
-                .padding(.top, 12)
-                .padding(.bottom, 8)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
 
             Divider()
                 .padding(.horizontal, 12)
