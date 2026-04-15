@@ -3,24 +3,99 @@ import SwiftUI
 struct SidebarView: View {
     @Environment(AppState.self) private var appState
 
+    var body: some View {
+        VStack(spacing: 0) {
+            AreaPicker()
+                .padding(.horizontal, 12)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
+
+            Divider()
+                .padding(.horizontal, 12)
+
+            switch appState.currentArea {
+            case .keg:
+                KegSidebarContent()
+            case .agents:
+                AgentSidebarContent()
+            }
+
+            Spacer()
+
+            Divider()
+                .padding(.horizontal, 12)
+
+            // Settings always at bottom
+            settingsButton
+        }
+        .listStyle(.sidebar)
+        .navigationTitle("Keg")
+        .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 320)
+    }
+
+    private var settingsButton: some View {
+        Button {
+            appState.currentArea = .keg
+            appState.selectedKegSection = .settings
+        } label: {
+            Label(KegSection.settings.rawValue, systemImage: KegSection.settings.iconName)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(appState.currentArea == .keg && appState.selectedKegSection == .settings ? Color.accentColor.opacity(0.15) : Color.clear)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .padding(.horizontal, 8)
+        .padding(.bottom, 8)
+    }
+}
+
+// MARK: - Area Picker
+
+struct AreaPicker: View {
+    @Environment(AppState.self) private var appState
+
+    var body: some View {
+        Picker("Area", selection: Binding(
+            get: { appState.currentArea },
+            set: { appState.currentArea = $0 }
+        )) {
+            ForEach(AppArea.allCases) { area in
+                Label {
+                    Text(area.rawValue)
+                } icon: {
+                    Image(systemName: area.iconName)
+                }
+                .tag(area)
+            }
+        }
+        .pickerStyle(.segmented)
+        .controlSize(.small)
+    }
+}
+
+// MARK: - Keg Sidebar Content
+
+struct KegSidebarContent: View {
+    @Environment(AppState.self) private var appState
+
     private struct SidebarSection {
         let name: String
-        let items: [NavigationSection]
+        let items: [KegSection]
     }
 
     private let sections: [SidebarSection] = [
-        SidebarSection(name: "Workloads", items: [.containers, .compose]),
+        SidebarSection(name: "Workloads", items: [.containers, .compose, .kubernetes]),
         SidebarSection(name: "Content", items: [.images, .builds]),
-        SidebarSection(name: "Networking", items: [.networks, .ports, .registries]),
-        SidebarSection(name: "Storage", items: [.volumes]),
-        SidebarSection(name: "Tools", items: [.terminal, .devcontainers, .kubernetes, .agents]),
-        SidebarSection(name: "Health", items: [.health]),
+        SidebarSection(name: "System", items: [.networks, .volumes, .registries]),
+        SidebarSection(name: "Tools", items: [.terminal, .devcontainers, .health]),
     ]
 
     var body: some View {
-        List(selection: Binding<NavigationSection?>(
-            get: { appState.selectedSection },
-            set: { appState.selectedSection = $0 ?? .containers }
+        List(selection: Binding<KegSection?>(
+            get: { appState.selectedKegSection },
+            set: { if let section = $0 { appState.selectedKegSection = section } }
         )) {
             ForEach(sections, id: \.name) { section in
                 Section(section.name) {
@@ -30,19 +105,12 @@ struct SidebarView: View {
                     }
                 }
             }
-
-            Section("System") {
-                Label(NavigationSection.settings.rawValue, systemImage: NavigationSection.settings.iconName)
-                    .tag(NavigationSection.settings)
-            }
         }
         .listStyle(.sidebar)
-        .navigationTitle("Keg")
-        .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 320)
     }
 
     @ViewBuilder
-    private func sidebarLabel(for item: NavigationSection) -> some View {
+    private func sidebarLabel(for item: KegSection) -> some View {
         switch item {
         case .containers:
             Label(item.rawValue, systemImage: item.iconName)
@@ -53,5 +121,33 @@ struct SidebarView: View {
         default:
             Label(item.rawValue, systemImage: item.iconName)
         }
+    }
+}
+
+// MARK: - Agent Sidebar Content
+
+struct AgentSidebarContent: View {
+    @Environment(AppState.self) private var appState
+
+    var body: some View {
+        List(selection: Binding<AgentSection?>(
+            get: { appState.selectedAgentSection },
+            set: { if let section = $0 { appState.selectedAgentSection = section } }
+        )) {
+            Section("Overview") {
+                ForEach([AgentSection.dashboard, .sessions]) { section in
+                    Label(section.rawValue, systemImage: section.iconName)
+                        .tag(section)
+                }
+            }
+
+            Section("Manage") {
+                ForEach([AgentSection.agents, .skills, .sources]) { section in
+                    Label(section.rawValue, systemImage: section.iconName)
+                        .tag(section)
+                }
+            }
+        }
+        .listStyle(.sidebar)
     }
 }

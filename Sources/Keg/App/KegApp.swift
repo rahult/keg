@@ -63,6 +63,21 @@ struct KegApp: App {
                 .disabled(appState.selectedSection != .images)
             }
 
+            CommandMenu("Agent") {
+                Button("Go to Agents") {
+                    appState.currentArea = .agents
+                }
+                .keyboardShortcut("2", modifiers: .command)
+
+                Divider()
+
+                Button("New Agent") {
+                    NotificationCenter.default.post(name: .kegNewAgent, object: nil)
+                }
+                .keyboardShortcut("N", modifiers: [.command, .option])
+                .disabled(appState.currentArea != .agents || appState.selectedAgentSection != .agents)
+            }
+
             CommandGroup(after: .toolbar) {
                 Button("Toggle Sidebar") {
                     NotificationCenter.default.post(name: .kegToggleSidebar, object: nil)
@@ -104,6 +119,7 @@ extension Notification.Name {
     static let kegRefresh = Notification.Name("keg.refresh")
     static let kegPullImage = Notification.Name("keg.pullImage")
     static let kegToggleSidebar = Notification.Name("keg.toggleSidebar")
+    static let kegNewAgent = Notification.Name("keg.newAgent")
 }
 
 // MARK: - Icons
@@ -158,37 +174,71 @@ struct DetailView: View {
 
     var body: some View {
         Group {
-            switch appState.selectedSection {
-            case .containers:
-                ContainerListView()
-            case .images:
-                ImageListView()
-            case .builds:
-                BuildView()
-            case .compose:
-                ComposeView()
-            case .terminal:
-                QuickTerminalView()
-            case .ports:
-                PortDashboardView()
-            case .networks:
-                NetworkListView()
-            case .volumes:
-                VolumeListView()
-            case .registries:
-                RegistryListView()
-            case .health:
-                HealthDashboardView()
-            case .devcontainers:
-                DevContainerView()
-            case .kubernetes:
-                KubernetesView()
+            switch appState.currentArea {
+            case .keg:
+                KegDetailView()
             case .agents:
-                AgentListView()
-            case .settings:
-                SettingsView()
+                AgentAreaView()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Keg Detail View
+
+struct KegDetailView: View {
+    @Environment(AppState.self) private var appState
+
+    var body: some View {
+        switch appState.selectedKegSection {
+        case .containers:
+            ContainerListView()
+        case .images:
+            ImageListView()
+        case .builds:
+            BuildView()
+        case .compose:
+            ComposeView()
+        case .terminal:
+            QuickTerminalView()
+        case .ports:
+            PortDashboardView()
+        case .networks:
+            NetworkListView()
+        case .volumes:
+            VolumeListView()
+        case .registries:
+            RegistryListView()
+        case .health:
+            HealthDashboardView()
+        case .devcontainers:
+            DevContainerView()
+        case .kubernetes:
+            KubernetesView()
+        case .settings:
+            SettingsView()
+        }
+    }
+}
+
+// MARK: - Agent Area View (routing)
+
+struct AgentAreaView: View {
+    @Environment(AppState.self) private var appState
+
+    var body: some View {
+        switch appState.selectedAgentSection {
+        case .dashboard:
+            AgentDashboardView()
+        case .agents:
+            AgentListView()
+        case .sessions:
+            SessionListView()
+        case .sources:
+            SourceListView()
+        case .skills:
+            SkillListView()
+        }
     }
 }
