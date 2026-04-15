@@ -59,7 +59,6 @@ actor SystemMetrics {
         var numCPUThreads: natural_t = 0
         var cpuInfo: processor_info_array_t?
         var numCpuInfo: mach_msg_type_number_t = 0
-        var numCpuInfoUnused: mach_msg_type_number_t = 0
 
         let result = host_processor_info(
             mach_host_self(),
@@ -106,16 +105,21 @@ actor SystemMetrics {
         }
 
         if kerr == KERN_SUCCESS {
-            let pageSize = Double(vm_kernel_page_size)
+            var pageSize: vm_size_t = 0
+            host_page_size(hostPort, &pageSize)
+            let pageSizeBytes = Double(pageSize)
             let totalMemory = Double(ProcessInfo.processInfo.physicalMemory)
 
-            let activeMemory = Double(vmStats.active_count) * pageSize
-            let wiredMemory = Double(vmStats.wire_count) * pageSize
-            let compressedMemory = Double(vmStats.compressor_page_count) * pageSize
+            let activeMemory = Double(vmStats.active_count) * pageSizeBytes
+            let wiredMemory = Double(vmStats.wire_count) * pageSizeBytes
+            let compressedMemory = Double(vmStats.compressor_page_count) * pageSizeBytes
 
-            metrics.memoryUsedGB = (activeMemory + wiredMemory + compressedMemory) / (1024 * 1024 * 1024)
-            metrics.memoryTotalGB = totalMemory / (1024 * 1024 * 1024)
-            metrics.memoryUsagePercent = (metrics.memoryUsedGB / metrics.memoryTotalGB) * 100
+            let usedBytes = activeMemory + wiredMemory + compressedMemory
+            let usedGB = usedBytes / 1_073_741_824.0
+            let totalGB = totalMemory / 1_073_741_824.0
+            metrics.memoryUsedGB = usedGB
+            metrics.memoryTotalGB = totalGB
+            metrics.memoryUsagePercent = (usedGB / totalGB) * 100
         }
     }
 

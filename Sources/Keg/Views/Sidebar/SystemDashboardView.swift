@@ -158,6 +158,16 @@ struct MetricCard: View {
     }
 }
 
+// MARK: - Preview
+
+#Preview {
+    VStack {
+        SystemDashboardView()
+            .frame(width: 200)
+    }
+    .padding()
+}
+
 /// Status indicator dot
 struct StatusDot: View {
     enum Status {
