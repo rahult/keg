@@ -17,3 +17,16 @@
 - `Sources/Keg/Agent/SessionTypes.swift` - Session and event types
 - `Sources/Keg/Agent/ManagedAgentsClient.swift` - API client
 - `Tests/KegTests/ManagedAgentsSpec.swift` - API specification tests
+
+## Research: Integration Platforms at Scale (2026-04-15)
+
+### Research Completed
+- **Topic**: How to enable integrations at scale like Nango.dev
+- **Sources**: 6 primary sources verified
+- **Output**: `outputs/integration-platforms-at-scale.md`
+
+### Key Findings
+- Nango: 700+ APIs, auth abstraction + TypeScript functions [1]
+- Supaglue: Best OSS alternative for B2B SaaS (Apache 2.0) [2]
+- Airbyte: 300+ connectors for data pipelines [3]
+- Self-hosted costs: $80-400/month vs managed $0-1000+/month

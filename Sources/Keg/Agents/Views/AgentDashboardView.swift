@@ -32,6 +32,7 @@ struct AgentDashboardView: View {
                 } label: {
                     Label("Manage Agents", systemImage: "gearshape")
                 }
+                .accessibilityLabel("Navigate to manage agents")
             }
             ToolbarItem(placement: .automatic) {
                 Button {
@@ -40,18 +41,18 @@ struct AgentDashboardView: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .keyboardShortcut("r", modifiers: .command)
+                .accessibilityLabel("Refresh dashboard")
             }
         }
         .task {
             await refresh()
         }
-        .alert("Error", isPresented: .init(
-            get: { vm.error != nil },
-            set: { if !$0 { vm.error = nil } }
-        )) {
-            Button("OK") { vm.error = nil }
-        } message: {
-            Text(vm.error ?? "")
+        .overlay(alignment: .top) {
+            if let error = vm.error {
+                ErrorBanner(message: error) {
+                    vm.error = nil
+                }
+            }
         }
     }
     
@@ -70,6 +71,8 @@ struct AgentDashboardView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Agents Dashboard. Overview of your AI agents and recent activity.")
     }
     
     private var authenticationRequiredView: some View {
@@ -84,6 +87,8 @@ struct AgentDashboardView: View {
             }
             .buttonStyle(.borderedProminent)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Authentication Required. Connect your Claude API key in Account to use Agents.")
     }
     
     private var loadingView: some View {
@@ -107,6 +112,8 @@ struct AgentDashboardView: View {
             }
             .buttonStyle(.borderedProminent)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("No Agents Yet. Create your first agent to get started.")
     }
     
     private var contentView: some View {
@@ -132,6 +139,7 @@ struct AgentDashboardView: View {
                 }
                 .buttonStyle(.borderless)
                 .controlSize(.small)
+                .accessibilityLabel("View all agents")
             }
             
             LazyVGrid(columns: [
@@ -142,6 +150,8 @@ struct AgentDashboardView: View {
                 }
             }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(vm.activeAgents.count) active agents")
     }
     
     private var recentSessionsSection: some View {
@@ -155,19 +165,23 @@ struct AgentDashboardView: View {
                 }
                 .buttonStyle(.borderless)
                 .controlSize(.small)
+                .accessibilityLabel("View all sessions")
             }
             
             Table(vm.recentSessions) {
                 TableColumn("Agent") { session in
                     Text(session.agentName)
+                        .accessibilityLabel("Agent: \(session.agentName)")
                 }
                 TableColumn("Started") { session in
                     Text(session.started, style: .relative)
                         .foregroundStyle(.secondary)
+                        .accessibilityLabel("Started \(session.started, style: .relative) ago")
                 }
                 TableColumn("Messages") { session in
                     Text("\(session.messageCount)")
                         .foregroundStyle(.secondary)
+                        .accessibilityLabel("\(session.messageCount) messages")
                 }
                 TableColumn("Status") { session in
                     StatusBadge(status: session.ended == nil ? "Active" : "Completed")
@@ -175,6 +189,8 @@ struct AgentDashboardView: View {
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(vm.recentSessions.count) recent sessions")
     }
 }
 
@@ -193,6 +209,7 @@ struct AgentCard: View {
                 Circle()
                     .fill(agent.isActive ? Color.green : Color.gray)
                     .frame(width: 8, height: 8)
+                    .accessibilityLabel(agent.isActive ? "Active" : "Inactive")
             }
             
             Text(agent.name)
@@ -213,6 +230,22 @@ struct AgentCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(buildAccessibilityLabel())
+    }
+    
+    private func buildAccessibilityLabel() -> String {
+        var parts: [String] = []
+        parts.append(agent.name)
+        parts.append("Model: \(agent.model)")
+        parts.append(agent.isActive ? "Status: Active" : "Status: Inactive")
+        if let lastUsed = agent.lastUsed {
+            let formatter = RelativeDateTimeFormatter()
+            formatter.unitsStyle = .short
+            let relative = formatter.localizedString(for: lastUsed, relativeTo: Date())
+            parts.append("Last used \(relative) ago")
+        }
+        return parts.joined(separator: ". ")
     }
 }
 

@@ -30,6 +30,7 @@ struct MCPServerConfigSheet: View {
         }
         .frame(width: 500, height: 420)
         .navigationTitle("Add MCP Server")
+        .accessibilityLabel("Add MCP server configuration sheet")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") {
@@ -140,6 +141,7 @@ struct MCPServerConfigSheet: View {
                 onDismiss()
             }
             .keyboardShortcut(.escape)
+            .accessibilityLabel("Cancel and close")
 
             Button("Add Server") {
                 addServer()
@@ -148,6 +150,7 @@ struct MCPServerConfigSheet: View {
             }
             .keyboardShortcut(.return)
             .disabled(!canAddServer)
+            .accessibilityLabel("Add MCP server to agent")
         }
         .padding()
     }

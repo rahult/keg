@@ -46,21 +46,29 @@ struct AgentDetailView: View {
                         editedAgent = agent
                         isEditing = false
                     }
+                    .keyboardShortcut(.escape)
+                    .accessibilityLabel("Cancel editing")
                     Button("Save") {
                         Task { await saveChanges() }
                     }
                     .disabled(isSaving)
+                    .keyboardShortcut("s", modifiers: .command)
+                    .accessibilityLabel("Save changes")
                 } else {
                     Button("Edit") {
                         isEditing = true
                     }
+                    .keyboardShortcut("e", modifiers: .command)
+                    .accessibilityLabel("Edit agent")
                 }
             }
         }
-        .alert("Error", isPresented: .constant(errorMessage != nil)) {
-            Button("OK") { errorMessage = nil }
-        } message: {
-            Text(errorMessage ?? "")
+        .overlay(alignment: .top) {
+            if let error = errorMessage {
+                ErrorBanner(message: error) {
+                    errorMessage = nil
+                }
+            }
         }
         .confirmationDialog("Delete Agent", isPresented: $showDeleteConfirmation) {
             Button("Archive", role: .destructive) {
@@ -79,9 +87,11 @@ struct AgentDetailView: View {
                 TextField("Name", text: $editedAgent.name)
                     .font(.title2.bold())
                     .textFieldStyle(.roundedBorder)
+                    .accessibilityLabel("Agent name")
             } else {
                 Text(agent.name)
                     .font(.title2.bold())
+                    .accessibilityLabel("Agent name: \(agent.name)")
             }
 
             HStack(spacing: 16) {
@@ -99,6 +109,22 @@ struct AgentDetailView: View {
             .font(.caption)
             .foregroundStyle(.tertiary)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(buildHeaderAccessibilityLabel())
+    }
+    
+    private func buildHeaderAccessibilityLabel() -> String {
+        var parts: [String] = []
+        parts.append("Agent: \(agent.name)")
+        parts.append("ID: \(agent.id.prefix(8))...")
+        parts.append("Version \(agent.version)")
+        parts.append("Type: \(agent.type)")
+        let df = DateFormatter()
+        df.dateStyle = .medium
+        df.timeStyle = .short
+        parts.append("Created \(df.string(from: agent.createdAt))")
+        parts.append("Updated \(df.string(from: agent.updatedAt))")
+        return parts.joined(separator: ". ")
     }
 
     private var modelSection: some View {
@@ -110,10 +136,12 @@ struct AgentDetailView: View {
                 if isEditing {
                     TextField("Model ID", text: $editedAgent.model.id)
                         .textFieldStyle(.roundedBorder)
+                        .accessibilityLabel("Model ID")
                 } else {
                     Text(agent.model.id)
                         .font(.system(.body, design: .monospaced))
                         .foregroundStyle(.secondary)
+                        .accessibilityLabel("Model: \(agent.model.id)")
                 }
 
                 if let speed = (isEditing ? editedAgent.model.speed : agent.model.speed) {
@@ -126,9 +154,12 @@ struct AgentDetailView: View {
                     }
                     .labelsHidden()
                     .disabled(!isEditing)
+                    .accessibilityLabel("Model speed")
                 }
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Model configuration: \(agent.model.id)")
     }
 
     private var descriptionSection: some View {
@@ -266,6 +297,7 @@ struct AgentDetailView: View {
                 showDeleteConfirmation = true
             }
             .buttonStyle(.bordered)
+            .accessibilityLabel("Archive this agent (destructive action)")
         }
     }
 

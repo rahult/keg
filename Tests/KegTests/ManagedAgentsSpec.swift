@@ -23,9 +23,9 @@ final class ManagedAgentsSpec: XCTestCase {
 
     func testAgentList() async throws {
         // GET /v1/agents - List all agents (verify type structure)
-        let response = AgentListResponse(data: [], hasMore: false, totalCount: 0)
+        let response = AgentListResponse(data: [], hasMore: false, nextPage: nil, firstID: nil, lastID: nil, totalCount: 0)
         XCTAssertEqual(response.data.count, 0)
-        XCTAssertFalse(response.hasMore)
+        XCTAssertFalse(response.hasMore ?? false)
     }
 
     func testAgentGet() async throws {
@@ -94,7 +94,7 @@ final class ManagedAgentsSpec: XCTestCase {
 
     func testEnvironmentList() async throws {
         // GET /v1/environments
-        let response = EnvironmentListResponse(data: [], hasMore: false, totalCount: 0)
+        let response = EnvironmentListResponse(data: [], hasMore: false, nextPage: nil, firstID: nil, lastID: nil, totalCount: 0)
         XCTAssertEqual(response.data.count, 0)
     }
 
@@ -152,7 +152,7 @@ final class ManagedAgentsSpec: XCTestCase {
 
     func testSessionList() async throws {
         // GET /v1/sessions
-        let response = SessionListResponse(data: [], hasMore: false, totalCount: 0)
+        let response = SessionListResponse(data: [], hasMore: false, nextPage: nil, firstID: nil, lastID: nil, totalCount: 0)
         XCTAssertEqual(response.data.count, 0)
     }
 

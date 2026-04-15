@@ -71,6 +71,8 @@ struct AgentEditorView: View {
                     dismiss()
                 }
                 .disabled(isSaving)
+                .keyboardShortcut(.escape)
+                .accessibilityLabel("Cancel and close")
             }
 
             ToolbarItem(placement: .confirmationAction) {
@@ -78,6 +80,8 @@ struct AgentEditorView: View {
                     Task { await saveAgent() }
                 }
                 .disabled(name.isEmpty || isSaving)
+                .keyboardShortcut(.return)
+                .accessibilityLabel(isNewAgent ? "Create agent" : "Save agent changes")
             }
         }
         .sheet(isPresented: $showToolPicker) {
@@ -109,10 +113,12 @@ struct AgentEditorView: View {
                 .ignoresSafeArea()
             }
         }
-        .alert("Error", isPresented: .constant(errorMessage != nil)) {
-            Button("OK") { errorMessage = nil }
-        } message: {
-            Text(errorMessage ?? "")
+        .overlay(alignment: .top) {
+            if let error = errorMessage {
+                ErrorBanner(message: error) {
+                    errorMessage = nil
+                }
+            }
         }
     }
 
@@ -141,16 +147,22 @@ struct AgentEditorView: View {
                 Label("Add Tool", systemImage: "wrench.and.screwdriver")
             }
             .buttonStyle(.bordered)
+            .keyboardShortcut("t", modifiers: .command)
+            .accessibilityLabel("Add tool to agent")
 
             Button(action: { showSkillPicker = true }) {
                 Label("Add Skill", systemImage: "sparkles")
             }
             .buttonStyle(.bordered)
+            .keyboardShortcut("k", modifiers: .command)
+            .accessibilityLabel("Add skill to agent")
 
             Button(action: { showMCPConfigSheet = true }) {
                 Label("Add MCP Server", systemImage: "server.rack")
             }
             .buttonStyle(.bordered)
+            .keyboardShortcut("m", modifiers: .command)
+            .accessibilityLabel("Add MCP server to agent")
 
             Spacer()
         }

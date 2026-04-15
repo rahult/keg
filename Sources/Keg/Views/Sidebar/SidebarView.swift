@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SidebarView: View {
+
     @Environment(AppState.self) private var appState
 
     var body: some View {
@@ -160,5 +161,16 @@ struct AgentSidebarContent: View {
             }
         }
         .listStyle(.sidebar)
+    }
+}
+
+// MARK: - Preview
+
+#Preview {
+    NavigationSplitView {
+        SidebarView()
+            .frame(width: 250)
+    } detail: {
+        Text("Select an item")
     }
 }

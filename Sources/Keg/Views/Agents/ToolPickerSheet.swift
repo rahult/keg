@@ -24,6 +24,7 @@ struct ToolPickerSheet: View {
         }
         .frame(width: 500, height: 400)
         .navigationTitle("Add Tool")
+        .accessibilityLabel("Add tool sheet")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") {
@@ -138,6 +139,7 @@ struct ToolPickerSheet: View {
                 onDismiss()
             }
             .keyboardShortcut(.escape)
+            .accessibilityLabel("Cancel and close")
 
             Button("Add Tool") {
                 addTool()
@@ -146,6 +148,7 @@ struct ToolPickerSheet: View {
             }
             .keyboardShortcut(.return)
             .disabled(!canAddTool)
+            .accessibilityLabel("Add tool to agent")
         }
         .padding()
     }

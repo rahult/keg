@@ -42,6 +42,8 @@ struct SessionDetailView: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .disabled(vm.isLoading)
+                .keyboardShortcut("r", modifiers: .command)
+                .accessibilityLabel("Refresh transcript")
                 
                 Menu {
                     Button {
@@ -49,12 +51,14 @@ struct SessionDetailView: View {
                     } label: {
                         Label("Copy Transcript", systemImage: "doc.on.doc")
                     }
+                    .keyboardShortcut("c", modifiers: .command)
                     
                     Button {
                         showingExportSheet = true
                     } label: {
                         Label("Export as Markdown", systemImage: "square.and.arrow.up")
                     }
+                    .keyboardShortcut("e", modifiers: .command)
                     
                     Divider()
                     
@@ -66,6 +70,7 @@ struct SessionDetailView: View {
                 } label: {
                     Label("Actions", systemImage: "ellipsis.circle")
                 }
+                .accessibilityLabel("Session actions menu")
             }
         }
         .task {
@@ -92,13 +97,16 @@ struct SessionDetailView: View {
                 vm.exportError = error.localizedDescription
             }
         }
-        .alert("Export Error", isPresented: .init(
-            get: { vm.exportError != nil },
-            set: { if !$0 { vm.exportError = nil } }
-        )) {
-            Button("OK") { vm.exportError = nil }
-        } message: {
-            Text(vm.exportError ?? "")
+        .overlay(alignment: .top) {
+            if let error = vm.exportError ?? (vm.error != nil && vm.events.isEmpty ? vm.error : nil) {
+                ErrorBanner(message: error) {
+                    if vm.exportError != nil {
+                        vm.exportError = nil
+                    } else {
+                        vm.error = nil
+                    }
+                }
+            }
         }
     }
     
@@ -196,6 +204,7 @@ struct SessionDetailView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityLabel("Loading transcript")
     }
     
     private var errorView: some View {
@@ -209,6 +218,8 @@ struct SessionDetailView: View {
             }
             .buttonStyle(.borderedProminent)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Failed to load transcript. \(vm.error ?? "Unknown error"). Click Retry to try again.")
     }
     
     private var transcriptView: some View {
@@ -247,11 +258,11 @@ struct SessionDetailView: View {
 struct EventRow: View {
     let event: SessionEvent
     let isLast: Bool
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             eventHeader
-            
+
             eventContent
         }
         .padding(.vertical, 12)
@@ -264,11 +275,27 @@ struct EventRow: View {
                 .frame(width: 3)
                 .clipShape(RoundedRectangle(cornerRadius: 1.5))
         }
-        
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+
         if !isLast {
             Divider()
                 .padding(.leading, 16)
         }
+    }
+
+    private var accessibilityLabel: String {
+        var parts: [String] = [roleText]
+        if let content = event.content {
+            let preview = content.prefix(100)
+            parts.append(String(preview))
+        }
+        if let timestamp = event.timestamp {
+            let formatter = DateFormatter()
+            formatter.timeStyle = .short
+            parts.append("at \(formatter.string(from: timestamp))")
+        }
+        return parts.joined(separator: ". ")
     }
     
     @ViewBuilder

@@ -18,12 +18,15 @@ struct AgentListView: View {
                     Button { showCreateSheet = true } label: {
                         Label("Create...", systemImage: "plus")
                     }
+                    .keyboardShortcut("n", modifiers: .command)
+                    .accessibilityLabel("Create new agent")
                 }
                 ToolbarItem(id: "refresh", placement: .automatic) {
                     Button { Task { await vm.refresh() } } label: {
                         Label("Refresh", systemImage: "arrow.clockwise")
                     }
                     .keyboardShortcut("r", modifiers: .command)
+                    .accessibilityLabel("Refresh agents list")
                 }
             }
             .toolbarRole(.editor)
@@ -43,10 +46,12 @@ struct AgentListView: View {
                 }
             }
             .onDisappear { appState.selectedAgentID = nil }
-            .alert("Error", isPresented: .constant(vm.errorMessage != nil)) {
-                Button("OK") { vm.errorMessage = nil }
-            } message: {
-                Text(vm.errorMessage ?? "")
+            .overlay(alignment: .top) {
+                if let error = vm.errorMessage {
+                    ErrorBanner(message: error) {
+                        vm.errorMessage = nil
+                    }
+                }
             }
     }
 
@@ -55,12 +60,15 @@ struct AgentListView: View {
         if vm.isLoading && vm.agents.isEmpty {
             ProgressView("Loading agents...")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityLabel("Loading agents")
         } else if filteredAgents.isEmpty {
             ContentUnavailableView(
                 vm.agents.isEmpty ? "No Agents" : "No Matching Agents",
                 systemImage: "person.2.badge.gearshape",
                 description: Text(vm.agents.isEmpty ? "Create an agent to get started" : "Try a different search")
             )
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(vm.agents.isEmpty ? "No agents created yet. Create your first agent to get started." : "No agents match your search. Try a different search term.")
         } else {
             agentsTable
         }
@@ -79,7 +87,10 @@ struct AgentListView: View {
     private var agentsTable: some View {
         Table(filteredAgents, selection: $selectedAgentID) {
             TableColumn("Name") { agent in
-                Text(agent.name).lineLimit(1).truncationMode(.tail)
+                Text(agent.name)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .accessibilityLabel("Agent name: \(agent.name)")
             }
             .width(min: 120)
 
@@ -87,6 +98,7 @@ struct AgentListView: View {
                 Text(agent.model.id)
                     .font(.system(.body, design: .monospaced))
                     .foregroundStyle(.secondary)
+                    .accessibilityLabel("Model: \(agent.model.id)")
             }
             .width(min: 100)
 
@@ -94,18 +106,21 @@ struct AgentListView: View {
                 Text(agent.type)
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)
+                    .accessibilityLabel("Type: \(agent.type)")
             }
             .width(min: 80)
 
             TableColumn("Tools") { agent in
                 Text("\(agent.tools.count)")
                     .foregroundStyle(.secondary)
+                    .accessibilityLabel("\(agent.tools.count) tools")
             }
             .width(50)
 
             TableColumn("Skills") { agent in
                 Text("\(agent.skills.count)")
                     .foregroundStyle(.secondary)
+                    .accessibilityLabel("\(agent.skills.count) skills")
             }
             .width(50)
 
@@ -113,12 +128,14 @@ struct AgentListView: View {
                 Text("v\(agent.version)")
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)
+                    .accessibilityLabel("Version \(agent.version)")
             }
             .width(60)
 
             TableColumn("Created") { agent in
                 Text(agent.createdAt, format: .dateTime.month().day().year())
                     .foregroundStyle(.secondary)
+                    .accessibilityLabel("Created \(agent.createdAt, format: .dateTime)")
             }
             .width(min: 90)
         }

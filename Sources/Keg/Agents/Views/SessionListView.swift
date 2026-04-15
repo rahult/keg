@@ -3,6 +3,7 @@ import SwiftUI
 /// Session List - View conversation history
 struct SessionListView: View {
     @State private var vm = SessionListVM()
+    @State private var selectedSessionID: String?
     @Environment(AppState.self) private var appState
 
     var body: some View {
@@ -11,7 +12,7 @@ struct SessionListView: View {
                 authenticationRequiredView
             } else {
                 filterBar
-                
+
                 if vm.isLoading && vm.sessions.isEmpty {
                     loadingView
                 } else if vm.sessions.isEmpty {
@@ -31,18 +32,30 @@ struct SessionListView: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .keyboardShortcut("r", modifiers: .command)
+                .accessibilityLabel("Refresh sessions list")
             }
         }
         .task {
             await refresh()
         }
-        .alert("Error", isPresented: .init(
-            get: { vm.error != nil },
-            set: { if !$0 { vm.error = nil } }
+        .inspector(isPresented: .init(
+            get: { selectedSessionID != nil },
+            set: { if !$0 { selectedSessionID = nil } }
         )) {
-            Button("OK") { vm.error = nil }
-        } message: {
-            Text(vm.error ?? "")
+            if let id = selectedSessionID,
+               let session = vm.sessions.first(where: { $0.id == id }) {
+                SessionDetailView(session: session, agent: vm.agents[session.agentId])
+            }
+        }
+        .onChange(of: selectedSessionID) { _, newValue in
+            appState.selectedSessionID = newValue
+        }
+        .overlay(alignment: .top) {
+            if let error = vm.error {
+                ErrorBanner(message: error) {
+                    vm.error = nil
+                }
+            }
         }
     }
     
@@ -64,6 +77,8 @@ struct SessionListView: View {
             }
             .buttonStyle(.borderedProminent)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Authentication Required. Connect your Claude API key in Account to view sessions.")
     }
     
     private var filterBar: some View {
@@ -103,35 +118,50 @@ struct SessionListView: View {
         } description: {
             Text("Start a conversation with an agent to see sessions here")
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("No sessions yet. Start a conversation with an agent to see sessions here.")
     }
     
     private var sessionTable: some View {
-        Table(vm.filteredIdentifiableSessions) {
+        Table(vm.filteredIdentifiableSessions, selection: $selectedSessionID) {
             TableColumn("Agent") { item in
                 Text(vm.agents[item.session.agentId]?.name ?? "Unknown")
+                    .accessibilityLabel("Agent: \(vm.agents[item.session.agentId]?.name ?? "Unknown")")
             }
             .width(min: 120)
-            
+
             TableColumn("Started") { item in
                 Text(item.session.createdAt, style: .date)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .accessibilityLabel("Started \(item.session.createdAt, format: .dateTime)")
             }
             .width(min: 100)
-            
+
             TableColumn("Duration") { item in
-                let duration = (item.session.updatedAt ?? Date()).timeIntervalSince(item.session.createdAt)
+                let duration = item.session.updatedAt.timeIntervalSince(item.session.createdAt)
                 Text(formatDuration(duration))
                     .foregroundStyle(.secondary)
+                    .accessibilityLabel("Duration: \(formatDuration(duration))")
             }
             .width(80)
-            
+
             TableColumn("Status") { item in
                 StatusBadge(status: item.session.status.rawValue.capitalized)
             }
             .width(80)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .accessibilityLabel("\(vm.filteredSessions.count) sessions")
+        .contextMenu(forSelectionType: String.self) { ids in
+            if let id = ids.first,
+               let session = vm.sessions.first(where: { $0.id == id }) {
+                SessionContextMenu(session: session, vm: vm, onDelete: {
+                    selectedSessionID = nil
+                    Task { await refresh() }
+                })
+            }
+        }
     }
     
     private func formatDuration(_ interval: TimeInterval) -> String {
@@ -168,11 +198,25 @@ final class SessionListVM {
 
     var filteredSessions: [Session] {
         var result = sessions
-        
+
         if let agentId = selectedAgentIdFilter {
             result = result.filter { $0.agentId == agentId }
         }
-        
+
+        // Filter by search text (matches agent name or session ID)
+        if !searchText.isEmpty {
+            result = result.filter { session in
+                if session.id.localizedCaseInsensitiveContains(searchText) {
+                    return true
+                }
+                if let agentName = agents[session.agentId]?.name,
+                   agentName.localizedCaseInsensitiveContains(searchText) {
+                    return true
+                }
+                return false
+            }
+        }
+
         return result.sorted { $0.createdAt > $1.createdAt }
     }
     
@@ -204,6 +248,80 @@ final class SessionListVM {
         } catch {
             self.error = error.localizedDescription
         }
+    }
+}
+
+// MARK: - Context Menu
+
+struct SessionContextMenu: View {
+    let session: Session
+    let vm: SessionListVM
+    let onDelete: () -> Void
+
+    @State private var showingDeleteAlert = false
+    @State private var isDeleting = false
+
+    var body: some View {
+        Button {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(session.id, forType: .string)
+        } label: {
+            Label("Copy Session ID", systemImage: "doc.on.doc")
+        }
+
+        Button {
+            let markdown = generateMarkdown()
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(markdown, forType: .string)
+        } label: {
+            Label("Copy Summary", systemImage: "doc.text")
+        }
+
+        Divider()
+
+        Button(role: .destructive) {
+            showingDeleteAlert = true
+        } label: {
+            Label("Delete Session", systemImage: "trash")
+        }
+        .alert("Delete Session", isPresented: $showingDeleteAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                Task { await deleteSession() }
+            }
+            .disabled(isDeleting)
+        } message: {
+            Text("Are you sure you want to delete this session? This action cannot be undone.")
+        }
+    }
+
+    private func generateMarkdown() -> String {
+        var output = "# Session Summary\n\n"
+        output += "**Session ID:** `\(session.id)`\n"
+        output += "**Agent:** \(vm.agents[session.agentId]?.name ?? "Unknown")\n"
+        output += "**Status:** \(session.status.rawValue.capitalized)\n"
+        output += "**Created:** \(session.createdAt.formatted())\n"
+        output += "**Duration:** \(formatDuration(session.updatedAt.timeIntervalSince(session.createdAt)))\n"
+        return output
+    }
+
+    private func formatDuration(_ interval: TimeInterval) -> String {
+        let minutes = Int(interval) / 60
+        let hours = minutes / 60
+        if hours > 0 {
+            return "\(hours)h \(minutes % 60)m"
+        }
+        return "\(minutes)m"
+    }
+
+    @MainActor
+    private func deleteSession() async {
+        isDeleting = true
+        defer { isDeleting = false }
+
+        // TODO: Implement delete when ManagedAgentsClient supports it
+        // For now, just show the alert - the actual deletion would need API support
+        onDelete()
     }
 }
 

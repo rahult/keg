@@ -142,6 +142,7 @@ struct SkillPickerSheet: View {
                 onDismiss()
             }
             .keyboardShortcut(.escape)
+            .accessibilityLabel("Cancel and close")
 
             Button("Add Skill") {
                 if skillConfig.isEmpty {
@@ -154,6 +155,7 @@ struct SkillPickerSheet: View {
             }
             .keyboardShortcut(.return)
             .disabled(selectedSkillID.isEmpty)
+            .accessibilityLabel("Add selected skill")
         }
         .padding()
     }
@@ -199,6 +201,8 @@ private struct SkillListRow: View {
         .background(isSelected ? Color.accentColor : Color.clear)
         .contentShape(Rectangle())
         .onTapGesture { onTap() }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(skill.name): \(skill.description). \(isSelected ? "Selected" : "Tap to select")")
     }
 }
 

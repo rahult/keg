@@ -62,12 +62,15 @@ struct CreateAgentSheet: View {
         .formStyle(.grouped)
         .frame(width: 450, height: 400)
         .navigationTitle("Create Agent")
+        .accessibilityLabel("Create new agent sheet")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") {
                     dismiss()
                 }
                 .disabled(isCreating)
+                .keyboardShortcut(.escape)
+                .accessibilityLabel("Cancel and close")
             }
 
             ToolbarItem(placement: .confirmationAction) {
@@ -75,6 +78,8 @@ struct CreateAgentSheet: View {
                     Task { await createAgent() }
                 }
                 .disabled(name.isEmpty || isCreating)
+                .keyboardShortcut(.return)
+                .accessibilityLabel("Create new agent")
             }
         }
         .overlay {
@@ -88,10 +93,12 @@ struct CreateAgentSheet: View {
                 .ignoresSafeArea()
             }
         }
-        .alert("Error", isPresented: .constant(errorMessage != nil)) {
-            Button("OK") { errorMessage = nil }
-        } message: {
-            Text(errorMessage ?? "")
+        .overlay(alignment: .top) {
+            if let error = errorMessage {
+                ErrorBanner(message: error) {
+                    errorMessage = nil
+                }
+            }
         }
     }
 

@@ -29,7 +29,7 @@ public actor AgentAuth {
             kSecAttrService as String: service,
             kSecAttrAccount as String: accountKey,
             kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
         ]
 
         let status = SecItemAdd(addQuery as CFDictionary, nil)
