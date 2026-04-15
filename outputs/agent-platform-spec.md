@@ -65,27 +65,34 @@ Open-source (MIT), self-hostable platform for user-facing SaaS integrations. Two
 
 ### Architecture
 ```
-Keg Agent
-  └── Supaglue Actions API (local HTTP)
-        ├── Google Calendar provider
-        ├── Gmail provider
-        ├── Notion provider
-        └── ...
+Keg
+  └── Supaglue Container (Apple Container)
+        ├── Supaglue API (port 3000 internal)
+        └── Postgres (sidecar or embedded)
+
+  Keg Agent
+    └── SupaglueClient actor
+          └── localhost:3000 (container internal)
 ```
-Run Supaglue via Docker compose alongside Keg. Keg agent makes unified API calls to `http://localhost:3000/v1/actions`.
+Supaglue runs as a Keg-managed Apple Container, not bare Docker. Keg controls lifecycle (start/stop/status), storage (volume persistence), and networking (internal port exposure). Agent talks to `localhost:3000` from inside the same container VM.
+
+Note: Supaglue's Docker compose setup (api + postgres + redis) maps cleanly to Apple Containers — each service becomes a process inside the container. For simplicity, postgres runs as a subprocess alongside the Supaglue API process inside the same Apple Container.
 
 ### Implementation path
-1. Add Supaglue to docker-compose in Keg (api + Postgres)
-2. Add `SupaglueClient` actor: wraps HTTP calls to local Supaglue instance
-3. Add tools: `supaglue_calendar_create_event`, `supaglue_email_send`, `supaglue_notion_page_create`, etc.
-4. Register tools in `HybridAgentRunner`
-5. Add OAuth connection UI for each provider in Settings
+1. Add Supaglue container spec to Keg's container registry (similar to how kindest/node is defined for K8s)
+2. Add `SupaglueContainer` actor: manages container lifecycle via existing `ContainerAPIClient`
+3. Add `SupaglueClient` actor: wraps HTTP calls to `localhost:3000` inside container
+4. Add tools: `supaglue_calendar_create_event`, `supaglue_email_send`, `supaglue_notion_page_create`, etc.
+5. Register tools in agent runtime
+6. Add OAuth connection UI per provider in Settings
+
+Supaglue's Docker image (`ghcr.io/supaglue-labs/supaglue-api:latest`) is pulled into the Apple Container via the existing image pull mechanism.
 
 ### Key files to create/modify
-- `Sources/Keg/Integrations/SupaglueClient.swift`
-- `Sources/Keg/Integrations/Tools/SupaglueTools.swift`
-- `docker-compose.yml` (add Supaglue service)
-- `Sources/Keg/Views/Settings/IntegrationSettingsView.swift`
+- `Sources/Keg/Containers/SupaglueContainer.swift` — container definition + lifecycle
+- `Sources/Keg/Integrations/SupaglueClient.swift` — HTTP API client
+- `Sources/Keg/Integrations/Tools/SupaglueTools.swift` — tool definitions
+- `Sources/Keg/Views/Settings/IntegrationSettingsView.swift` — OAuth connection UI
 
 ---
 

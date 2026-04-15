@@ -17,7 +17,7 @@ Keg already has: Agents CRUD, Sessions, Skills, Sources, MCP client, menu bar, a
 ## Key Decisions Made
 
 ### Integration Platform → Supaglue (not build-in-house)
-Self-hosted, MIT license, 30+ connectors, OAuth/token management built-in. Keg agent talks to local Supaglue instance over HTTP. Covers Google Calendar, Gmail, Notion, Linear (roadmap), Slack, HubSpot, Salesforce.
+Self-hosted, MIT license, 30+ connectors, OAuth/token management built-in. Supaglue runs as a Keg Apple Container — not bare Docker. Keg manages lifecycle, storage, and networking. Agent talks to Supaglue over internal `localhost:3000`. Covers Google Calendar, Gmail, Notion, Linear (roadmap), Slack, HubSpot, Salesforce.
 
 ### Local Models → llama.cpp server mode (not raw MLX Swift)
 llama.cpp supports MMURGEKA / Q4_K_M quantization, stdio and HTTP server modes, and broad model format support. Wrap in a `LocalModelBridge` actor. MLX is faster but requires Python bridge; llama.cpp is pure C and simpler to integrate.
@@ -32,11 +32,11 @@ Inbox-first, not chat-first. Status workflow (Todo → In Progress → Needs Rev
 ### Tranche A — Supaglue Integration
 | Task | File | Notes |
 |---|---|---|
-| Add Supaglue to docker-compose | `docker-compose.yml` | api + postgres services |
+| Supaglue container spec | `Sources/Keg/Containers/SupaglueContainer.swift` | container definition, image pull |
 | SupaglueClient actor | `Sources/Keg/Integrations/SupaglueClient.swift` | HTTP calls to localhost:3000 |
 | Calendar tool | `Sources/Keg/Integrations/Tools/SupaglueTools.swift` | create_event, list_events |
 | OAuth connection UI | `Sources/Keg/Views/Settings/IntegrationSettingsView.swift` | connect per provider |
-| Register tools in HybridAgentRunner | `Sources/Keg/Agent/HybridAgentRunner.swift` | |
+| Register tools in agent runtime | `Sources/Keg/Agent/HybridAgentRunner.swift` | Supaglue tools registered |
 
 ### Tranche B — Local Model Bridge
 | Task | File | Notes |
@@ -78,7 +78,6 @@ Final:
 ## Out of Scope (this phase)
 
 - LoRA fine-tuning of local models
-- Self-hosted Supaglue in production (Docker compose dev setup only)
 - Windows/Linux support
 - Claude Code integration (separate project)
 - App Intents / Shortcuts Siri integration (wait for macOS 26+ APIs)
