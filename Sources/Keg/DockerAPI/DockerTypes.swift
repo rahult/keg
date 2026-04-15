@@ -290,6 +290,106 @@ struct DockerInfo: Codable {
     }
 }
 
+// MARK: - Webhook Types
+
+/// Docker webhook configuration
+struct DockerWebhook: Codable {
+    let name: String
+    let endpoint: String
+    let enabled: Bool
+    let containerFilter: ContainerFilter?
+    let events: [WebhookEvent]
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case endpoint = "endpoint"
+        case enabled
+        case containerFilter = "container_filter"
+        case events
+    }
+}
+
+/// Filter criteria for webhook triggers
+struct ContainerFilter: Codable {
+    let labels: [String: String]?
+    let name: String?
+    let image: String?
+}
+
+/// Webhook event types
+enum WebhookEvent: String, Codable {
+    case containerStart = "container.start"
+    case containerStop = "container.stop"
+    case containerDestroy = "container.destroy"
+    case containerHealth = "container.health"
+    case imagePull = "image.pull"
+}
+
+/// Webhook payload sent to the endpoint
+struct WebhookPayload: Codable {
+    let webhook: WebhookInfo
+    let event: String
+    let timestamp: Date
+    let container: ContainerInfo?
+    let image: ImageInfo?
+
+    enum CodingKeys: String, CodingKey {
+        case webhook = "Webhook"
+        case event
+        case timestamp = "Time"
+        case container = "Container"
+        case image = "Image"
+    }
+}
+
+/// Webhook identification info
+struct WebhookInfo: Codable {
+    let name: String
+    let uuid: String
+
+    enum CodingKeys: String, CodingKey {
+        case name = "Name"
+        case uuid = "UUID"
+    }
+}
+
+/// Container info in webhook payload
+struct ContainerInfo: Codable {
+    let id: String
+    let name: String
+    let image: String
+    let state: String
+    let labels: [String: String]?
+
+    enum CodingKeys: String, CodingKey {
+        case id = "ID"
+        case name = "Name"
+        case image = "Image"
+        case state = "State"
+        case labels = "Labels"
+    }
+}
+
+/// Image info in webhook payload
+struct ImageInfo: Codable {
+    let id: String
+    let tags: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case id = "ID"
+        case tags = "Tags"
+    }
+}
+
+/// Webhook list response
+struct WebhookListResponse: Codable {
+    let webhooks: [WebhookInfo]
+
+    enum CodingKeys: String, CodingKey {
+        case webhooks = "Webhooks"
+    }
+}
+
 // MARK: - Helper for dynamic JSON
 
 public struct AnyCodable: Codable, @unchecked Sendable {

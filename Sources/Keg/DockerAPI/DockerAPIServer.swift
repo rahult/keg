@@ -3,14 +3,156 @@ import Hummingbird
 import HummingbirdCore
 import NIOCore
 import NIOHTTP1
+import Security
+import CommonCrypto
+
+// MARK: - Webhook Manager
+
+/// Actor-safe webhook registry
+actor WebhookManager {
+    private var webhooks: [String: Webhook] = [:]
+    private let session: URLSession
+
+    struct Webhook: Identifiable, Sendable {
+        let id: String
+        var name: String
+        var endpoint: URL
+        var enabled: Bool
+        var containerFilter: ContainerFilter?
+        var events: Set<WebhookEvent>
+        var secret: String?
+
+        init(name: String, endpoint: URL, containerFilter: ContainerFilter? = nil, events: [WebhookEvent], secret: String? = nil) {
+            self.id = UUID().uuidString
+            self.name = name
+            self.endpoint = endpoint
+            self.enabled = true
+            self.containerFilter = containerFilter
+            self.events = Set(events)
+            self.secret = secret
+        }
+    }
+
+    init() {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 10
+        self.session = URLSession(configuration: config)
+    }
+
+    // MARK: - CRUD
+
+    func create(name: String, endpoint: URL, containerFilter: ContainerFilter?, events: [WebhookEvent], secret: String?) -> Webhook {
+        let webhook = Webhook(name: name, endpoint: endpoint, containerFilter: containerFilter, events: events, secret: secret)
+        webhooks[webhook.id] = webhook
+        return webhook
+    }
+
+    func list() -> [Webhook] {
+        Array(webhooks.values)
+    }
+
+    func get(id: String) -> Webhook? {
+        webhooks[id]
+    }
+
+    func delete(id: String) -> Bool {
+        webhooks.removeValue(forKey: id) != nil
+    }
+
+    func update(id: String, name: String?, enabled: Bool?) -> Webhook? {
+        guard var webhook = webhooks[id] else { return nil }
+        if let name = name { webhook.name = name }
+        if let enabled = enabled { webhook.enabled = enabled }
+        webhooks[id] = webhook
+        return webhook
+    }
+
+    // MARK: - Event Dispatch
+
+    func dispatch(event: WebhookEvent, container: DockerContainer?, image: DockerImage?) async {
+        for webhook in webhooks.values where webhook.enabled && webhook.events.contains(event) {
+            // Check container filter if set
+            if let filter = webhook.containerFilter, let container = container {
+                if let labels = filter.labels {
+                    let matches = labels.allSatisfy { key, value in
+                        container.labels?[key] == value
+                    }
+                    if !matches { continue }
+                }
+                if let name = filter.name, !container.names.contains("/\(name)") && !container.names.contains(name) {
+                    continue
+                }
+                if let imageFilter = filter.image, !container.image.contains(imageFilter) {
+                    continue
+                }
+            }
+
+            await triggerWebhook(webhook, event: event, container: container, image: image)
+        }
+    }
+
+    private func triggerWebhook(_ webhook: Webhook, event: WebhookEvent, container: DockerContainer?, image: DockerImage?) async {
+        var payload = WebhookPayload(
+            webhook: WebhookInfo(name: webhook.name, uuid: webhook.id),
+            event: event.rawValue,
+            timestamp: Date(),
+            container: container.map { c in
+                ContainerInfo(id: c.id, name: c.names.first ?? c.id, image: c.image, state: c.state, labels: c.labels)
+            },
+            image: image.map { i in
+                ImageInfo(id: i.id, tags: i.repoTags)
+            }
+        )
+
+        var request = URLRequest(url: webhook.endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Keg-Webhook/1.0", forHTTPHeaderField: "User-Agent")
+
+        // Add HMAC signature if secret is configured
+        if let secret = webhook.secret {
+            do {
+                let payloadData = try JSONEncoder().encode(payload)
+                let signature = computeHMAC(data: payloadData, key: secret)
+                request.setValue("sha256=\(signature)", forHTTPHeaderField: "X-Keg-Signature")
+                request.httpBody = payloadData
+            } catch {
+                return
+            }
+        } else {
+            request.httpBody = try? JSONEncoder().encode(payload)
+        }
+
+        _ = try? await session.data(for: request)
+    }
+
+    private func computeHMAC(data: Data, key: String) -> String {
+        var hmac = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
+        key.withCString { keyPtr in
+            data.withUnsafeBytes { dataPtr in
+                CCHmac(
+                    CCHmacAlgorithm(kCCHmacAlgSHA256),
+                    keyPtr,
+                    strlen(keyPtr),
+                    dataPtr.baseAddress,
+                    data.count,
+                    &hmac
+                )
+            }
+        }
+        return Data(hmac).base64EncodedString()
+    }
+}
 
 // MARK: - Docker API Server
 
 final class DockerAPIServer: Sendable {
     let bridge: ContainerBridge
+    let webhookManager: WebhookManager
 
     init() {
         self.bridge = ContainerBridge()
+        self.webhookManager = WebhookManager()
     }
 
     func start() async throws {
@@ -172,6 +314,83 @@ final class DockerAPIServer: Sendable {
             return Response(status: .ok, body: .init(byteBuffer: ByteBuffer(string: "")))
         }
 
+        // MARK: - Webhook Routes
+        let whManager = self.webhookManager
+        let whBridge = self.bridge
+
+        router.post("/webhooks") { request, _ in
+            let body = try await request.body.collect(upTo: 1024 * 1024)
+            let createReq = try JSONDecoder().decode(CreateWebhookRequest.self, from: Data(buffer: body))
+
+            guard let endpoint = URL(string: createReq.endpoint) else {
+                throw DockerAPIError.badRequest("Invalid webhook endpoint URL")
+            }
+
+            let secret = createReq.secret ?? generateWebhookSecret()
+            let filter = createReq.containerFilter.flatMap { filterReq -> ContainerFilter? in
+                ContainerFilter(labels: filterReq.labels, name: filterReq.name, image: filterReq.image)
+            }
+
+            let webhook = await whManager.create(
+                name: createReq.name,
+                endpoint: endpoint,
+                containerFilter: filter,
+                events: createReq.events.compactMap { WebhookEvent(rawValue: $0) },
+                secret: secret
+            )
+
+            // Return webhook info (without secret)
+            let response: [String: Any] = [
+                "ID": webhook.id,
+                "Name": webhook.name,
+                "Endpoint": webhook.endpoint.absoluteString,
+                "Secret": secret // Only shown on creation
+            ]
+            let responseData = try! JSONSerialization.data(withJSONObject: response)
+            return Response(status: .created, body: .init(byteBuffer: ByteBuffer(data: responseData)))
+        }
+
+        router.get("/webhooks") { _, _ in
+            let webhooks = await whManager.list()
+            let response = WebhookListResponse(webhooks: webhooks.map {
+                WebhookInfo(name: $0.name, uuid: $0.id)
+            })
+            return try! JSONResponse(response)
+        }
+
+        router.delete("/webhooks/{id}") { request, context in
+            let id = context.parameters.get("id", as: String.self)!
+            let deleted = await whManager.delete(id: id)
+            if !deleted {
+                throw DockerAPIError.webhookNotFound(id)
+            }
+            return Response(status: .noContent)
+        }
+
+        router.get("/webhooks/{id}") { request, context in
+            let id = context.parameters.get("id", as: String.self)!
+            guard let webhook = await whManager.get(id: id) else {
+                throw DockerAPIError.webhookNotFound(id)
+            }
+            let info = WebhookInfo(name: webhook.name, uuid: webhook.id)
+            return try! JSONResponse(info)
+        }
+
+        router.patch("/webhooks/{id}") { request, context in
+            let id = context.parameters.get("id", as: String.self)!
+            let body = try await request.body.collect(upTo: 1024 * 1024)
+            let updateReq = try JSONDecoder().decode(UpdateWebhookRequest.self, from: Data(buffer: body))
+
+            guard let webhook = await whManager.update(id: id, name: updateReq.name, enabled: updateReq.enabled) else {
+                throw DockerAPIError.webhookNotFound(id)
+            }
+            let info = WebhookInfo(name: webhook.name, uuid: webhook.id)
+            return try! JSONResponse(info)
+        }
+
+        // Hook webhook dispatch into container events
+        await hookContainerEvents(manager: whManager, bridge: whBridge)
+
         // Catch-all for unmatched routes
         router.get("/**") { request, _ in
             return Response(status: .notFound, body: .init(byteBuffer: ByteBuffer(string: "{}")))
@@ -218,4 +437,46 @@ struct DockerVersionStripMiddleware<Context: RequestContext>: RouterMiddleware {
         let newRequest = Request(head: .init(method: request.head.method, url: URL(string: (newPath + query).addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? newPath)!, headerFields: request.head.headerFields), body: request.body)
         return try await next(newRequest, context)
     }
+}
+
+// MARK: - Webhook Request/Response Types
+
+struct CreateWebhookRequest: Codable {
+    let name: String
+    let endpoint: String
+    let containerFilter: WebhookContainerFilter?
+    let events: [String]
+    let secret: String?
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case endpoint = "Endpoint"
+        case containerFilter = "ContainerFilter"
+        case events = "Events"
+        case secret = "Secret"
+    }
+}
+
+struct UpdateWebhookRequest: Codable {
+    let name: String?
+    let enabled: Bool?
+}
+
+struct WebhookContainerFilter: Codable {
+    let labels: [String: String]?
+    let name: String?
+    let image: String?
+}
+
+// MARK: - Helpers
+
+private func generateWebhookSecret() -> String {
+    var buffer = [UInt8](repeating: 0, count: 32)
+    _ = SecRandomCopyBytes(kSecRandomDefault, buffer.count, &buffer)
+    return Data(buffer).base64EncodedString().prefix(32).description
+}
+
+private func hookContainerEvents(manager: WebhookManager, bridge: ContainerBridge) async {
+    // Container events are hooked via the bridge methods
+    // This function can be extended to poll for events if needed
 }

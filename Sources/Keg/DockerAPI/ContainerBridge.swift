@@ -399,6 +399,7 @@ enum DockerAPIError: Error, CustomStringConvertible {
     case containerStartFailed(String)
     case imagePullFailed(String)
     case badRequest(String)
+    case webhookNotFound(String)
 
     var description: String {
         switch self {
@@ -407,6 +408,7 @@ enum DockerAPIError: Error, CustomStringConvertible {
         case .containerStartFailed(let msg): return "Container start failed: \(msg)"
         case .imagePullFailed(let msg): return "Image pull failed: \(msg)"
         case .badRequest(let msg): return "Bad request: \(msg)"
+        case .webhookNotFound(let id): return "Webhook not found: \(id)"
         }
     }
 }

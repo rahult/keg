@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Research
+- **Craft + Notion Agents analysis for Keg**: completed a two-round research sweep comparing Craft Agents and Notion Agents against Keg's current Agents area.
+  - Verified strongest overlap: sources, skills, permission modes, session workflow metadata, automations, and auditability
+  - Verified Keg already has usable account/auth, agent CRUD, session list/detail, and local storage primitives for skills/sources
+  - Identified biggest gaps: skills/sources persistence wiring, source testing/runtime activation, permission modes, run history, and automation triggers
+  - Recommended immediate tranche: finish Sources + Skills, then add permission modes and run logs before any automation or shared/autonomous agent layer
+
 ### Added
 - **Agent Area Foundation**: Initial Managed Agents API implementation for Keg
   - Core types: Agent, AgentEnvironment, Session, SessionEvent

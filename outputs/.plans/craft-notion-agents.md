@@ -43,33 +43,36 @@ Research target is Keg's existing Agents area. Goal: identify highest-value feat
 - Use third-party commentary only for triangulation, never as sole support for critical findings
 
 ## Acceptance Criteria
-- [ ] All key questions answered with >=2 independent sources for critical claims
-- [ ] Craft and Notion feature inventories normalized into one comparable matrix
-- [ ] Keg current-state audit grounded in actual source files, not assumptions
-- [ ] At least one immediate implementation tranche identified with concrete file-level touchpoints
-- [ ] Contradictions or ambiguity called out explicitly
-- [ ] No critical recommendation depends on a single unverifiable marketing claim
+- [x] All key questions answered with >=2 independent sources for critical claims
+- [x] Craft and Notion feature inventories normalized into one comparable matrix
+- [x] Keg current-state audit grounded in actual source files, not assumptions
+- [x] At least one immediate implementation tranche identified with concrete file-level touchpoints
+- [x] Contradictions or ambiguity called out explicitly
+- [x] No critical recommendation depends on a single unverifiable marketing claim
 
 ## Task Ledger
 | ID | Owner | Task | Status | Output |
 |---|---|---|---|---|
-| T1 | researcher | Extract Craft Agents capabilities, workflows, permissions, sources, automations, server/client model, and UX patterns | todo | outputs/craft-notion-agents-research-craft.md |
-| T2 | researcher | Extract Notion Agents capabilities, triggers, enterprise controls, permissions, integrations, and reversibility model | todo | outputs/craft-notion-agents-research-notion.md |
-| T3 | researcher | Audit Keg current Agents implementation and identify present / partial / missing surfaces relevant to Craft and Notion features | todo | outputs/craft-notion-agents-research-keg.md |
-| T4 | lead / researcher | Build unified feature matrix, implementation priorities, risk notes, and phased recommendation set | todo | outputs/craft-notion-agents-research-synthesis.md |
+| T1 | researcher | Extract Craft Agents capabilities, workflows, permissions, sources, automations, server/client model, and UX patterns | done | outputs/craft-notion-agents-research-craft.md |
+| T2 | researcher | Extract Notion Agents capabilities, triggers, enterprise controls, permissions, integrations, and reversibility model | done | outputs/craft-notion-agents-research-notion.md |
+| T3 | researcher | Audit Keg current Agents implementation and identify present / partial / missing surfaces relevant to Craft and Notion features | done | outputs/craft-notion-agents-research-keg.md |
+| T4 | lead / researcher | Build unified feature matrix, implementation priorities, risk notes, and phased recommendation set | done | outputs/craft-notion-agents-research-synthesis.md |
 
 ## Verification Log
 | Item | Method | Status | Evidence |
 |---|---|---|---|
-| Craft supports MCP + REST + local file sources | first-party docs + OSS README cross-read | pending | https://agents.craft.do/ ; https://github.com/lukilabs/craft-agents-oss/blob/main/README.md |
-| Craft supports automations and background / long-running work | docs cross-read | pending | official README / docs |
-| Notion distinguishes personal agent vs custom agents | product page + help docs | pending | https://www.notion.com/product/agents ; official help docs |
-| Notion custom agents support triggers / schedules / connected tools | product page + help docs | pending | official product/help docs |
-| Notion provides audit trails, permissions, and reversible changes | product page + admin/help docs | pending | official product/help docs |
-| Keg already has agent CRUD, sessions, account auth, skills, and sources surfaces | direct file read + changelog | pending | CHANGELOG.md + Sources/Keg/Agents + Sources/Keg/Views/Agents |
-| Immediate implementation tranche is feasible within current Keg architecture | code audit + architecture reasoning | pending | Keg source audit |
+| Craft supports MCP + REST + local file sources | first-party docs + OSS README cross-read | verified | outputs/craft-notion-agents-research-craft.md; https://agents.craft.do/ ; https://github.com/lukilabs/craft-agents-oss/blob/main/README.md |
+| Craft supports automations and background / long-running work | docs cross-read | verified | outputs/craft-notion-agents-research-craft.md; https://agents.craft.do/docs/automations/overview.md ; https://agents.craft.do/docs/server/headless.md |
+| Notion distinguishes personal agent vs custom agents | product page + help docs | verified | outputs/craft-notion-agents-research-notion.md; https://www.notion.com/product/agents ; https://www.notion.com/help/custom-agents |
+| Notion custom agents support triggers / schedules / connected tools | product page + help docs | verified | outputs/craft-notion-agents-research-notion.md; https://www.notion.com/help/custom-agents ; https://www.notion.com/help/mcp-connections-for-custom-agents |
+| Notion provides audit trails, permissions, and reversible changes | product page + admin/help docs | verified | outputs/craft-notion-agents-research-notion.md; https://www.notion.com/product/agents ; https://www.notion.com/help/custom-agents-sharing-and-permissions |
+| Keg already has agent CRUD, sessions, account auth, skills, and sources surfaces | direct file read + changelog | verified | outputs/craft-notion-agents-research-keg.md; CHANGELOG.md + Sources/Keg/Agents + Sources/Keg/Views/Agents |
+| Immediate implementation tranche is feasible within current Keg architecture | code audit + architecture reasoning | verified | outputs/craft-notion-agents-research-synthesis.md |
 
 ## Decision Log
 - Initial assumption: implementation target is Keg's Agents area, not a separate product.
 - Initial likely highest-value clusters to test: source onboarding, automations / background tasks, permission modes, audit / provenance, multi-session workflow, and enterprise-safe controls.
 - Plan to stop after round 2 unless key feature claims remain single-sourced or Keg feasibility remains unclear.
+- Round 1 complete: feature inventories and Keg audit written to dedicated research files.
+- Round 2 complete: unified synthesis shows best next move is finishing Sources + Skills, then adding permission modes and run history before automations.
+- Resolved strategy choice: copy Craft's UX patterns and Notion's governance patterns, not their entire product surfaces.
