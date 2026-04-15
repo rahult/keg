@@ -25,6 +25,8 @@ struct ImageListView: View {
                     systemImage: "photo.stack",
                     description: Text("Pull an image to get started")
                 )
+                .accessibilityLabel("No images")
+                .accessibilityHint("Pull an image to populate the list")
             } else {
                 Table(wrappedImages, selection: $selectedImageRef) {
                     TableColumn("Reference") { item in
@@ -51,6 +53,7 @@ struct ImageListView: View {
                 }
                 .tableStyle(.inset(alternatesRowBackgrounds: true))
                 .accessibilityLabel("Images list")
+                .accessibilityValue("\(wrappedImages.count) images")
                 .accessibilityHint("Use arrow keys to change selection. Press Command Delete to remove the selected image. Press Escape to clear selection.")
                 .contextMenu(forSelectionType: String.self) { refs in
                     if let ref = refs.first {
@@ -82,6 +85,7 @@ struct ImageListView: View {
                 } label: {
                     Label("Pull...", systemImage: "arrow.down.circle")
                 }
+                .accessibilityHint("Open the pull image sheet")
             }
 
             ToolbarItem(id: "refresh", placement: .automatic) {
@@ -91,6 +95,7 @@ struct ImageListView: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .keyboardShortcut("r", modifiers: .command)
+                .accessibilityHint("Reload the images list")
             }
         }
         .toolbarRole(.editor)
@@ -173,6 +178,7 @@ struct ImageContextMenu: View {
         Button("Delete", role: .destructive) {
             onDelete()
         }
+        .accessibilityHint("Delete the selected image")
     }
 }
 
@@ -190,6 +196,8 @@ struct PullImageView: View {
 
             TextField("Image reference", text: $reference, prompt: Text("nginx:latest"))
                 .textFieldStyle(.roundedBorder)
+                .accessibilityLabel("Image reference")
+                .accessibilityHint("Enter the image name and optional tag to pull")
 
             if let errorMessage {
                 Text(errorMessage)
@@ -211,6 +219,7 @@ struct PullImageView: View {
                 .disabled(reference.isEmpty || isPulling)
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
+                .accessibilityHint("Pull the requested image")
             }
         }
         .padding(20)

@@ -33,12 +33,14 @@ struct AgentUseCaseLibraryView: View {
                 } label: {
                     Label("Manage Agents", systemImage: "person.2.badge.gearshape")
                 }
+                .accessibilityHint("Open the full agents list")
 
                 Button {
                     showBlankCreateSheet = true
                 } label: {
                     Label("Blank Agent", systemImage: "plus")
                 }
+                .accessibilityHint("Create a new agent without using a template")
             }
         }
         .sheet(item: $selectedUseCase) { useCase in

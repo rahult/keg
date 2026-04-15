@@ -25,6 +25,8 @@ struct ContainerListView: View {
                     systemImage: "cube.box",
                     description: Text(vm.showOnlyRunning ? "Run a container to get started" : "Containers will appear here")
                 )
+                .accessibilityLabel(vm.showOnlyRunning ? "No running containers" : "No containers")
+                .accessibilityHint(vm.showOnlyRunning ? "Turn off the running-only filter or run a container" : "Run a container to populate the list")
             } else {
                 Table(wrappedContainers, selection: $selectedContainerID) {
                     TableColumn("Name") { item in
@@ -87,6 +89,7 @@ struct ContainerListView: View {
                 }
                 .tableStyle(.inset(alternatesRowBackgrounds: true))
                 .accessibilityLabel("Containers list")
+                .accessibilityValue("\(wrappedContainers.count) containers")
                 .accessibilityHint("Use arrow keys to change selection. Press Command Delete to remove the selected container. Press Escape to clear selection.")
                 .contextMenu(forSelectionType: String.self) { ids in
                     if let id = ids.first,
@@ -124,6 +127,7 @@ struct ContainerListView: View {
                 } label: {
                     Label("Run...", systemImage: "plus")
                 }
+                .accessibilityHint("Open the run container sheet")
             }
 
             ToolbarItem(id: "filter", placement: .automatic) {
@@ -136,6 +140,7 @@ struct ContainerListView: View {
                         systemImage: vm.showOnlyRunning ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle"
                     )
                 }
+                .accessibilityHint(vm.showOnlyRunning ? "Show stopped containers too" : "Limit the list to running containers")
             }
 
             ToolbarItem(id: "refresh", placement: .automatic) {
@@ -145,6 +150,7 @@ struct ContainerListView: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .keyboardShortcut("r", modifiers: .command)
+                .accessibilityHint("Reload the containers list")
             }
         }
         .toolbarRole(.editor)
@@ -270,5 +276,6 @@ struct ContainerContextMenu: View {
         Button("Delete", role: .destructive) {
             onDelete()
         }
+        .accessibilityHint("Delete the selected container")
     }
 }

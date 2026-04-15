@@ -1,29 +1,13 @@
+import AppKit
 import SwiftUI
 
 struct SettingsView: View {
-    enum Mode: Equatable {
-        case full
-        case agentAccount
-
-        var navigationTitle: String {
-            switch self {
-            case .full: return "Settings"
-            case .agentAccount: return "Account"
-            }
-        }
-    }
-
-    let mode: Mode
     @Environment(AppState.self) private var appState
     @State private var apiKeyInput = ""
     @State private var isConnecting = false
     @State private var connectionError: String?
     @State private var accountInfo: AccountInfo?
     @State private var storedAPIKeyPreview: String?
-
-    init(mode: Mode = .full) {
-        self.mode = mode
-    }
 
     private var apiKeyValidation: APIKeyValidation {
         APIKeyValidation(apiKey: apiKeyInput)
@@ -37,134 +21,136 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            if mode == .full {
-                Section("Container System") {
-                    HStack {
-                        switch appState.systemStatus {
-                        case .running(let health):
-                            Circle().fill(Color.green).frame(width: 10, height: 10)
-                            VStack(alignment: .leading) {
-                                Text("Running")
-                                    .font(.headline)
-                                Text("Version: \(health.apiServerVersion)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text("Build: \(health.apiServerBuild)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Button("Stop System") {
-                                Task { await appState.stopSystem() }
-                            }
-                            .controlSize(.small)
-
-                        case .stopped:
-                            Circle().fill(Color.red).frame(width: 10, height: 10)
-                            Text("Stopped")
-                                .font(.headline)
-                            Spacer()
-                            Button("Start System") {
-                                Task { await appState.startSystem() }
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
-
-                        case .error(let message):
-                            Circle().fill(Color.orange).frame(width: 10, height: 10)
-                            VStack(alignment: .leading) {
-                                Text("Error")
-                                    .font(.headline)
-                                Text(message)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Button("Retry") {
-                                Task { await appState.startSystem() }
-                            }
-                            .controlSize(.small)
-                        }
-                    }
-                }
-
-                Section("Docker API") {
-                    HStack {
-                        Circle().fill(appState.isDockerAPIRunning ? Color.green : Color.gray).frame(width: 10, height: 10)
+            Section("Container System") {
+                HStack {
+                    switch appState.systemStatus {
+                    case .running(let health):
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 10, height: 10)
                         VStack(alignment: .leading) {
-                            Text(appState.isDockerAPIRunning ? "Running" : "Stopped")
+                            Text("Running")
                                 .font(.headline)
-                            HStack(spacing: 4) {
-                                Text(appState.dockerSocketPath)
-                                    .font(.system(.caption, design: .monospaced))
-                                    .foregroundStyle(.secondary)
-                                    .textSelection(.enabled)
-                                Button {
-                                    NSPasteboard.general.clearContents()
-                                    NSPasteboard.general.setString(appState.dockerSocketPath, forType: .string)
-                                } label: {
-                                    Image(systemName: "doc.on.doc")
-                                }
-                                .buttonStyle(.borderless)
-                                .controlSize(.small)
-                                .accessibilityLabel("Copy socket path")
-                            }
-                            HStack(spacing: 4) {
-                                Text("export DOCKER_HOST=unix://\(appState.dockerSocketPath)")
-                                    .font(.system(.caption, design: .monospaced))
-                                    .foregroundStyle(.tertiary)
-                                    .textSelection(.enabled)
-                                Button {
-                                    let cmd = "export DOCKER_HOST=unix://\(appState.dockerSocketPath)"
-                                    NSPasteboard.general.clearContents()
-                                    NSPasteboard.general.setString(cmd, forType: .string)
-                                } label: {
-                                    Image(systemName: "doc.on.doc")
-                                }
-                                .buttonStyle(.borderless)
-                                .controlSize(.small)
-                                .accessibilityLabel("Copy DOCKER_HOST command")
-                            }
+                            Text("Version: \(health.apiServerVersion)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text("Build: \(health.apiServerBuild)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        if appState.isDockerAPIRunning {
-                            Button("Stop") {
-                                appState.stopDockerAPI()
-                            }
-                            .controlSize(.small)
-                        } else {
-                            Button("Start") {
-                                appState.startDockerAPI()
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
+                        Button("Stop System") {
+                            Task { await appState.stopSystem() }
                         }
+                        .controlSize(.small)
+
+                    case .stopped:
+                        Circle()
+                            .fill(Color.red)
+                            .frame(width: 10, height: 10)
+                        Text("Stopped")
+                            .font(.headline)
+                        Spacer()
+                        Button("Start System") {
+                            Task { await appState.startSystem() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+
+                    case .error(let message):
+                        Circle()
+                            .fill(Color.orange)
+                            .frame(width: 10, height: 10)
+                        VStack(alignment: .leading) {
+                            Text("Error")
+                                .font(.headline)
+                            Text(message)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button("Retry") {
+                            Task { await appState.startSystem() }
+                        }
+                        .controlSize(.small)
                     }
                 }
             }
 
-            Section(mode == .full ? "Claude Agents API" : "Claude Account") {
+            Section("Docker API") {
+                HStack {
+                    Circle()
+                        .fill(appState.isDockerAPIRunning ? Color.green : Color.gray)
+                        .frame(width: 10, height: 10)
+                    VStack(alignment: .leading) {
+                        Text(appState.isDockerAPIRunning ? "Running" : "Stopped")
+                            .font(.headline)
+                        HStack(spacing: 4) {
+                            Text(appState.dockerSocketPath)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                            Button {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(appState.dockerSocketPath, forType: .string)
+                            } label: {
+                                Image(systemName: "doc.on.doc")
+                            }
+                            .buttonStyle(.borderless)
+                            .controlSize(.small)
+                            .accessibilityLabel("Copy socket path")
+                        }
+                        HStack(spacing: 4) {
+                            Text("export DOCKER_HOST=unix://\(appState.dockerSocketPath)")
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.tertiary)
+                                .textSelection(.enabled)
+                            Button {
+                                let command = "export DOCKER_HOST=unix://\(appState.dockerSocketPath)"
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(command, forType: .string)
+                            } label: {
+                                Image(systemName: "doc.on.doc")
+                            }
+                            .buttonStyle(.borderless)
+                            .controlSize(.small)
+                            .accessibilityLabel("Copy DOCKER_HOST command")
+                        }
+                    }
+                    Spacer()
+                    if appState.isDockerAPIRunning {
+                        Button("Stop") {
+                            appState.stopDockerAPI()
+                        }
+                        .controlSize(.small)
+                    } else {
+                        Button("Start") {
+                            appState.startDockerAPI()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
+                }
+            }
+
+            Section("Claude Agents API") {
                 agentAPISection
             }
 
-            if mode == .full {
-                Section("About") {
-                    LabeledContent("App", value: "Keg")
-                    LabeledContent("Description", value: "Docker Desktop replacement for macOS — native containers, Docker API, Compose, and Kubernetes")
-                    LabeledContent("Runtime", value: "Apple Containerization")
-                    LabeledContent("Requirements", value: "macOS 26+, Apple Silicon, Apple container CLI")
-                    LabeledContent("License", value: "Apache 2.0")
-                }
+            Section("About") {
+                LabeledContent("App", value: "Keg")
+                LabeledContent("Description", value: "Docker Desktop replacement for macOS — native containers, Docker API, Compose, and Kubernetes")
+                LabeledContent("Runtime", value: "Apple Containerization")
+                LabeledContent("Requirements", value: "macOS 26+, Apple Silicon, Apple container CLI")
+                LabeledContent("License", value: "Apache 2.0")
             }
         }
         .formStyle(.grouped)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .navigationTitle(mode.navigationTitle)
+        .navigationTitle("Settings")
         .task {
             appState.refreshAgentAuthentication()
-            if mode == .full {
-                await appState.checkSystemStatus()
-            }
+            await appState.checkSystemStatus()
             if appState.isAgentAuthenticated {
                 loadStoredAPIKeyPreview()
                 await loadAccountInfo()
@@ -300,10 +286,8 @@ struct SettingsView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(!apiKeyValidation.isValid || isConnecting)
 
-                Button {
+                Button("Get API Key") {
                     openAPIKeyHelp()
-                } label: {
-                    Text("Get API Key")
                 }
                 .buttonStyle(.borderless)
                 .controlSize(.small)
@@ -322,8 +306,6 @@ struct SettingsView: View {
 
         do {
             try AgentAuth.storeAPIKey(apiKeyValidation.trimmedAPIKey)
-
-            // Test connection against Managed Agents API using a minimal probe
             let client = try await ManagedAgentsClient.fromKeychain()
             try await client.validateCredentials()
 
@@ -332,7 +314,6 @@ struct SettingsView: View {
             loadStoredAPIKeyPreview()
             await loadAccountInfo()
         } catch {
-            // Clear key on failure
             try? AgentAuth.deleteAPIKey()
             appState.refreshAgentAuthentication()
             storedAPIKeyPreview = nil
@@ -383,8 +364,7 @@ struct SettingsView: View {
     }
 
     private func openAPIKeyHelp() {
-        if let url = URL(string: "https://console.anthropic.com/settings/keys") {
-            NSWorkspace.shared.open(url)
-        }
+        guard let url = URL(string: "https://console.anthropic.com/settings/keys") else { return }
+        NSWorkspace.shared.open(url)
     }
 }

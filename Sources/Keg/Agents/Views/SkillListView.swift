@@ -134,8 +134,7 @@ struct SkillListView: View {
     private func handle(issue: AgentIssuePresentation) {
         switch issue.kind {
         case .auth:
-            appState.currentArea = .agents
-            appState.selectedAgentSection = .account
+            appState.openSettings()
         case .offline, .timeout, .generic:
             Task { await refresh() }
         }
@@ -155,11 +154,10 @@ struct SkillListView: View {
         ContentUnavailableView {
             Label("Authentication Required", systemImage: "person.badge.key")
         } description: {
-            Text("Connect your Claude API key in Account to manage skills")
+            Text("Connect your Claude API key in Settings to manage skills")
         } actions: {
-            Button("Open Account") {
-                appState.currentArea = .agents
-                appState.selectedAgentSection = .account
+            Button("Open Settings") {
+                appState.openSettings()
             }
             .buttonStyle(.borderedProminent)
         }

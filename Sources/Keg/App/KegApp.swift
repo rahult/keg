@@ -11,15 +11,19 @@ struct KegApp: App {
         }
     }
 
-    private var shortContainerID: String {
-        appState.selectedContainerID.map { String($0.prefix(12)) } ?? "Container"
-    }
-
     private func presentRunContainer() {
         appState.currentArea = .keg
         appState.selectedKegSection = .containers
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: .kegRunContainer, object: nil)
+        }
+    }
+
+    private func presentPullImage() {
+        appState.currentArea = .keg
+        appState.selectedKegSection = .images
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .kegPullImage, object: nil)
         }
     }
 
@@ -29,6 +33,21 @@ struct KegApp: App {
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: .kegNewAgent, object: nil)
         }
+    }
+
+    private func openKegDocumentation() {
+        guard let url = URL(string: "https://github.com/rahult/keg#readme") else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    private func openReleaseNotes() {
+        guard let url = URL(string: "https://github.com/rahult/keg/blob/main/CHANGELOG.md") else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    private func openIssueTracker() {
+        guard let url = URL(string: "https://github.com/rahult/keg/issues/new") else { return }
+        NSWorkspace.shared.open(url)
     }
 
     var body: some Scene {
@@ -54,33 +73,11 @@ struct KegApp: App {
                 .keyboardShortcut("N", modifiers: [.command, .shift])
             }
 
-            CommandMenu("Container") {
-
-                Button(appState.selectedContainerID == nil ? "Stop Selected Container" : "Stop \(shortContainerID)") {
-                    NotificationCenter.default.post(name: .kegStopContainer, object: nil)
-                }
-                .keyboardShortcut("S", modifiers: [.command, .shift])
-                .disabled(appState.currentArea != .keg || appState.selectedKegSection != .containers || appState.selectedContainerID == nil)
-
-                Button(appState.selectedContainerID == nil ? "Delete Selected Container" : "Delete \(shortContainerID)") {
-                    NotificationCenter.default.post(name: .kegDeleteContainer, object: nil)
-                }
-                .keyboardShortcut(.delete, modifiers: [.command])
-                .disabled(appState.currentArea != .keg || appState.selectedKegSection != .containers || appState.selectedContainerID == nil)
-
-                Divider()
-
-                Button("Refresh") {
-                    NotificationCenter.default.post(name: .kegRefresh, object: nil)
-                }
-            }
-
-            CommandMenu("Image") {
+            CommandGroup(after: .importExport) {
                 Button("Pull Image...") {
-                    NotificationCenter.default.post(name: .kegPullImage, object: nil)
+                    presentPullImage()
                 }
                 .keyboardShortcut("P", modifiers: [.command, .shift])
-                .disabled(appState.currentArea != .keg || appState.selectedKegSection != .images)
             }
 
             CommandGroup(after: .pasteboard) {
@@ -97,12 +94,12 @@ struct KegApp: App {
             CommandGroup(after: .sidebar) {
                 Divider()
 
-                Button("Go to Keg") {
+                Button("Show Keg") {
                     appState.currentArea = .keg
                 }
                 .keyboardShortcut("1", modifiers: .command)
 
-                Button("Go to Agents") {
+                Button("Show Agents") {
                     appState.currentArea = .agents
                 }
                 .keyboardShortcut("2", modifiers: .command)
@@ -113,16 +110,27 @@ struct KegApp: App {
                     appState.showDashboard()
                 }
 
-                Button("Browse Use Cases") {
+                Button("Agent Use Cases") {
                     appState.currentArea = .agents
                     appState.selectedAgentSection = .useCases
                 }
                 .keyboardShortcut("U", modifiers: [.command, .option])
+            }
 
-                Button("Refresh") {
-                    NotificationCenter.default.post(name: .kegRefresh, object: nil)
+            CommandGroup(after: .help) {
+                Divider()
+
+                Button("Keg Documentation") {
+                    openKegDocumentation()
                 }
-                .keyboardShortcut("R", modifiers: .command)
+
+                Button("Release Notes") {
+                    openReleaseNotes()
+                }
+
+                Button("Report an Issue") {
+                    openIssueTracker()
+                }
             }
         }
 
@@ -305,8 +313,6 @@ struct AgentAreaView: View {
             SourceListView()
         case .skills:
             SkillListView()
-        case .account:
-            SettingsView(mode: .agentAccount)
         }
     }
 }

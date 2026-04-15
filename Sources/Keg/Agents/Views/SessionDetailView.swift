@@ -154,8 +154,7 @@ struct SessionDetailView: View {
     private func handle(issue: AgentIssuePresentation) {
         switch issue.kind {
         case .auth:
-            appState.currentArea = .agents
-            appState.selectedAgentSection = .account
+            appState.openSettings()
         case .offline, .timeout, .generic:
             Task { await loadEvents() }
         }

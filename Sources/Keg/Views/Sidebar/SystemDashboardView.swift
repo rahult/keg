@@ -21,6 +21,7 @@ struct SystemDashboardView: View {
                     Text(metrics.timestamp, style: .time)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
+                        .accessibilityLabel("Updated at \(metrics.timestamp, style: .time)")
                 }
             }
 
@@ -64,18 +65,26 @@ struct SystemDashboardView: View {
                     Label("\(metrics.containerCount)/\(metrics.totalContainerCount)", systemImage: "cube.box")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .accessibilityLabel("Containers")
+                        .accessibilityValue("\(metrics.containerCount) active of \(metrics.totalContainerCount) total")
 
                     Spacer()
 
                     Label("\(metrics.imageCount)", systemImage: "photo.stack")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .accessibilityLabel("Images")
+                        .accessibilityValue("\(metrics.imageCount)")
                 }
             }
         }
         .padding(10)
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Keg system summary")
+        .accessibilityValue(systemSummaryAccessibilityValue)
+        .accessibilityHint("Shows recent CPU, memory, storage, and latency metrics")
         .task {
             await refreshMetrics()
         }
@@ -127,6 +136,18 @@ struct SystemDashboardView: View {
 
         metrics = await metricsService.getMetrics(forceRefresh: true)
     }
+
+    private var systemSummaryAccessibilityValue: String {
+        if isLoading && metrics == nil {
+            return "Loading"
+        }
+
+        guard let metrics else {
+            return "Unavailable"
+        }
+
+        return "CPU \(formatPercent(metrics.cpuUsagePercent)), memory \(formatMemory(metrics)), storage \(formatStorage(metrics)), latency \(formatLatency(metrics.latencyMs))"
+    }
 }
 
 /// Individual metric card
@@ -154,6 +175,9 @@ struct MetricCard: View {
         .padding(8)
         .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 6))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue(value)
     }
 }
 

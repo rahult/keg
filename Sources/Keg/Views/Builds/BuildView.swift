@@ -1,6 +1,14 @@
 import SwiftUI
 
 struct BuildView: View {
+    private enum Field: Hashable {
+        case contextDir
+        case dockerfile
+        case tags
+        case buildArgs
+        case platform
+    }
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var contextDir = ""
@@ -16,6 +24,7 @@ struct BuildView: View {
     @State private var showFilePicker = false
     @State private var buildProcess: Process?
     @State private var didCancelBuild = false
+    @FocusState private var focusedField: Field?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,7 +38,11 @@ struct BuildView: View {
                                 HStack(spacing: 8) {
                                     TextField("Project directory", text: $contextDir, prompt: Text("."))
                                         .textFieldStyle(.roundedBorder)
+                                        .focused($focusedField, equals: .contextDir)
+                                        .accessibilityLabel("Build context directory")
+                                        .accessibilityHint("Choose the folder to build from")
                                     Button("Browse…") { showContextPicker = true }
+                                        .accessibilityLabel("Browse for build context")
                                 }
                             }
 
@@ -39,7 +52,10 @@ struct BuildView: View {
                                 HStack(spacing: 8) {
                                     TextField("Dockerfile path", text: $dockerfile, prompt: Text("Dockerfile"))
                                         .textFieldStyle(.roundedBorder)
+                                        .focused($focusedField, equals: .dockerfile)
+                                        .accessibilityLabel("Dockerfile path")
                                     Button("Browse…") { showFilePicker = true }
+                                        .accessibilityLabel("Browse for Dockerfile")
                                 }
                             }
 
@@ -48,6 +64,8 @@ struct BuildView: View {
                                     .foregroundStyle(.secondary)
                                 TextField("my-image:latest, my-image:v1", text: $tags)
                                     .textFieldStyle(.roundedBorder)
+                                    .focused($focusedField, equals: .tags)
+                                    .accessibilityLabel("Image tags")
                             }
 
                             GridRow {
@@ -55,6 +73,8 @@ struct BuildView: View {
                                     .foregroundStyle(.secondary)
                                 TextField("KEY=VALUE, FOO=bar", text: $buildArgs)
                                     .textFieldStyle(.roundedBorder)
+                                    .focused($focusedField, equals: .buildArgs)
+                                    .accessibilityLabel("Build arguments")
                             }
 
                             GridRow {
@@ -62,6 +82,8 @@ struct BuildView: View {
                                     .foregroundStyle(.secondary)
                                 TextField("linux/arm64", text: $platform)
                                     .textFieldStyle(.roundedBorder)
+                                    .focused($focusedField, equals: .platform)
+                                    .accessibilityLabel("Build platform")
                             }
 
                             GridRow {
@@ -84,6 +106,8 @@ struct BuildView: View {
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(8)
                             }
+                            .accessibilityLabel("Build output")
+                            .accessibilityHint("Read-only build logs")
                             .frame(minHeight: 260, alignment: .top)
                             .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
                         } else {
@@ -118,6 +142,19 @@ struct BuildView: View {
             }
         }
         .navigationTitle("Builds")
+        .onAppear {
+            if focusedField == nil {
+                focusedField = .contextDir
+            }
+        }
+        .onExitCommand {
+            if errorMessage != nil {
+                errorMessage = nil
+                return
+            }
+
+            focusedField = nil
+        }
         .toolbar(id: "build-toolbar") {
             ToolbarItem(id: "build", placement: .primaryAction) {
                 if isBuilding {
@@ -125,6 +162,7 @@ struct BuildView: View {
                         cancelBuild()
                     }
                     .keyboardShortcut(.cancelAction)
+                    .accessibilityHint("Stop the active container build")
                 } else {
                     Button("Build") {
                         startBuild()
@@ -132,6 +170,7 @@ struct BuildView: View {
                     .disabled(contextDir.isEmpty)
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
+                    .accessibilityHint("Start building the selected container image")
                 }
             }
         }

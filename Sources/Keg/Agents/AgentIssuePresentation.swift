@@ -20,11 +20,11 @@ struct AgentIssuePresentation {
         if let managedError = error as? ManagedAgentsError {
             switch managedError {
             case .missingAPIKey:
-                self.init(kind: .auth, message: "Authentication failed. Reconnect your Claude API key in Account.")
+                self.init(kind: .auth, message: "Authentication failed. Reconnect your Claude API key in Settings.")
                 return
             case .httpError(let statusCode, _):
                 if statusCode == 401 || statusCode == 403 {
-                    self.init(kind: .auth, message: "Authentication failed. Reconnect your Claude API key in Account.")
+                    self.init(kind: .auth, message: "Authentication failed. Reconnect your Claude API key in Settings.")
                     return
                 }
                 if statusCode == 408 {
@@ -37,7 +37,7 @@ struct AgentIssuePresentation {
         }
 
         if error is AgentAuthError {
-            self.init(kind: .auth, message: "Authentication failed. Reconnect your Claude API key in Account.")
+            self.init(kind: .auth, message: "Authentication failed. Reconnect your Claude API key in Settings.")
             return
         }
 
@@ -77,7 +77,7 @@ struct AgentIssuePresentation {
             lowercased.contains("authentication") ||
             lowercased.contains("api key not found") ||
             lowercased.contains("missing api key") {
-            self.init(kind: .auth, message: "Authentication failed. Reconnect your Claude API key in Account.")
+            self.init(kind: .auth, message: "Authentication failed. Reconnect your Claude API key in Settings.")
         } else if lowercased.contains("timed out") || lowercased.contains("timeout") {
             self.init(kind: .timeout, message: "The Claude Agents service timed out. Retry in a moment.")
         } else if lowercased.contains("offline") ||
@@ -97,7 +97,7 @@ struct AgentIssuePresentation {
     var actionTitle: String {
         switch kind {
         case .auth:
-            return "Open Account"
+            return "Open Settings"
         case .offline, .timeout, .generic:
             return "Retry"
         }

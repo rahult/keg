@@ -305,7 +305,6 @@ enum AgentSection: String, CaseIterable, Identifiable {
     case sessions = "Sessions"
     case sources = "Sources"
     case skills = "Skills"
-    case account = "Account"
 
     var id: String { rawValue }
 
@@ -317,7 +316,6 @@ enum AgentSection: String, CaseIterable, Identifiable {
         case .sessions: return "clock"
         case .sources: return "square.stack.3d.up"
         case .skills: return "book"
-        case .account: return "gearshape"
         }
     }
 }

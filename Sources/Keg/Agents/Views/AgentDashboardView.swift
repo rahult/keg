@@ -38,6 +38,7 @@ struct AgentDashboardView: View {
                     Label("Use Cases", systemImage: "wand.and.stars")
                 }
                 .accessibilityLabel("Browse macOS agent use cases")
+                .accessibilityHint("Open the template library for agent starting points")
 
                 Button {
                     appState.selectedAgentSection = .agents
@@ -45,6 +46,7 @@ struct AgentDashboardView: View {
                     Label("Manage Agents", systemImage: "gearshape")
                 }
                 .accessibilityLabel("Navigate to manage agents")
+                .accessibilityHint("Open the full agents list")
             }
             ToolbarItem(placement: .automatic) {
                 Button {
@@ -54,6 +56,7 @@ struct AgentDashboardView: View {
                 }
                 .keyboardShortcut("r", modifiers: .command)
                 .accessibilityLabel("Refresh dashboard")
+                .accessibilityHint("Reload agents, recent sessions, and live desktop context")
             }
         }
         .task {
@@ -285,6 +288,7 @@ struct AgentCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(buildAccessibilityLabel())
+        .accessibilityHint("Agent summary card")
     }
     
     private func buildAccessibilityLabel() -> String {

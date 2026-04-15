@@ -7,7 +7,7 @@ final class AgentIssuePresentationTests: XCTestCase {
         let issue = AgentIssuePresentation(error: ManagedAgentsError.missingAPIKey)
 
         XCTAssertEqual(issue.kind, .auth)
-        XCTAssertEqual(issue.actionTitle, "Open Account")
+        XCTAssertEqual(issue.actionTitle, "Open Settings")
         XCTAssertFalse(issue.showsUnavailableState)
     }
 
@@ -15,7 +15,7 @@ final class AgentIssuePresentationTests: XCTestCase {
         let issue = AgentIssuePresentation(error: ManagedAgentsError.httpError(statusCode: 401, message: "Unauthorized"))
 
         XCTAssertEqual(issue.kind, .auth)
-        XCTAssertEqual(issue.actionTitle, "Open Account")
+        XCTAssertEqual(issue.actionTitle, "Open Settings")
     }
 
     func testClassifiesTimeoutErrors() {

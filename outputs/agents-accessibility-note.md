@@ -11,6 +11,15 @@ Focused pass on the changed Agents surfaces:
 - `AgentPermissionModeControl`
 - supporting source editor accessibility copy where helpful
 
+Additional low-risk macOS polish on adjacent surfaces changed in the HIG pass:
+- `AgentUseCaseLibraryView`
+- `AgentDashboardView`
+- `SidebarView`
+- `SystemDashboardView`
+- `BuildView`
+- `ContainerListView`
+- `ImageListView`
+
 ## Covered in code
 
 ### Keyboard affordances
@@ -31,11 +40,18 @@ Focused pass on the changed Agents surfaces:
   - skills list selection table
   - permission mode segmented control
   - area picker hinting
+  - use case template cards and create actions
+  - dashboard toolbar actions and recent sessions table
+  - sidebar section lists and settings links
+  - compact system metric cards
+  - build form fields and build output log
+  - container/image empty states, toolbars, and destructive context actions
 - Session/source/skill tables now expose list-level labels, values, and usage hints.
 
 ### Focus / selection polish
 - Selection-clearing behavior is now explicit in changed Agents tables instead of leaving stale selection active.
 - Search focus is routable from the global Find command into the relevant Agents screen.
+- The use-case library and build surface now handle local Escape behavior more predictably without introducing new custom navigation.
 
 ## Roadmap items credibly closed for the Agents area
 These are now reasonably covered for the Agents surfaces touched in this pass:
