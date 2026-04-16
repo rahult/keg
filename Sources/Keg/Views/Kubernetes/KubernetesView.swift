@@ -92,7 +92,7 @@ final class KubernetesVM {
         errorMessage = nil
 
         let result = try? await runCLI(["container", "delete", "-f", clusterName])
-        if let (code, _) = result, code == 0 || code == 1 {
+        if let (code, _) = result, code == 0 {
             if let kcPath = kubeconfigPath { try? FileManager.default.removeItem(atPath: kcPath) }
             kubeconfigPath = nil
             clusterStatus = "Not Created"
