@@ -4,7 +4,7 @@ import ContainerResource
 struct ContainerListView: View {
     @Environment(AppState.self) private var appState
     @State private var vm = ContainersVM()
-    @State private var selectedContainerID: String?
+    @State private var selectedContainerIDs: Set<String> = []
     @State private var showRunSheet = false
     @State private var showingDeleteConfirmation = false
     @State private var searchText = ""
@@ -28,7 +28,7 @@ struct ContainerListView: View {
                 .accessibilityLabel(vm.showOnlyRunning ? "No running containers" : "No containers")
                 .accessibilityHint(vm.showOnlyRunning ? "Turn off the running-only filter or run a container" : "Run a container to populate the list")
             } else {
-                Table(wrappedContainers, selection: $selectedContainerID) {
+                Table(wrappedContainers, selection: $selectedContainerIDs) {
                     TableColumn("Name") { item in
                         Text(containerName(item.snapshot))
                             .lineLimit(1)
@@ -92,13 +92,22 @@ struct ContainerListView: View {
                 .accessibilityValue("\(wrappedContainers.count) containers")
                 .accessibilityHint("Use arrow keys to change selection. Press Command Delete to remove the selected container. Press Escape to clear selection.")
                 .contextMenu(forSelectionType: String.self) { ids in
-                    if let id = ids.first,
-                       let container = vm.containers.first(where: { $0.id == id }) {
+                    if ids.count > 1 {
+                        Button("Stop \(ids.count) Containers") {
+                            Task { for id in ids { await vm.stop(id: id) } }
+                        }
+                        Divider()
+                        Button("Delete \(ids.count) Containers", role: .destructive) {
+                            selectedContainerIDs = ids
+                            showingDeleteConfirmation = true
+                        }
+                    } else if let id = ids.first,
+                              let container = vm.containers.first(where: { $0.id == id }) {
                         ContainerContextMenu(
                             id: id,
                             container: container,
                             onDelete: {
-                                selectedContainerID = id
+                                selectedContainerIDs = [id]
                                 showingDeleteConfirmation = true
                             },
                             vm: vm
@@ -111,9 +120,9 @@ struct ContainerListView: View {
         .searchable(text: $searchText, prompt: "Search containers")
         .searchFocused($isSearchFocused)
         .onChange(of: searchText) { vm.searchText = searchText }
-        .onChange(of: selectedContainerID) { appState.selectedContainerID = selectedContainerID }
+        .onChange(of: selectedContainerIDs) { appState.selectedContainerID = selectedContainerIDs.first }
         .onDeleteCommand {
-            if selectedContainerID != nil {
+            if !selectedContainerIDs.isEmpty {
                 showingDeleteConfirmation = true
             }
         }
@@ -164,11 +173,11 @@ struct ContainerListView: View {
             Task { await vm.refresh() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .kegStopContainer)) { _ in
-            guard let selectedContainerID else { return }
-            Task { await vm.stop(id: selectedContainerID) }
+            guard !selectedContainerIDs.isEmpty else { return }
+            Task { for id in selectedContainerIDs { await vm.stop(id: id) } }
         }
         .onReceive(NotificationCenter.default.publisher(for: .kegDeleteContainer)) { _ in
-            guard selectedContainerID != nil else { return }
+            guard !selectedContainerIDs.isEmpty else { return }
             showingDeleteConfirmation = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .kegFocusSearch)) { _ in
@@ -185,17 +194,17 @@ struct ContainerListView: View {
         .alert(deleteConfirmationTitle, isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
-                Task { await deleteSelectedContainer() }
+                Task { await deleteSelectedContainers() }
             }
-            .disabled(selectedContainerID == nil)
+            .disabled(selectedContainerIDs.isEmpty)
         } message: {
             Text(deleteConfirmationMessage)
         }
         .inspector(isPresented: .init(
-            get: { selectedContainerID != nil },
-            set: { if !$0 { selectedContainerID = nil } }
+            get: { selectedContainerIDs.count == 1 },
+            set: { if !$0 { selectedContainerIDs = [] } }
         )) {
-            if let id = selectedContainerID {
+            if let id = selectedContainerIDs.first {
                 ContainerDetailView(containerID: id)
             }
         }
@@ -209,20 +218,26 @@ struct ContainerListView: View {
     }
 
     private var deleteConfirmationTitle: String {
-        guard let selectedContainerID,
-              let container = vm.containers.first(where: { $0.id == selectedContainerID }) else {
+        if selectedContainerIDs.count > 1 {
+            return "Delete \(selectedContainerIDs.count) Containers?"
+        }
+        guard let id = selectedContainerIDs.first,
+              let container = vm.containers.first(where: { $0.id == id }) else {
             return "Delete Container"
         }
         return "Delete \(containerName(container))?"
     }
 
     private var deleteConfirmationMessage: String {
-        "Delete the selected container. This action cannot be undone."
+        if selectedContainerIDs.count > 1 {
+            return "Delete \(selectedContainerIDs.count) containers. This action cannot be undone."
+        }
+        return "Delete the selected container. This action cannot be undone."
     }
 
     private func handleEscape() {
-        if selectedContainerID != nil {
-            selectedContainerID = nil
+        if !selectedContainerIDs.isEmpty {
+            selectedContainerIDs = []
             return
         }
 
@@ -237,10 +252,11 @@ struct ContainerListView: View {
     }
 
     @MainActor
-    private func deleteSelectedContainer() async {
-        guard let selectedContainerID else { return }
-        await vm.delete(id: selectedContainerID)
-        self.selectedContainerID = nil
+    private func deleteSelectedContainers() async {
+        for id in selectedContainerIDs {
+            await vm.delete(id: id)
+        }
+        selectedContainerIDs = []
     }
 }
 

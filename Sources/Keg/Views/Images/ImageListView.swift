@@ -4,7 +4,7 @@ import ContainerAPIClient
 struct ImageListView: View {
     @Environment(AppState.self) private var appState
     @State private var vm = ImagesVM()
-    @State private var selectedImageRef: String?
+    @State private var selectedImageRefs: Set<String> = []
     @State private var showPullSheet = false
     @State private var showingDeleteConfirmation = false
     @State private var searchText = ""
@@ -28,7 +28,7 @@ struct ImageListView: View {
                 .accessibilityLabel("No images")
                 .accessibilityHint("Pull an image to populate the list")
             } else {
-                Table(wrappedImages, selection: $selectedImageRef) {
+                Table(wrappedImages, selection: $selectedImageRefs) {
                     TableColumn("Reference") { item in
                         Text(item.image.reference)
                             .font(.system(.body, design: .monospaced))
@@ -56,9 +56,14 @@ struct ImageListView: View {
                 .accessibilityValue("\(wrappedImages.count) images")
                 .accessibilityHint("Use arrow keys to change selection. Press Command Delete to remove the selected image. Press Escape to clear selection.")
                 .contextMenu(forSelectionType: String.self) { refs in
-                    if let ref = refs.first {
+                    if refs.count > 1 {
+                        Button("Delete \(refs.count) Images", role: .destructive) {
+                            selectedImageRefs = refs
+                            showingDeleteConfirmation = true
+                        }
+                    } else if let ref = refs.first {
                         ImageContextMenu(ref: ref) {
-                            selectedImageRef = ref
+                            selectedImageRefs = [ref]
                             showingDeleteConfirmation = true
                         }
                     }
@@ -69,9 +74,9 @@ struct ImageListView: View {
         .searchable(text: $searchText, prompt: "Search images")
         .searchFocused($isSearchFocused)
         .onChange(of: searchText) { vm.searchText = searchText }
-        .onChange(of: selectedImageRef) { appState.selectedImageReference = selectedImageRef }
+        .onChange(of: selectedImageRefs) { appState.selectedImageReference = selectedImageRefs.first }
         .onDeleteCommand {
-            if selectedImageRef != nil {
+            if !selectedImageRefs.isEmpty {
                 showingDeleteConfirmation = true
             }
         }
@@ -122,24 +127,29 @@ struct ImageListView: View {
         .alert(deleteConfirmationTitle, isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
-                Task { await deleteSelectedImage() }
+                Task { await deleteSelectedImages() }
             }
-            .disabled(selectedImageRef == nil)
+            .disabled(selectedImageRefs.isEmpty)
         } message: {
-            Text("Delete the selected image. This action cannot be undone.")
+            Text(selectedImageRefs.count > 1
+                 ? "Delete \(selectedImageRefs.count) images. This action cannot be undone."
+                 : "Delete the selected image. This action cannot be undone.")
         }
     }
 
     private var deleteConfirmationTitle: String {
-        if let selectedImageRef {
-            return "Delete \(selectedImageRef)?"
+        if selectedImageRefs.count > 1 {
+            return "Delete \(selectedImageRefs.count) Images?"
+        }
+        if let ref = selectedImageRefs.first {
+            return "Delete \(ref)?"
         }
         return "Delete Image"
     }
 
     private func handleEscape() {
-        if selectedImageRef != nil {
-            selectedImageRef = nil
+        if !selectedImageRefs.isEmpty {
+            selectedImageRefs = []
             return
         }
 
@@ -154,14 +164,15 @@ struct ImageListView: View {
     }
 
     @MainActor
-    private func deleteSelectedImage() async {
-        guard let selectedImageRef else { return }
-        do {
-            try await vm.delete(reference: selectedImageRef)
-            self.selectedImageRef = nil
-        } catch {
-            vm.errorMessage = error.localizedDescription
+    private func deleteSelectedImages() async {
+        for ref in selectedImageRefs {
+            do {
+                try await vm.delete(reference: ref)
+            } catch {
+                vm.errorMessage = error.localizedDescription
+            }
         }
+        selectedImageRefs = []
     }
 }
 
