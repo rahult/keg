@@ -131,6 +131,12 @@ struct SettingsView: View {
                         .controlSize(.small)
                     }
                 }
+
+                @Bindable var state = appState
+                Toggle("Start Docker API automatically", isOn: $state.dockerAPIAutoStart)
+                Text("Enables Docker CLI compatibility via Unix socket")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Claude Agents API") {

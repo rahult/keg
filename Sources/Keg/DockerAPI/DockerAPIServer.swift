@@ -149,18 +149,31 @@ actor WebhookManager {
 final class DockerAPIServer: Sendable {
     let bridge: ContainerBridge
     let webhookManager: WebhookManager
+    /// The socket path that was actually bound after start() succeeds.
+    nonisolated(unsafe) private(set) var resolvedSocketPath: String?
 
     init() {
         self.bridge = ContainerBridge()
         self.webhookManager = WebhookManager()
+        self.resolvedSocketPath = nil
     }
 
+    /// Try binding to `/var/run/docker.sock` first; fall back to `~/.keg/docker.sock`.
     func start() async throws {
-        let socketPath = Self.socketPath()
-
         // Ensure ~/.keg directory exists
         let kegDir = URL(filePath: NSHomeDirectory()).appendingPathComponent(".keg")
         try FileManager.default.createDirectory(at: kegDir, withIntermediateDirectories: true)
+
+        // Try preferred path first, then fallback
+        let preferredPath = "/var/run/docker.sock"
+        let fallbackPath = Self.defaultSocketPath()
+
+        let socketPath: String
+        if canBindSocket(at: preferredPath) {
+            socketPath = preferredPath
+        } else {
+            socketPath = fallbackPath
+        }
 
         // Remove old socket
         try? FileManager.default.removeItem(atPath: socketPath)
@@ -296,17 +309,24 @@ final class DockerAPIServer: Sendable {
             return Response(status: .noContent)
         }
 
-        // MARK: - Network Routes (stubs)
+        // MARK: - Network Routes
         router.get("/networks") { _, _ in
-            return Response(status: .ok, body: .init(byteBuffer: ByteBuffer(string: "[]")))
+            let networks = try await bridge.listNetworks()
+            return try! JSONResponse(networks)
         }
-        router.get("/networks/**") { _, _ in
-            return Response(status: .ok, body: .init(byteBuffer: ByteBuffer(string: "[]")))
+        router.get("/networks/{id}") { request, context in
+            let id = context.parameters.get("id", as: String.self)!
+            let networks = try await bridge.listNetworks()
+            if let network = networks.first(where: { $0.id == id || $0.name == id }) {
+                return try! JSONResponse(network)
+            }
+            return Response(status: .notFound, body: .init(byteBuffer: ByteBuffer(string: "{\"message\":\"network not found\"}")))
         }
 
-        // MARK: - Volume Routes (stubs)
+        // MARK: - Volume Routes
         router.get("/volumes") { _, _ in
-            return Response(status: .ok, body: .init(byteBuffer: ByteBuffer(string: "[]")))
+            let volumeList = try await bridge.listVolumes()
+            return try! JSONResponse(volumeList)
         }
 
         // MARK: - Events (stub)
@@ -401,11 +421,25 @@ final class DockerAPIServer: Sendable {
             configuration: .init(address: .unixDomainSocket(path: socketPath))
         )
 
+        // Store the resolved path so callers know which socket was bound
+        resolvedSocketPath = socketPath
+
         try await app.runService()
     }
 
-    static func socketPath() -> String {
+    /// Check whether we can create/bind a Unix socket at the given path.
+    private func canBindSocket(at path: String) -> Bool {
+        // Check if we can write to the directory containing the socket
+        let dir = (path as NSString).deletingLastPathComponent
+        return FileManager.default.isWritableFile(atPath: dir)
+    }
+
+    static func defaultSocketPath() -> String {
         NSHomeDirectory() + "/.keg/docker.sock"
+    }
+
+    static func socketPath() -> String {
+        defaultSocketPath()
     }
 }
 
