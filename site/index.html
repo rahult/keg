@@ -326,6 +326,62 @@ footer .links a:hover { color: var(--text-secondary); }
 .reveal.vis { opacity: 1; transform: translateY(0); filter: blur(0); }
 .d1 { transition-delay: 0.08s; } .d2 { transition-delay: 0.16s; } .d3 { transition-delay: 0.24s; } .d4 { transition-delay: 0.32s; }
 
+/* Hero glow pulse */
+.hero-glow {
+  animation: glowPulse 6s ease-in-out infinite;
+}
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.4; transform: translateX(-50%) scale(1); }
+  50% { opacity: 0.6; transform: translateX(-50%) scale(1.08); }
+}
+
+/* Hero gradient shimmer */
+.hero h1 .em {
+  background-size: 200% auto;
+  animation: shimmer 4s ease-in-out infinite;
+}
+@keyframes shimmer {
+  0%, 100% { background-position: 0% center; }
+  50% { background-position: 100% center; }
+}
+
+/* Nav fade-in on scroll */
+.nav-wrap { opacity: 0; transform: translateY(-10px); animation: navIn 0.8s var(--ease-out-expo) 0.6s forwards; }
+@keyframes navIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Bento card hover glow */
+.bento-item { transition: box-shadow 0.5s var(--ease-spring); }
+.bento-item:hover { box-shadow: 0 0 0 1px rgba(0,224,136,0.15), 0 8px 30px rgba(0,224,136,0.06); }
+
+/* Step card hover lift */
+.step-bezel { transition: border-color 0.5s var(--ease-spring), transform 0.5s var(--ease-spring); }
+.step-bezel:hover { transform: translateY(-4px); }
+
+/* Terminal cursor blink */
+.term-body::after {
+  content: '▋';
+  color: var(--accent);
+  animation: blink 1.2s step-end infinite;
+  font-size: 0.85em;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Mockup table row hover slide */
+.mock-table tr { transition: background 0.25s var(--ease-out-expo); }
+
+/* Win badge pulse on hover */
+.win { transition: all 0.3s var(--ease-spring); }
+tr:hover .win { box-shadow: 0 0 12px rgba(0,224,136,0.2); transform: scale(1.05); }
+
+/* Stat counter animation */
+.stat-val { transition: opacity 0.5s; }
+.stat-val[data-target] .num { display: inline; }
+
 /* Accessibility: reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .reveal { transition: opacity 0.3s ease; transform: none; filter: none; }
@@ -335,6 +391,12 @@ footer .links a:hover { color: var(--text-secondary); }
   .nav-cta:hover, .btn-primary:hover, .btn-ghost:hover, .step-bezel:hover { transform: none; }
   .nav-cta:active, .btn-primary:active { transform: none; }
   .nav-cta:hover .arrow, .btn-primary:hover .icon-wrap { transform: none; }
+  .hero-glow { animation: none; opacity: 0.4; }
+  .hero h1 .em { animation: none; }
+  .nav-wrap { opacity: 1; transform: none; animation: none; }
+  .term-body::after { animation: none; opacity: 1; }
+  tr:hover .win { transform: none; }
+  .step-bezel:hover { transform: none; }
 }
 
 /* Focus indicators */
@@ -653,10 +715,46 @@ a:focus-visible, .btn:focus-visible, .nav-cta:focus-visible {
 </div>
 
 <script>
+// Scroll reveal
 const io = new IntersectionObserver((entries) => {
   entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('vis'); });
 }, { threshold: 0.08, rootMargin: '0px 0px -60px 0px' });
 document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+// Stat counter animation
+const counters = document.querySelectorAll('.stat-val');
+let counted = false;
+const counterIO = new IntersectionObserver((entries) => {
+  if (counted) return;
+  entries.forEach(e => {
+    if (!e.isIntersecting) return;
+    counted = true;
+    counters.forEach(el => {
+      const text = el.textContent;
+      const match = text.match(/^(\d+)/);
+      if (!match) return;
+      const target = parseInt(match[1]);
+      const suffix = text.slice(match[1].length);
+      const unitEl = el.querySelector('.unit');
+      const unitText = unitEl ? unitEl.textContent : '';
+      const duration = 1200;
+      const start = performance.now();
+      const easeOutQuart = t => 1 - Math.pow(1 - t, 4);
+      function tick(now) {
+        const t = Math.min((now - start) / duration, 1);
+        const val = Math.round(easeOutQuart(t) * target);
+        if (unitEl) {
+          el.childNodes[0].textContent = val;
+        } else {
+          el.textContent = val + suffix;
+        }
+        if (t < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    });
+  });
+}, { threshold: 0.3 });
+counters.forEach(el => counterIO.observe(el));
 </script>
 </body>
 </html>
