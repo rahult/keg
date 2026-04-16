@@ -19,6 +19,10 @@ struct MenuBarPopover: View {
 
             Divider()
 
+            agentStatusSection
+
+            Divider()
+
             approvalsSection
         }
         .padding(12)
@@ -119,6 +123,58 @@ struct MenuBarPopover: View {
                     Text("Containers")
                         .font(.caption)
                     Spacer()
+                }
+            }
+        }
+    }
+
+    private var agentStatusSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Agents")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            if appState.isAgentAuthenticated {
+                HStack(spacing: 16) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "person.2.badge.gearshape")
+                            .font(.caption)
+                            .foregroundStyle(.purple)
+                        Text("Active Agents")
+                            .font(.caption)
+                        Spacer()
+                        Text("\(appState.activeAgentCount)")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                HStack(spacing: 6) {
+                    Image(systemName: "clock")
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                    Text("Running Sessions")
+                        .font(.caption)
+                    Spacer()
+                    Text("\(appState.activeSessionCount)")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                HStack(spacing: 6) {
+                    Image(systemName: "person.badge.key")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("Not configured")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Settings") {
+                        appState.openSettings()
+                    }
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
+                    .font(.caption)
                 }
             }
         }

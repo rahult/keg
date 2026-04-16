@@ -150,9 +150,9 @@ struct AgentDashboardView: View {
     
     private var emptyStateView: some View {
         ContentUnavailableView {
-            Label("No Agents Yet", systemImage: "person.2.badge.gearshape")
+            Label("No Agents Yet", systemImage: "cpu")
         } description: {
-            Text("Start from a Mac-native use case or create your first agent from scratch")
+            Text("Create your first agent to get started")
         } actions: {
             Button("Browse Use Cases") {
                 appState.selectedAgentSection = .useCases

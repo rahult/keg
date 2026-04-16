@@ -6,6 +6,7 @@ struct SystemDashboardDetailView: View {
     @State private var metrics: SystemMetrics.Metrics?
     @State private var isLoading = true
     @State private var autoRefresh = true
+    @AppStorage("hasSeenAgentDiscovery") private var hasSeenAgentDiscovery = false
 
     private let metricsService = SystemMetrics.shared
     private let timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
@@ -24,6 +25,11 @@ struct SystemDashboardDetailView: View {
 
                 // Quick actions
                 quickActionsSection
+
+                // Agent discovery
+                if !hasSeenAgentDiscovery && appState.activeAgentCount == 0 {
+                    agentDiscoverySection
+                }
             }
             .padding(24)
         }
@@ -181,6 +187,46 @@ struct SystemDashboardDetailView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Agent Discovery
+
+    private var agentDiscoverySection: some View {
+        GroupBox {
+            HStack(spacing: 16) {
+                Image(systemName: "cpu")
+                    .font(.largeTitle)
+                    .foregroundStyle(.purple)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Run AI Agents")
+                        .font(.headline)
+                    Text("Run AI agents in hardware-isolated containers. Each agent gets its own sandbox.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                VStack(spacing: 8) {
+                    Button("Get Started") {
+                        appState.currentArea = .agents
+                        appState.selectedAgentSection = .dashboard
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button("Dismiss") {
+                        hasSeenAgentDiscovery = true
+                    }
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
+                    .foregroundStyle(.secondary)
+                }
+            }
+            .padding(4)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Run AI Agents. Run AI agents in hardware-isolated containers. Each agent gets its own sandbox.")
     }
 
     // MARK: - Computed Properties
