@@ -80,13 +80,28 @@ struct RegistryListView: View {
         isLoading = false
     }
 
+    @State private var logoutError: String?
+
     private func logout(registry: String) {
         Task {
             let process = Process()
+            let pipe = Pipe()
             process.executableURL = URL(filePath: "/usr/bin/env")
             process.arguments = ["container", "registry", "logout", registry]
-            try? process.run()
-            process.waitUntilExit()
+            process.standardOutput = pipe
+            process.standardError = pipe
+            do {
+                try process.run()
+                process.waitUntilExit()
+                if process.terminationStatus != 0 {
+                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                    logoutError = String(data: data, encoding: .utf8) ?? "Logout failed with exit code \(process.terminationStatus)"
+                } else {
+                    logoutError = nil
+                }
+            } catch {
+                logoutError = "Failed to run logout: \(error.localizedDescription)"
+            }
             await loadRegistries()
         }
     }
