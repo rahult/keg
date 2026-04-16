@@ -167,13 +167,21 @@ public actor AgentRuntime {
                 break
             }
 
-            // Check if we've received a final response (no more tool calls needed)
-            if finalMessage.contains("```") || finalMessage.contains("##") || finalMessage.contains("**") {
-                // Likely a formatted response, check if more events pending
-                let recentEvents = try await client.getEvents(sessionId: session.id)
-                let hasPendingToolCalls = recentEvents.contains { $0.type == .toolUse }
-                if !hasPendingToolCalls {
-                    break
+            // If no tool calls were processed this iteration and we have a final message,
+            // poll the session status to determine if we should stop.
+            if !finalMessage.isEmpty {
+                let polledSession = try await client.getSession(id: session.id)
+                switch polledSession.status {
+                case .completed, .failed, .cancelled:
+                    return RunResult(
+                        sessionId: session.id,
+                        finalMessage: finalMessage,
+                        toolCalls: totalToolCalls,
+                        iterations: iterations
+                    )
+                default:
+                    // Session still active; wait briefly before next poll
+                    try? await Task.sleep(nanoseconds: 500_000_000)
                 }
             }
         }
