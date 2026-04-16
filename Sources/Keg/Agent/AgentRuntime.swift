@@ -51,9 +51,13 @@ public actor AgentRuntime {
         }
     }
 
-    public init(client: ManagedAgentsClient, workingDirectory: URL = URL(fileURLWithPath: ".")) {
+    public init(
+        client: ManagedAgentsClient,
+        workingDirectory: URL = URL(fileURLWithPath: "."),
+        permissionMode: AgentPermissionMode = .ask
+    ) {
         self.client = client
-        self.toolExecutor = ToolExecutor(workingDirectory: workingDirectory)
+        self.toolExecutor = ToolExecutor(workingDirectory: workingDirectory, permissionMode: permissionMode)
         self.workingDirectory = workingDirectory
     }
 

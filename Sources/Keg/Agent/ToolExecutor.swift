@@ -4,9 +4,20 @@ import Foundation
 /// Handles: bash, read, write, edit, glob, grep, web_fetch, web_search
 public actor ToolExecutor {
     private let workingDirectory: URL
+    private let permissionMode: AgentPermissionMode
 
-    public init(workingDirectory: URL = URL(fileURLWithPath: ".")) {
+    /// Tools that are safe to run in any mode (read-only, no side effects)
+    private static let readOnlyTools: Set<String> = ["read", "glob", "grep", "web_search"]
+
+    /// Tools that can modify the system or perform network writes
+    private static let writableTools: Set<String> = ["bash", "write", "edit", "web_fetch"]
+
+    public init(
+        workingDirectory: URL = URL(fileURLWithPath: "."),
+        permissionMode: AgentPermissionMode = .ask
+    ) {
         self.workingDirectory = workingDirectory
+        self.permissionMode = permissionMode
     }
 
     // MARK: - Tool Execution Entry Point
@@ -32,6 +43,11 @@ public actor ToolExecutor {
     }
 
     public func execute(_ input: ToolInput) async throws -> ToolOutput {
+        // Enforce permission mode before executing any tool
+        if let denial = checkPermission(for: input.name) {
+            return denial
+        }
+
         switch input.name {
         case "bash":
             return try await executeBash(input.arguments)
@@ -51,6 +67,38 @@ public actor ToolExecutor {
             return try await executeWebSearch(input.arguments)
         default:
             throw ToolExecutorError.unknownTool(input.name)
+        }
+    }
+
+    // MARK: - Permission Enforcement
+
+    /// Returns a denial `ToolOutput` if the tool is not allowed under the current permission mode,
+    /// or `nil` if execution should proceed.
+    private func checkPermission(for toolName: String) -> ToolOutput? {
+        switch permissionMode {
+        case .execute:
+            // Autonomous mode: all tools allowed, no restrictions
+            return nil
+
+        case .ask:
+            // Supervised mode: all tools allowed. Dangerous tools are logged for
+            // future approval-inbox integration but not blocked.
+            if Self.writableTools.contains(toolName) {
+                // TODO: Route through approval inbox when available
+            }
+            return nil
+
+        case .explore:
+            // Restricted mode: only read-only tools are permitted
+            if Self.writableTools.contains(toolName) {
+                return ToolOutput(
+                    content: "Tool '\(toolName)' is not allowed in Explore mode. "
+                        + "Explore mode only permits read-only tools (\(Self.readOnlyTools.sorted().joined(separator: ", "))). "
+                        + "Switch to Ask or Execute mode to use this tool.",
+                    isError: true
+                )
+            }
+            return nil
         }
     }
 
@@ -509,6 +557,7 @@ public actor ToolExecutor {
 
 public enum ToolExecutorError: Error, LocalizedError {
     case unknownTool(String)
+    case toolDenied(tool: String, mode: String)
     case missingArgument(String)
     case processError(String)
     case fileNotFound(String)
@@ -525,6 +574,8 @@ public enum ToolExecutorError: Error, LocalizedError {
         switch self {
         case .unknownTool(let name):
             return "Unknown tool: \(name)"
+        case .toolDenied(let tool, let mode):
+            return "Tool '\(tool)' is not allowed in \(mode) mode"
         case .missingArgument(let name):
             return "Missing required argument: \(name)"
         case .processError(let msg):

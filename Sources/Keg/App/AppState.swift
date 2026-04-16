@@ -267,14 +267,14 @@ final class AppState {
 
 // MARK: - Agent Permission Mode
 
-enum AgentPermissionMode: String, CaseIterable, Identifiable {
+public enum AgentPermissionMode: String, CaseIterable, Identifiable, Sendable {
     case explore = "Explore"
     case ask = "Ask"
     case execute = "Execute"
 
-    var id: String { rawValue }
+    public var id: String { rawValue }
 
-    var iconName: String {
+    public var iconName: String {
         switch self {
         case .explore: return "binoculars"
         case .ask: return "questionmark.circle"
@@ -282,7 +282,7 @@ enum AgentPermissionMode: String, CaseIterable, Identifiable {
         }
     }
 
-    var summary: String {
+    public var summary: String {
         switch self {
         case .explore: return "Research-first mode"
         case .ask: return "Confirm before changes"
