@@ -215,24 +215,94 @@ actor ContainerBridge {
         let _ = try await runCLI(["container", "image", "delete", name])
     }
 
+    // MARK: - Network Operations
+
+    func listNetworks() async throws -> [DockerNetwork] {
+        let (code, output) = try await runCLI(["container", "network", "list", "--format", "json"])
+        guard code == 0, let data = output.data(using: .utf8) else {
+            // Return a default bridge network if CLI doesn't support network listing
+            return [defaultBridgeNetwork()]
+        }
+
+        if let entries = try? JSONDecoder().decode([NetworkListEntry].self, from: data) {
+            return entries.map { $0.toDocker() }
+        }
+
+        // If parsing fails, return a default bridge network
+        return [defaultBridgeNetwork()]
+    }
+
+    private func defaultBridgeNetwork() -> DockerNetwork {
+        DockerNetwork(
+            name: "bridge",
+            id: "bridge",
+            created: "",
+            scope: "local",
+            driver: "bridge",
+            enableIPv6: false,
+            ipam: DockerIPAM(driver: "default", config: [
+                DockerIPAMConfig(subnet: "172.17.0.0/16", gateway: "172.17.0.1")
+            ]),
+            internal: false,
+            attachable: false,
+            ingress: false,
+            options: nil,
+            labels: nil
+        )
+    }
+
+    // MARK: - Volume Operations
+
+    func listVolumes() async throws -> DockerVolumeListResponse {
+        let (code, output) = try await runCLI(["container", "volume", "list", "--format", "json"])
+        guard code == 0, let data = output.data(using: .utf8) else {
+            return DockerVolumeListResponse(volumes: [], warnings: nil)
+        }
+
+        if let entries = try? JSONDecoder().decode([VolumeListEntry].self, from: data) {
+            return DockerVolumeListResponse(
+                volumes: entries.map { $0.toDocker() },
+                warnings: nil
+            )
+        }
+
+        return DockerVolumeListResponse(volumes: [], warnings: nil)
+    }
+
     // MARK: - System
 
     func systemInfo() async throws -> DockerInfo {
         let (_, containerOutput) = try await runCLI(["container", "list", "--format", "json"])
+        let (_, allContainerOutput) = try await runCLI(["container", "list", "-a", "--format", "json"])
         let (_, imageOutput) = try await runCLI(["container", "image", "list", "--format", "json"])
 
-        let containerCount = countJSONArrayEntries(containerOutput)
+        let runningCount = countJSONArrayEntries(containerOutput)
+        let totalCount = countJSONArrayEntries(allContainerOutput)
         let imageCount = countJSONArrayEntries(imageOutput)
+
+        // Get kernel version from uname
+        var kernelVersion = "Darwin"
+        let (unameCode, unameOutput) = try await runCLI(["uname", "-r"])
+        if unameCode == 0 {
+            kernelVersion = unameOutput.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        // Get architecture
+        var arch = "arm64"
+        let (archCode, archOutput) = try await runCLI(["uname", "-m"])
+        if archCode == 0 {
+            arch = archOutput.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
 
         return DockerInfo(
             id: UUID().uuidString,
-            containers: containerCount,
-            containersRunning: containerCount,
-            containersStopped: 0,
+            containers: totalCount,
+            containersRunning: runningCount,
+            containersStopped: totalCount - runningCount,
             images: imageCount,
             operatingSystem: "macOS (Apple Container)",
-            architecture: "arm64",
-            kernelVersion: "Darwin",
+            architecture: arch,
+            kernelVersion: kernelVersion,
             serverVersion: "keg-0.1.0",
             dockerRootDir: NSHomeDirectory() + "/.keg"
         )
@@ -377,6 +447,48 @@ private struct ImageListEntry: Codable {
             created: 0,
             size: 0,
             labels: nil
+        )
+    }
+}
+
+private struct NetworkListEntry: Codable {
+    let name: String?
+    let id: String?
+    let driver: String?
+    let scope: String?
+
+    func toDocker() -> DockerNetwork {
+        DockerNetwork(
+            name: name ?? "unknown",
+            id: id ?? UUID().uuidString,
+            created: "",
+            scope: scope ?? "local",
+            driver: driver ?? "bridge",
+            enableIPv6: false,
+            ipam: DockerIPAM(driver: "default", config: nil),
+            internal: false,
+            attachable: false,
+            ingress: false,
+            options: nil,
+            labels: nil
+        )
+    }
+}
+
+private struct VolumeListEntry: Codable {
+    let name: String?
+    let driver: String?
+    let mountpoint: String?
+
+    func toDocker() -> DockerVolume {
+        DockerVolume(
+            name: name ?? "unknown",
+            driver: driver ?? "local",
+            mountpoint: mountpoint ?? "",
+            createdAt: nil,
+            scope: "local",
+            labels: nil,
+            options: nil
         )
     }
 }

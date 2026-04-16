@@ -12,12 +12,28 @@ enum SystemStatus: Sendable {
 @MainActor
 final class AppState {
     private static let agentPermissionModeDefaultsKey = "agents.permission-mode"
+    private static let dockerAPIAutoStartDefaultsKey = "dockerAPI.autoStart"
 
     // Docker API server
     private var dockerServerTask: Task<Void, Never>?
+    private var dockerServer: DockerAPIServer?
     var isDockerAPIRunning = false
-    var dockerSocketPath: String { DockerAPIServer.socketPath() }
-    var systemStatus: SystemStatus = .stopped
+    var dockerSocketPath: String {
+        dockerServer?.resolvedSocketPath ?? DockerAPIServer.socketPath()
+    }
+    var dockerAPIAutoStart: Bool {
+        didSet {
+            UserDefaults.standard.set(dockerAPIAutoStart, forKey: Self.dockerAPIAutoStartDefaultsKey)
+        }
+    }
+    var systemStatus: SystemStatus = .stopped {
+        didSet {
+            // Auto-start Docker API when system becomes running and auto-start is enabled
+            if case .running = systemStatus, dockerAPIAutoStart, !isDockerAPIRunning {
+                startDockerAPI()
+            }
+        }
+    }
 
     // Area navigation
     var currentArea: AppArea = .keg
@@ -47,6 +63,7 @@ final class AppState {
 
     init() {
         self.agentPermissionMode = Self.loadAgentPermissionMode()
+        self.dockerAPIAutoStart = UserDefaults.standard.bool(forKey: Self.dockerAPIAutoStartDefaultsKey)
 
         Task { @MainActor [weak self] in
             do {
@@ -182,20 +199,34 @@ final class AppState {
 
     func startDockerAPI() {
         guard dockerServerTask == nil else { return }
+        let server = DockerAPIServer()
+        self.dockerServer = server
         dockerServerTask = Task.detached {
-            let server = DockerAPIServer()
             do {
                 try await server.start()
             } catch {
-                // Server stopped
+                // Server stopped or failed to bind
             }
         }
-        isDockerAPIRunning = true
+        // Give the server a moment to bind, then confirm it started
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(500))
+            if server.resolvedSocketPath != nil {
+                self.isDockerAPIRunning = true
+            } else {
+                // Server hasn't bound yet; wait a bit more
+                try? await Task.sleep(for: .seconds(1))
+                if server.resolvedSocketPath != nil || self.dockerServerTask != nil {
+                    self.isDockerAPIRunning = true
+                }
+            }
+        }
     }
 
     func stopDockerAPI() {
         dockerServerTask?.cancel()
         dockerServerTask = nil
+        dockerServer = nil
         isDockerAPIRunning = false
     }
 

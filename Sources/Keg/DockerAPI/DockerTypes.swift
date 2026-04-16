@@ -290,6 +290,90 @@ struct DockerInfo: Codable {
     }
 }
 
+// MARK: - Network Types
+
+struct DockerNetwork: Codable {
+    let name: String
+    let id: String
+    let created: String
+    let scope: String
+    let driver: String
+    let enableIPv6: Bool
+    let ipam: DockerIPAM?
+    let `internal`: Bool
+    let attachable: Bool
+    let ingress: Bool
+    let options: [String: String]?
+    let labels: [String: String]?
+
+    enum CodingKeys: String, CodingKey {
+        case name = "Name"
+        case id = "Id"
+        case created = "Created"
+        case scope = "Scope"
+        case driver = "Driver"
+        case enableIPv6 = "EnableIPv6"
+        case ipam = "IPAM"
+        case `internal` = "Internal"
+        case attachable = "Attachable"
+        case ingress = "Ingress"
+        case options = "Options"
+        case labels = "Labels"
+    }
+}
+
+struct DockerIPAM: Codable {
+    let driver: String
+    let config: [DockerIPAMConfig]?
+
+    enum CodingKeys: String, CodingKey {
+        case driver = "Driver"
+        case config = "Config"
+    }
+}
+
+struct DockerIPAMConfig: Codable {
+    let subnet: String?
+    let gateway: String?
+
+    enum CodingKeys: String, CodingKey {
+        case subnet = "Subnet"
+        case gateway = "Gateway"
+    }
+}
+
+// MARK: - Volume Types
+
+struct DockerVolumeListResponse: Codable {
+    let volumes: [DockerVolume]?
+    let warnings: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case volumes = "Volumes"
+        case warnings = "Warnings"
+    }
+}
+
+struct DockerVolume: Codable {
+    let name: String
+    let driver: String
+    let mountpoint: String
+    let createdAt: String?
+    let scope: String
+    let labels: [String: String]?
+    let options: [String: String]?
+
+    enum CodingKeys: String, CodingKey {
+        case name = "Name"
+        case driver = "Driver"
+        case mountpoint = "Mountpoint"
+        case createdAt = "CreatedAt"
+        case scope = "Scope"
+        case labels = "Labels"
+        case options = "Options"
+    }
+}
+
 // MARK: - Webhook Types
 
 /// Docker webhook configuration
