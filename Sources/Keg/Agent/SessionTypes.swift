@@ -13,14 +13,37 @@ public struct Session: Codable, Sendable {
     public var status: SessionStatus
     public let createdAt: Date
     public let updatedAt: Date
+    public var isFlagged: Bool
 
     enum CodingKeys: String, CodingKey {
-        case id, type, status
+        case id, type, status, isFlagged
         case agentId = "agent_id"
         case agentVersion = "agent_version"
         case environmentId = "environment_id"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+    }
+
+    public init(
+        id: String,
+        type: String,
+        agentId: String,
+        agentVersion: Int,
+        environmentId: String,
+        status: SessionStatus,
+        createdAt: Date,
+        updatedAt: Date,
+        isFlagged: Bool = false
+    ) {
+        self.id = id
+        self.type = type
+        self.agentId = agentId
+        self.agentVersion = agentVersion
+        self.environmentId = environmentId
+        self.status = status
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.isFlagged = isFlagged
     }
 }
 
@@ -31,6 +54,14 @@ public enum SessionStatus: String, Codable, Sendable {
     case completed
     case failed
     case cancelled
+}
+
+/// Craft-style workflow status for session inbox (Todo → In Progress → Needs Review → Done)
+public enum SessionWorkflowStatus: String, Codable, Sendable, CaseIterable {
+    case todo = "Todo"
+    case inProgress = "In Progress"
+    case needsReview = "Needs Review"
+    case done = "Done"
 }
 
 /// Parameters for creating a session

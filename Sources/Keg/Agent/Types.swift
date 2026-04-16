@@ -187,10 +187,12 @@ public struct AgentSkill: Codable, Sendable {
 }
 
 /// MCP server configuration
-public struct MCPServer: Codable, Sendable {
+public struct MCPServer: Codable, Sendable, Identifiable {
     public var type: String
     public var name: String?
     public var config: MCPServerConfig?
+
+    public var id: String { name ?? config?.url ?? UUID().uuidString }
 
     public init(type: String, name: String? = nil, config: MCPServerConfig? = nil) {
         self.type = type

@@ -235,6 +235,26 @@ actor AgentStorage {
         let data = try encoder.encode(entries.sorted { $0.timestamp > $1.timestamp })
         try data.write(to: sessionActivityURL, options: .atomic)
     }
+
+    // MARK: - Custom Skill Templates
+
+    private var customSkillTemplatesURL: URL {
+        storageDirectory.appendingPathComponent("custom-skill-templates.json")
+    }
+
+    func loadCustomSkillTemplates() throws -> [SkillTemplate] {
+        guard fileManager.fileExists(atPath: customSkillTemplatesURL.path) else {
+            return []
+        }
+        let data = try Data(contentsOf: customSkillTemplatesURL)
+        return try decoder.decode([SkillTemplate].self, from: data)
+    }
+
+    func saveCustomSkillTemplates(_ templates: [SkillTemplate]) throws {
+        try ensureDirectoryExists()
+        let data = try encoder.encode(templates)
+        try data.write(to: customSkillTemplatesURL, options: .atomic)
+    }
 }
 
 // MARK: - Connection Tester

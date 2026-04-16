@@ -186,6 +186,9 @@ public actor MCPClient {
 
     private var connections: [String: ServerConnection] = [:]
     private var discoveredTools: [String: [MCPTool]] = [:]
+    private var toolRegistry: MCPServerRegistry?
+    private var pollingTask: Task<Void, Never>?
+    private var pollingInterval: TimeInterval = 60  // seconds
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
 
@@ -194,6 +197,61 @@ public actor MCPClient {
     public init() {
         self.decoder = JSONDecoder()
         self.encoder = JSONEncoder()
+    }
+
+    /// Initialize MCP client with an optional registry for tool aggregation
+    public init(registry: MCPServerRegistry) {
+        self.decoder = JSONDecoder()
+        self.encoder = JSONEncoder()
+        self.toolRegistry = registry
+    }
+
+    /// Set the tool registry for aggregating discovered tools
+    public func setToolRegistry(_ registry: MCPServerRegistry) {
+        self.toolRegistry = registry
+    }
+
+    /// Set polling interval for tool discovery refresh (in seconds)
+    public func setPollingInterval(_ interval: TimeInterval) {
+        self.pollingInterval = max(10, interval)  // Minimum 10 seconds
+    }
+
+    /// Start polling tool discovery from all connected servers
+    public func startToolDiscoveryPolling() {
+        guard pollingTask == nil else { return }
+
+        pollingTask = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.pollToolDiscovery()
+                try? await Task.sleep(nanoseconds: UInt64(self?.pollingInterval ?? 60) * 1_000_000_000)
+            }
+        }
+    }
+
+    /// Stop polling tool discovery
+    public func stopToolDiscoveryPolling() {
+        pollingTask?.cancel()
+        pollingTask = nil
+    }
+
+    /// Poll tool discovery from all connected servers
+    private func pollToolDiscovery() async {
+        for serverName in registeredServers() {
+            guard serverState(serverName: serverName).isReady else { continue }
+
+            do {
+                let tools = try await listTools(serverName: serverName)
+                discoveredTools[serverName] = tools
+
+                // Sync with registry if available
+                if let registry = toolRegistry {
+                    await registry.removeToolsForServer(name: serverName)
+                    await registry.addTools(tools, serverName: serverName, serverType: "http")
+                }
+            } catch {
+                // Silently handle polling errors
+            }
+        }
     }
 
     // MARK: - Server Lifecycle
@@ -237,6 +295,13 @@ public actor MCPClient {
         let tools = try await listTools(serverName: config.name)
         discoveredTools[config.name] = tools
 
+        // Sync with registry if available
+        if let registry = toolRegistry {
+            await registry.registerServer(name: config.name, type: "http")
+            await registry.updateServerState(name: config.name, state: .ready(caps))
+            await registry.addTools(tools, serverName: config.name, serverType: "http")
+        }
+
         // Start SSE event stream
         startEventStream(serverName: config.name)
     }
@@ -258,6 +323,11 @@ public actor MCPClient {
 
         connections.removeValue(forKey: serverName)
         discoveredTools.removeValue(forKey: serverName)
+
+        // Remove from registry
+        if let registry = toolRegistry {
+            await registry.unregisterServer(name: serverName)
+        }
     }
 
     /// Disconnect all servers
@@ -433,9 +503,73 @@ public actor MCPClient {
             // Re-discover tools when list changes
             if let tools = try? await listTools(serverName: serverName) {
                 discoveredTools[serverName] = tools
+
+                // Sync with registry
+                if let registry = toolRegistry {
+                    await registry.removeToolsForServer(name: serverName)
+                    await registry.addTools(tools, serverName: serverName, serverType: "http")
+                }
             }
         case .unknown:
             break
+        }
+    }
+
+    // MARK: - Craft Config Import
+
+    /// Import MCP server configurations from Craft descriptors directory.
+    /// Expected format: ~/.claude/descriptors/<server-name>.json
+    public func importFromCraftDescriptors(homeDirectory: String = NSHomeDirectory()) async throws {
+        let descriptorsPath = "\(homeDirectory)/.claude/descriptors"
+
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: descriptorsPath) else { return }
+
+        let descriptorURLs = try fileManager.contentsOfDirectory(
+            at: URL(fileURLWithPath: descriptorsPath),
+            includingPropertiesForKeys: nil
+        ).filter { $0.pathExtension == "json" }
+
+        for url in descriptorURLs {
+            do {
+                let data = try Data(contentsOf: url)
+                let servers = try JSONDecoder().decode([CraftMCPServer].self, from: data)
+
+                for server in servers {
+                    guard let url = URL(string: server.command ?? "") else { continue }
+
+                    let config = ServerConfig(
+                        name: server.name ?? url.lastPathComponent,
+                        url: url,
+                        auth: server.env
+                    )
+
+                    // Register in registry if available
+                    if let registry = toolRegistry {
+                        await registry.registerServer(name: config.name, type: "craft")
+                    }
+                }
+            } catch {
+                // Skip malformed descriptors
+                continue
+            }
+        }
+    }
+
+    /// Discover and register tools from all connected servers into the registry
+    public func discoverAllTools() async {
+        for serverName in registeredServers() {
+            guard serverState(serverName: serverName).isReady else { continue }
+
+            do {
+                let tools = try await listTools(serverName: serverName)
+
+                if let registry = toolRegistry {
+                    await registry.addTools(tools, serverName: serverName, serverType: "http")
+                }
+            } catch {
+                // Skip servers with errors
+            }
         }
     }
 
@@ -803,6 +937,23 @@ private actor HTTPClient {
 private enum ServerEvent: Sendable {
     case toolsListChanged
     case unknown
+}
+
+// MARK: - Craft Config Types
+
+/// MCP server definition from Craft descriptors
+private struct CraftMCPServer: Codable {
+    let name: String?
+    let command: String?
+    let args: [String]?
+    let env: [String: String]?
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case command
+        case args
+        case env
+    }
 }
 
 // Note: AnyCodable is defined in DockerTypes.swift (shared across modules)

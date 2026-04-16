@@ -18,9 +18,16 @@ struct AgentEditorView: View {
     @State private var skills: [AgentSkill] = []
     @State private var mcpServers: [MCPServer] = []
 
+    // Model source selection
+    @State private var modelSource: ModelSource = .auto
+    @State private var selectedLocalModel: LocalModelConfig?
+    @State private var availableLocalModels: [LocalModelConfig] = []
+    @State private var permissionMode: AgentPermissionMode = .ask
+
     @State private var showToolPicker = false
     @State private var showSkillPicker = false
     @State private var showMCPConfigSheet = false
+    @State private var showLocalModelConfigSheet = false
 
     @State private var isSaving = false
     @State private var errorMessage: String?
@@ -58,6 +65,22 @@ struct AgentEditorView: View {
         _tools = State(initialValue: existing?.tools ?? [])
         _skills = State(initialValue: existing?.skills ?? [])
         _mcpServers = State(initialValue: existing?.mcpServers ?? [])
+
+        // Load available local models
+        loadLocalModels()
+    }
+
+    private func loadLocalModels() {
+        // Default local models for demo
+        let modelsDir = NSHomeDirectory() + "/.keg/models"
+        if let contents = try? FileManager.default.contentsOfDirectory(atPath: modelsDir) {
+            availableLocalModels = contents
+                .filter { $0.hasSuffix(".gguf") }
+                .map { path in
+                    LocalModelConfig(modelPath: (modelsDir as NSString).appendingPathComponent(path))
+                }
+                .filter { $0.isValid }
+        }
     }
 
     var body: some View {
@@ -91,6 +114,7 @@ struct AgentEditorView: View {
         .sheet(isPresented: $showToolPicker) {
             ToolPickerSheet(
                 selectedTools: $tools,
+                mcpRegistry: nil,
                 onDismiss: { showToolPicker = false }
             )
         }
@@ -103,7 +127,14 @@ struct AgentEditorView: View {
         .sheet(isPresented: $showMCPConfigSheet) {
             MCPServerConfigSheet(
                 servers: $mcpServers,
+                mcpRegistry: nil,
                 onDismiss: { showMCPConfigSheet = false }
+            )
+        }
+        .sheet(isPresented: $showLocalModelConfigSheet) {
+            LocalModelConfigSheet(
+                selectedModel: $selectedLocalModel,
+                onDismiss: { showLocalModelConfigSheet = false }
             )
         }
         .overlay {
@@ -213,20 +244,96 @@ struct AgentEditorView: View {
             Text("Model")
                 .font(.headline)
 
+            // Model source picker
             HStack {
-                Picker("Model", selection: $modelID) {
-                    ForEach(availableModels, id: \.self) { model in
-                        Text(model).tag(model)
+                Text("Source")
+                    .foregroundStyle(.secondary)
+                Picker("Source", selection: $modelSource) {
+                    ForEach(ModelSource.allCases) { source in
+                        Label(source.displayName, systemImage: source.iconName)
+                            .tag(source)
                     }
                 }
-                .pickerStyle(.menu)
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 300)
+            }
 
-                Picker("Speed", selection: $selectedSpeed) {
-                    Text("Standard").tag(ModelSpeed.standard)
-                    Text("Fast").tag(ModelSpeed.fast)
+            // Permission mode picker (Explore / Ask / Auto)
+            HStack {
+                Text("Permissions")
+                    .foregroundStyle(.secondary)
+                Picker("Permission Mode", selection: $permissionMode) {
+                    ForEach(AgentPermissionMode.allCases) { mode in
+                        Label(mode.rawValue, systemImage: mode.iconName)
+                            .tag(mode)
+                    }
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 180)
+                .frame(maxWidth: 360)
+
+                Spacer()
+            }
+
+            // Cloud model picker
+            if modelSource == .cloud || modelSource == .auto {
+                HStack {
+                    Picker("Model", selection: $modelID) {
+                        ForEach(availableModels, id: \.self) { model in
+                            Text(model).tag(model)
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    Picker("Speed", selection: $selectedSpeed) {
+                        Text("Standard").tag(ModelSpeed.standard)
+                        Text("Fast").tag(ModelSpeed.fast)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 180)
+                }
+            }
+
+            // Local model picker
+            if modelSource == .local || modelSource == .auto {
+                HStack {
+                    if availableLocalModels.isEmpty {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle")
+                                .foregroundStyle(.orange)
+                            Text("No local models found")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Button("Add Model") {
+                                showLocalModelConfigSheet = true
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    } else {
+                        Picker("Local Model", selection: $selectedLocalModel) {
+                            Text("Select a model...").tag(nil as LocalModelConfig?)
+                            ForEach(availableLocalModels, id: \.modelPath) { model in
+                                Text(model.modelName)
+                                    .tag(model as LocalModelConfig?)
+                            }
+                        }
+                        .pickerStyle(.menu)
+
+                        if let selected = selectedLocalModel {
+                            Text("\(selected.quantization) • \(selected.contextSize) ctx")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Button {
+                            showLocalModelConfigSheet = true
+                        } label: {
+                            Image(systemName: "gear")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Configure local model")
+                    }
+                }
             }
         }
     }
@@ -521,5 +628,141 @@ private struct EditorMCPServerRow: View {
         .padding(.horizontal, 8)
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+}
+
+// MARK: - Local Model Config Sheet
+
+private struct LocalModelConfigSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var selectedModel: LocalModelConfig?
+    let onDismiss: () -> Void
+
+    @State private var modelPath = ""
+    @State private var modelName = ""
+    @State private var quantization = "Q4_K_M"
+    @State private var port = 8080
+    @State private var contextSize = 4096
+    @State private var gpuLayers = -1
+    @State private var threads = 0
+    @State private var flashAttention = true
+    @State private var showFilePicker = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Form() {
+                Section("Model File") {
+                    HStack {
+                        TextField("Path to GGUF file", text: $modelPath)
+                            .textFieldStyle(.roundedBorder)
+
+                        Button("Browse...") {
+                            showFilePicker = true
+                        }
+                        .buttonStyle(.bordered)
+                    }
+
+                    TextField("Display Name", text: $modelName)
+                        .textFieldStyle(.roundedBorder)
+                }
+
+                Section("Quantization") {
+                    Picker("Quantization", selection: $quantization) {
+                        ForEach(LocalModelConfig.quantizationPresets, id: \.self) { q in
+                            Text(q).tag(q)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+
+                Section("Server Settings") {
+                    HStack {
+                        Text("Port:")
+                        TextField("8080", value: $port, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80)
+                    }
+
+                    Picker("Context Size", selection: $contextSize) {
+                        ForEach(LocalModelConfig.contextSizePresets, id: \.self) { size in
+                            Text("\(size)").tag(size)
+                        }
+                    }
+                }
+
+                Section("Performance") {
+                    HStack {
+                        Text("GPU Layers:")
+                        TextField("-1", value: $gpuLayers, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80)
+                        Text("(-1 = all)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HStack {
+                        Text("Threads:")
+                        TextField("0", value: $threads, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80)
+                        Text("(0 = auto)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Toggle("Flash Attention", isOn: $flashAttention)
+                }
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .padding()
+
+            Divider()
+
+            HStack {
+                Button("Cancel") {
+                    onDismiss()
+                    dismiss()
+                }
+                .keyboardShortcut(.escape)
+
+                Spacer()
+
+                Button("Add Model") {
+                    let config = LocalModelConfig(
+                        modelPath: modelPath,
+                        quantization: quantization,
+                        port: port,
+                        modelName: modelName.isEmpty ? nil : modelName,
+                        contextSize: contextSize,
+                        gpuLayers: gpuLayers,
+                        threads: threads,
+                        flashAttention: flashAttention
+                    )
+                    selectedModel = config
+                    onDismiss()
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(modelPath.isEmpty)
+                .keyboardShortcut(.return)
+            }
+            .padding()
+        }
+        .frame(width: 500, height: 450)
+        .navigationTitle("Add Local Model")
+        .fileImporter(
+            isPresented: $showFilePicker,
+            allowedContentTypes: [.data],
+            allowsMultipleSelection: false
+        ) { result in
+            if case .success(let urls) = result, let url = urls.first {
+                modelPath = url.path
+                if modelName.isEmpty {
+                    modelName = url.deletingPathExtension().lastPathComponent
+                }
+            }
+        }
     }
 }

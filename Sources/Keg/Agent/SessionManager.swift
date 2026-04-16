@@ -516,4 +516,40 @@ extension SessionManager {
     func cancelSession(_ sessionId: String) async throws {
         try await transitionStatus(sessionId: sessionId, to: .cancelled)
     }
+
+    // MARK: - Tool Mention Parsing
+
+    /// Parse `@toolname` mentions from session input text.
+    /// Returns an ordered list of unique tool names found.
+    /// Handles quoted and unquoted tool references: `@read_file`, `@"custom tool"`, `@'another tool'`
+    static func parseToolMentions(_ input: String) -> [String] {
+        var tools: [String] = []
+        var seen: Set<String> = []
+
+        // Pattern: @ followed by optional quoted name ("..." or '...') or bare word
+        let pattern = #"@(?:"([^"]+)"|'([^']+)'|([\w\-]+))"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            return []
+        }
+
+        let range = NSRange(input.startIndex..., in: input)
+        for match in regex.matches(in: input, options: [], range: range) {
+            // Group 0 = double-quoted, group 1 = single-quoted, group 2 = bare
+            let name: String?
+            if match.range(at: 1).location != NSNotFound {
+                name = (input as NSString).substring(with: match.range(at: 1))
+            } else if match.range(at: 2).location != NSNotFound {
+                name = (input as NSString).substring(with: match.range(at: 2))
+            } else {
+                name = (input as NSString).substring(with: match.range(at: 3))
+            }
+
+            if let name, !seen.contains(name) {
+                tools.append(name)
+                seen.insert(name)
+            }
+        }
+
+        return tools
+    }
 }

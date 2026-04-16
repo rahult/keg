@@ -1,12 +1,54 @@
-import Foundation
+@preconcurrency import Foundation
+
+/// Sendable wrapper for [String: Any] to cross actor isolation boundaries.
+private struct SendableArguments: @unchecked Sendable {
+    let storage: [String: Any]
+}
+
+// MARK: - Sendable extension for [String: Any]
+
+extension Dictionary: @unchecked Sendable where Key == String, Value == Any {}
 
 /// Hybrid Agent Runner - Process or Container execution
-/// 
+///
 /// Optimization: Use process for simple agents, container for dangerous operations
 /// - Process: ~5ms latency, ~0MB memory overhead
 /// - Container: ~15ms latency, ~10MB memory overhead
 actor HybridAgentRunner {
-    
+
+    // MARK: - Supaglue Integration
+
+    private var supaglueClient: SupaglueClient?
+
+    /// Register Supaglue tools and execution hook into the agent runner.
+    /// Call this once at app startup after the Supaglue container is confirmed running.
+    func registerSupaglueTools() {
+        supaglueClient = SupaglueClient()
+    }
+
+    /// Unregister Supaglue tools (e.g., when container stops).
+    func unregisterSupaglueTools() {
+        supaglueClient = nil
+    }
+
+    /// Returns all Supaglue tool definitions for registration in the agent runtime.
+    static var supaglueToolDefinitions: [AgentTool] {
+        SupaglueTools.allTools
+    }
+
+    /// Returns the names of all registered Supaglue tools.
+    static var supaglueToolNames: Set<String> {
+        SupaglueTools.toolNames
+    }
+
+    /// Execute a Supaglue tool call and return the result.
+    func executeSupaglueTool(name: String, arguments: [String: Any]) async throws -> SupaglueToolResult {
+        guard let client = supaglueClient else {
+            throw SupaglueClientError.notReady
+        }
+        return try await SupaglueTools.execute(name: name, arguments: SupaglueToolArguments(arguments), client: client)
+    }
+
     /// Execution mode based on operation risk
     enum Mode: String, Codable, Sendable {
         case process   // Fast, no isolation
