@@ -151,7 +151,12 @@ struct RegistryLoginView: View {
             let inputPipe = Pipe()
             process.standardInput = inputPipe
             let credentials = "\(username)\n\(password)\n"
-            inputPipe.fileHandleForWriting.write(credentials.data(using: .utf8)!)
+            guard let credentialData = credentials.data(using: .utf8) else {
+                errorMessage = "Failed to encode credentials"
+                isLoggingIn = false
+                return
+            }
+            inputPipe.fileHandleForWriting.write(credentialData)
             try? inputPipe.fileHandleForWriting.close()
 
             try? process.run()
