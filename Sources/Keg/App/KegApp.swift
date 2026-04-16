@@ -62,11 +62,6 @@ struct KegApp: App {
         .defaultSize(width: 1100, height: 700)
         .commands {
             CommandGroup(after: .newItem) {
-                Button("New Agent") {
-                    presentNewAgent()
-                }
-                .keyboardShortcut("N", modifiers: [.command, .option])
-
                 Button("Run Container...") {
                     presentRunContainer()
                 }
@@ -94,27 +89,9 @@ struct KegApp: App {
             CommandGroup(after: .sidebar) {
                 Divider()
 
-                Button("Show Keg") {
-                    appState.currentArea = .keg
-                }
-                .keyboardShortcut("1", modifiers: .command)
-
-                Button("Show Agents") {
-                    appState.currentArea = .agents
-                }
-                .keyboardShortcut("2", modifiers: .command)
-
-                Divider()
-
                 Button("System Dashboard") {
                     appState.showDashboard()
                 }
-
-                Button("Agent Use Cases") {
-                    appState.currentArea = .agents
-                    appState.selectedAgentSection = .useCases
-                }
-                .keyboardShortcut("U", modifiers: [.command, .option])
             }
 
             CommandGroup(after: .help) {
@@ -243,15 +220,8 @@ struct DetailView: View {
     @Environment(AppState.self) private var appState
 
     var body: some View {
-        Group {
-            switch appState.currentArea {
-            case .keg:
-                KegDetailView()
-            case .agents:
-                AgentAreaView()
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        KegDetailView()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

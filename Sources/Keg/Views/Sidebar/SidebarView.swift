@@ -6,71 +6,22 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            AreaPicker()
+            SystemDashboardView()
                 .padding(.horizontal, 12)
                 .padding(.top, 12)
                 .padding(.bottom, 8)
 
-            if appState.currentArea == .agents {
-                AgentPermissionModeControl()
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 8)
-
-                AgentAccountStatusCard()
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 8)
-            }
-
-            if appState.currentArea == .keg {
-                SystemDashboardView()
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 8)
-
-                if appState.activeSessionCount > 0 {
-                    CrossAreaLink(
-                        icon: "person.2.badge.gearshape",
-                        label: "Agents: \(appState.activeSessionCount) active \(appState.activeSessionCount == 1 ? "session" : "sessions")",
-                        color: .purple
-                    ) {
-                        appState.currentArea = .agents
-                        appState.selectedAgentSection = .sessions
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 8)
-                }
-            }
-
-            if appState.currentArea == .agents {
-                if appState.runningContainerCount > 0 {
-                    CrossAreaLink(
-                        icon: "cube.box.fill",
-                        label: "Containers: \(appState.runningContainerCount) running",
-                        color: .green
-                    ) {
-                        appState.currentArea = .keg
-                        appState.selectedKegSection = .containers
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 8)
-                }
-            }
-
             Divider()
                 .padding(.horizontal, 12)
 
-            switch appState.currentArea {
-            case .keg:
-                KegSidebarContent()
-            case .agents:
-                AgentSidebarContent()
-            }
+            KegSidebarContent()
         }
         .listStyle(.sidebar)
         .navigationTitle("Keg")
         .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 340)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Sidebar")
-        .accessibilityHint("Choose an area and section")
+        .accessibilityHint("Choose a section")
     }
 }
 
