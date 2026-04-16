@@ -218,7 +218,16 @@ actor ComposeOrchestrator {
     func parse(filePath: String) throws -> ComposeFile {
         do {
             let content = try String(contentsOfFile: filePath, encoding: .utf8)
-            return try YAMLDecoder().decode(ComposeFile.self, from: content)
+            let file = try YAMLDecoder().decode(ComposeFile.self, from: content)
+            // Validate all services have either image or build
+            for (name, service) in file.services {
+                if service.image == nil && service.build == nil {
+                    throw ComposeError.missingImage(name)
+                }
+            }
+            return file
+        } catch let error as ComposeError {
+            throw error
         } catch {
             throw ComposeError.parseFailed(error.localizedDescription)
         }
@@ -478,6 +487,11 @@ actor ComposeOrchestrator {
 
     // MARK: - PS
 
+    private struct PSListEntry: Decodable {
+        let id: String?
+        let status: String?
+    }
+
     func ps(filePath: String, projectName: String?) async throws -> [(name: String, service: String, state: String)] {
         let file = try parse(filePath: filePath)
         let name = projectName ?? URL(fileURLWithPath: filePath).deletingPathExtension().lastPathComponent
@@ -486,11 +500,30 @@ actor ComposeOrchestrator {
         let (code, output) = try await bridge.runCLI(["container", "list", "-a", "--format", "json"])
         guard code == 0 else { return results }
 
+        // Try JSON parsing first, fall back to string matching
+        let entries: [PSListEntry]
+        if let data = output.data(using: .utf8),
+           let decoded = try? JSONDecoder().decode([PSListEntry].self, from: data) {
+            entries = decoded
+        } else {
+            entries = []
+        }
+
         for (serviceName, service) in file.services {
             let containerName = service.containerName ?? "\(name)-\(serviceName)-1"
-            for line in output.split(separator: "\n") where line.contains(containerName) {
-                let state = line.contains("\"running\"") ? "running" : "stopped"
-                results.append((name: containerName, service: serviceName, state: state))
+
+            if !entries.isEmpty {
+                // JSON path: match by ID containing the container name
+                if let entry = entries.first(where: { $0.id?.contains(containerName) == true }) {
+                    let state = entry.status == "running" ? "running" : "stopped"
+                    results.append((name: containerName, service: serviceName, state: state))
+                }
+            } else {
+                // Fallback: string matching on raw output
+                for line in output.split(separator: "\n") where line.contains(containerName) {
+                    let state = line.contains("running") ? "running" : "stopped"
+                    results.append((name: containerName, service: serviceName, state: state))
+                }
             }
         }
         return results

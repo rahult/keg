@@ -25,12 +25,22 @@ final class ImagesVM {
             images = try await ClientImage.list()
             // Clear stale entries before reloading sizes
             imageSizes = [:]
-            // Load sizes in background
+            // Load sizes in background with timeout
             for image in images {
-                if let size = try? await ClientImage.getFullImageSize(image: image) {
-                    await MainActor.run {
-                        imageSizes[image.reference] = ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+                do {
+                    let size = try await withThrowingTaskGroup(of: Int64.self) { group in
+                        group.addTask { try await ClientImage.getFullImageSize(image: image) }
+                        group.addTask {
+                            try await Task.sleep(for: .seconds(15))
+                            throw CancellationError()
+                        }
+                        let result = try await group.next()!
+                        group.cancelAll()
+                        return result
                     }
+                    imageSizes[image.reference] = ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+                } catch {
+                    imageSizes[image.reference] = "N/A"
                 }
             }
             errorMessage = nil

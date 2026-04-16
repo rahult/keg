@@ -73,6 +73,7 @@ struct RegistryListView: View {
         process.standardError = pipe
         try? process.run()
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        try? pipe.fileHandleForReading.close()
         process.waitUntilExit()
         if let output = String(data: data, encoding: .utf8) {
             registries = output.split(separator: "\n").map(String.init)

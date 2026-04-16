@@ -75,15 +75,19 @@ struct ContainerStatsView: View {
 
     private func pollStats() async {
         var prevCpu: UInt64 = 0
+        var prevTime = CFAbsoluteTimeGetCurrent()
         while !Task.isCancelled {
             do {
                 let current = try await client.stats(id: containerID)
                 stats = current
 
-                // Calculate CPU % from cumulative usec delta
-                if let cpuUsec = current.cpuUsageUsec {
+                // Calculate CPU % from cumulative usec delta over actual elapsed time
+                let now = CFAbsoluteTimeGetCurrent()
+                let elapsedUsec = (now - prevTime) * 1_000_000
+                prevTime = now
+                if let cpuUsec = current.cpuUsageUsec, elapsedUsec > 0 {
                     let delta = Double(cpuUsec - prevCpu)
-                    cpuPercent = min(delta / 20_000.0 * 100, 100) // 2s interval = 2M usec
+                    cpuPercent = min(delta / elapsedUsec * 100, 100)
                     prevCpu = cpuUsec
                 }
 
