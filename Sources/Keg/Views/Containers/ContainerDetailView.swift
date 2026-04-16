@@ -37,8 +37,9 @@ final class ContainerDetailVM {
         statsTask = Task {
             while !Task.isCancelled {
                 do {
-                    stats = try await client.stats(id: id)
-                onStatsUpdate?(stats!)
+                    let newStats = try await client.stats(id: id)
+                    stats = newStats
+                    onStatsUpdate?(newStats)
                 } catch {
                     break
                 }
