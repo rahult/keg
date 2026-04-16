@@ -346,6 +346,224 @@ final class KubernetesShadowTests: XCTestCase {
         print("✅ System pods:\n\(sysOut)")
     }
 
+    /// Test: Scale a deployment to 3 replicas and verify all pods are Running
+    func testScaleDeployment() async throws {
+        try await testCreateCluster()
+
+        print("🔄 Deploying nginx for scale test...")
+
+        let (createCode, createOut) = try kubectl(
+            "create", "deployment", "nginx-shadow-test",
+            "--image=nginx:latest",
+            "--port=80"
+        )
+        XCTAssertEqual(createCode, 0, "nginx deployment should create: \(createOut)")
+
+        // Wait for initial pod to be running
+        try await waitForCondition(description: "nginx pod Running", timeout: 90) {
+            let (code, output) = try kubectl("get", "pods", "-l", "app=nginx-shadow-test", "-o", "wide")
+            return code == 0 && output.contains("Running")
+        }
+
+        print("🔄 Scaling to 3 replicas...")
+        let (scaleCode, scaleOut) = try kubectl(
+            "scale", "deployment", "nginx-shadow-test", "--replicas=3"
+        )
+        XCTAssertEqual(scaleCode, 0, "scale should succeed: \(scaleOut)")
+
+        // Wait for all 3 pods to be Running
+        try await waitForCondition(description: "3 pods Running", timeout: 120) {
+            let (code, output) = try kubectl("get", "pods", "-l", "app=nginx-shadow-test", "-o", "wide")
+            guard code == 0 else { return false }
+            let runningCount = output.components(separatedBy: "\n").filter { $0.contains("Running") }.count
+            return runningCount >= 3
+        }
+
+        let (podsCode, podsOut) = try kubectl("get", "pods", "-l", "app=nginx-shadow-test", "-o", "wide")
+        XCTAssertEqual(podsCode, 0)
+        let runningCount = podsOut.components(separatedBy: "\n").filter { $0.contains("Running") }.count
+        XCTAssertGreaterThanOrEqual(runningCount, 3, "Should have 3 Running pods, got \(runningCount)")
+        print("✅ Scaled to 3 replicas:\n\(podsOut)")
+
+        // Verify deployment shows 3/3 ready
+        let (deployCode, deployOut) = try kubectl("get", "deployment", "nginx-shadow-test")
+        XCTAssertEqual(deployCode, 0)
+        XCTAssertTrue(deployOut.contains("3/3"), "deployment should have 3/3 ready")
+        print("✅ Deployment ready:\n\(deployOut)")
+
+        // Clean up
+        let (delCode, _) = try kubectl("delete", "deployment", "nginx-shadow-test")
+        XCTAssertEqual(delCode, 0)
+        print("✅ Scaled deployment cleaned up")
+    }
+
+    /// Test: Rolling update from nginx:1.25 to nginx:latest
+    func testRollingUpdate() async throws {
+        try await testCreateCluster()
+
+        print("🔄 Deploying nginx:1.25 for rolling update test...")
+
+        let (createCode, createOut) = try kubectl(
+            "create", "deployment", "nginx-shadow-test",
+            "--image=nginx:1.25",
+            "--port=80"
+        )
+        XCTAssertEqual(createCode, 0, "nginx:1.25 deployment should create: \(createOut)")
+
+        // Wait for initial pod to be running
+        try await waitForCondition(description: "nginx:1.25 pod Running", timeout: 90) {
+            let (code, output) = try kubectl("get", "pods", "-l", "app=nginx-shadow-test", "-o", "wide")
+            return code == 0 && output.contains("Running")
+        }
+        print("✅ nginx:1.25 running")
+
+        // Perform rolling update
+        print("🔄 Updating image to nginx:latest...")
+        let (setCode, setOut) = try kubectl(
+            "set", "image", "deployment/nginx-shadow-test", "nginx=nginx:latest"
+        )
+        XCTAssertEqual(setCode, 0, "set image should succeed: \(setOut)")
+
+        // Wait for rollout to complete
+        try await waitForCondition(description: "rollout complete", timeout: 120) {
+            let (code, output) = try kubectl("rollout", "status", "deployment/nginx-shadow-test")
+            return code == 0 && output.contains("successfully rolled out")
+        }
+        print("✅ Rollout complete")
+
+        // Verify the new image is running
+        let (descCode, descOut) = try kubectl(
+            "get", "deployment", "nginx-shadow-test",
+            "-o", "jsonpath={.spec.template.spec.containers[0].image}"
+        )
+        XCTAssertEqual(descCode, 0)
+        XCTAssertTrue(descOut.contains("nginx:latest"), "Image should be nginx:latest, got: \(descOut)")
+        print("✅ Image verified: \(descOut)")
+
+        // Clean up
+        let (delCode, _) = try kubectl("delete", "deployment", "nginx-shadow-test")
+        XCTAssertEqual(delCode, 0)
+        print("✅ Rolling update deployment cleaned up")
+    }
+
+    /// Test: Exec into a running pod and read nginx config
+    func testKubectlExec() async throws {
+        try await testCreateCluster()
+
+        print("🔄 Deploying nginx for exec test...")
+
+        let (createCode, createOut) = try kubectl(
+            "create", "deployment", "nginx-shadow-test",
+            "--image=nginx:latest",
+            "--port=80"
+        )
+        XCTAssertEqual(createCode, 0, "nginx deployment should create: \(createOut)")
+
+        // Wait for pod to be running
+        try await waitForCondition(description: "nginx pod Running", timeout: 90) {
+            let (code, output) = try kubectl("get", "pods", "-l", "app=nginx-shadow-test", "-o", "wide")
+            return code == 0 && output.contains("Running")
+        }
+
+        // Get pod name
+        let (nameCode, podName) = try kubectl(
+            "get", "pods", "-l", "app=nginx-shadow-test",
+            "-o", "jsonpath={.items[0].metadata.name}"
+        )
+        XCTAssertEqual(nameCode, 0, "should get pod name")
+        let trimmedPodName = podName.trimmingCharacters(in: .whitespacesAndNewlines)
+        XCTAssertFalse(trimmedPodName.isEmpty, "pod name should not be empty")
+        print("✅ Pod name: \(trimmedPodName)")
+
+        // Exec into pod and cat nginx config
+        let (execCode, execOut) = try kubectl(
+            "exec", trimmedPodName, "--", "cat", "/etc/nginx/nginx.conf"
+        )
+        XCTAssertEqual(execCode, 0, "kubectl exec should succeed")
+        XCTAssertTrue(execOut.contains("worker_processes"), "nginx.conf should contain worker_processes, got: \(execOut.prefix(200))")
+        print("✅ Exec output contains worker_processes")
+
+        // Clean up
+        let (delCode, _) = try kubectl("delete", "deployment", "nginx-shadow-test")
+        XCTAssertEqual(delCode, 0)
+        print("✅ Exec test deployment cleaned up")
+    }
+
+    /// Test: Fetch logs from a running pod
+    func testKubectlLogs() async throws {
+        try await testCreateCluster()
+
+        print("🔄 Deploying nginx for logs test...")
+
+        let (createCode, createOut) = try kubectl(
+            "create", "deployment", "nginx-shadow-test",
+            "--image=nginx:latest",
+            "--port=80"
+        )
+        XCTAssertEqual(createCode, 0, "nginx deployment should create: \(createOut)")
+
+        // Wait for pod to be running
+        try await waitForCondition(description: "nginx pod Running", timeout: 90) {
+            let (code, output) = try kubectl("get", "pods", "-l", "app=nginx-shadow-test", "-o", "wide")
+            return code == 0 && output.contains("Running")
+        }
+
+        // Get pod name
+        let (nameCode, podName) = try kubectl(
+            "get", "pods", "-l", "app=nginx-shadow-test",
+            "-o", "jsonpath={.items[0].metadata.name}"
+        )
+        XCTAssertEqual(nameCode, 0, "should get pod name")
+        let trimmedPodName = podName.trimmingCharacters(in: .whitespacesAndNewlines)
+        XCTAssertFalse(trimmedPodName.isEmpty, "pod name should not be empty")
+        print("✅ Pod name: \(trimmedPodName)")
+
+        // Fetch logs - may be empty initially, that's ok
+        let (logCode, logOut) = try kubectl("logs", trimmedPodName)
+        XCTAssertEqual(logCode, 0, "kubectl logs should succeed")
+        // Logs may be empty for a freshly started nginx with no requests, that's acceptable
+        print("✅ Logs fetched successfully (\(logOut.count) bytes)")
+        if !logOut.isEmpty {
+            print("  Log preview: \(String(logOut.prefix(200)))")
+        }
+
+        // Clean up
+        let (delCode, _) = try kubectl("delete", "deployment", "nginx-shadow-test")
+        XCTAssertEqual(delCode, 0)
+        print("✅ Logs test deployment cleaned up")
+    }
+
+    /// Test: Create a secret and verify it exists
+    func testCreateSecret() async throws {
+        try await testCreateCluster()
+
+        print("🔄 Creating secret...")
+
+        let (createCode, createOut) = try kubectl(
+            "create", "secret", "generic", "shadow-secret",
+            "--from-literal=password=keg123"
+        )
+        XCTAssertEqual(createCode, 0, "Secret should create: \(createOut)")
+        print("✅ Secret created")
+
+        // Verify secret exists
+        let (getCode, getOut) = try kubectl("get", "secret", "shadow-secret")
+        XCTAssertEqual(getCode, 0, "should get secret")
+        XCTAssertTrue(getOut.contains("shadow-secret"), "Secret should exist in output")
+        print("✅ Secret verified:\n\(getOut)")
+
+        // Verify secret data via yaml
+        let (yamlCode, yamlOut) = try kubectl("get", "secret", "shadow-secret", "-o", "yaml")
+        XCTAssertEqual(yamlCode, 0)
+        XCTAssertTrue(yamlOut.contains("password"), "Secret should contain password key")
+        print("✅ Secret data verified")
+
+        // Clean up
+        let (delCode, _) = try kubectl("delete", "secret", "shadow-secret")
+        XCTAssertEqual(delCode, 0)
+        print("✅ Secret cleaned up")
+    }
+
     /// Test: Delete cluster cleanly
     func testDeleteCluster() async throws {
         try await testCreateCluster()
