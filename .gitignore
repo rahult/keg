@@ -7,3 +7,5 @@ Keg.app/
 *.dSYM/
 .pi/
 outputs/qa/
+.omc/state/
+.claude/worktrees/
