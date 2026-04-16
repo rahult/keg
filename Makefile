@@ -1,7 +1,7 @@
 BINARY     := Keg
 APP_NAME   := Keg.app
 BUNDLE_ID  := dev.rahult.keg
-VERSION    := 1.0
+VERSION    := 0.1.0-alpha
 BUILD_DIR  := .build/release
 MACOS_DIR  := $(APP_NAME)/Contents/MacOS
 RES_DIR    := $(APP_NAME)/Contents/Resources
