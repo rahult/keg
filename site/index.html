@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Keg — Containers on Apple Silicon</title>
 <meta name="description" content="Docker Desktop replacement for macOS. Native SwiftUI, hardware-level isolation, sub-second boot, near-zero idle RAM. Open source.">
+<meta property="og:title" content="Keg — Containers on Apple Silicon">
+<meta property="og:description" content="Docker Desktop replacement for macOS. Sub-second boot. 69MB idle RAM. Hardware isolation. Open source.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://github.com/rahult/keg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Keg — Containers on Apple Silicon">
+<meta name="twitter:description" content="Docker Desktop replacement for macOS. Sub-second boot. 69MB idle RAM. Hardware isolation. Open source.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -318,6 +325,43 @@ footer .links a:hover { color: var(--text-secondary); }
 .reveal { opacity: 0; transform: translateY(32px); filter: blur(6px); transition: opacity 0.9s var(--ease-out-expo), transform 0.9s var(--ease-out-expo), filter 0.9s var(--ease-out-expo); }
 .reveal.vis { opacity: 1; transform: translateY(0); filter: blur(0); }
 .d1 { transition-delay: 0.08s; } .d2 { transition-delay: 0.16s; } .d3 { transition-delay: 0.24s; } .d4 { transition-delay: 0.32s; }
+
+/* Accessibility: reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .reveal { transition: opacity 0.3s ease; transform: none; filter: none; }
+  .reveal.vis { opacity: 1; }
+  .d1, .d2, .d3, .d4 { transition-delay: 0s; }
+  .pill .dot { animation: none; }
+  .nav-cta:hover, .btn-primary:hover, .btn-ghost:hover, .step-bezel:hover { transform: none; }
+  .nav-cta:active, .btn-primary:active { transform: none; }
+  .nav-cta:hover .arrow, .btn-primary:hover .icon-wrap { transform: none; }
+}
+
+/* Focus indicators */
+a:focus-visible, .btn:focus-visible, .nav-cta:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+.nav-links a:focus-visible { outline-offset: 0; }
+
+/* Ghost button active state */
+.btn-ghost:active { transform: scale(0.98); background: rgba(255,255,255,0.08); }
+
+/* Mobile: table horizontal scroll */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Mobile: footer stack */
+@media (max-width: 600px) {
+  footer { flex-direction: column; gap: 16px; text-align: center; }
+  footer .links { justify-content: center; }
+  .hero h1 { font-size: 2.6rem; }
+  .hero-sub { font-size: 1rem; }
+  .stat-val { font-size: 2.2rem; }
+}
+
+/* Mobile: step code blocks */
+.step-code { white-space: pre; overflow-x: auto; }
 </style>
 </head>
 <body>
@@ -364,7 +408,7 @@ footer .links a:hover { color: var(--text-secondary); }
       <div class="mockup-body">
         <!-- Sidebar -->
         <div class="mockup-sidebar">
-          <div class="mock-seg"><span class="active">Keg</span><span>Agents</span></div>
+          <div class="mock-seg"><span class="active">Keg</span></div>
           <div class="mock-status">
             <div class="mock-status-row">
               <span class="mock-status-dot"></span>
@@ -569,7 +613,7 @@ footer .links a:hover { color: var(--text-secondary); }
   <div class="pill reveal"><span class="dot"></span> Comparison</div>
   <h2 class="section-title reveal d1">Numbers don't lie.</h2>
   <p class="section-desc reveal d2">Benchmarked against Docker Desktop and OrbStack.</p>
-  <div class="bezel reveal d3"><div class="bezel-inner table-inner">
+  <div class="bezel reveal d3"><div class="bezel-inner table-inner"><div class="table-scroll">
     <table>
       <thead><tr><th></th><th>Docker Desktop</th><th>OrbStack</th><th>Keg</th></tr></thead>
       <tbody>
@@ -583,7 +627,7 @@ footer .links a:hover { color: var(--text-secondary); }
         <tr><td>License</td><td>$9/seat/mo</td><td>Paid</td><td><span class="win">Apache 2.0</span></td></tr>
       </tbody>
     </table>
-  </div></div>
+  </div></div></div>
 </section>
 
 <!-- CTA -->
