@@ -200,19 +200,19 @@ final class DockerAPIServer: Sendable {
                 kernelVersion: "Darwin",
                 buildTime: ""
             )
-            return try! JSONResponse(version)
+            return try JSONResponse(version)
         }
 
         router.get("/info") { request, _ in
             let info = try await bridge.systemInfo()
-            return try! JSONResponse(info)
+            return try JSONResponse(info)
         }
 
         // MARK: - Container Routes
         router.get("/containers/json") { request, _ in
             let all = request.uri.queryParameters.get("all") != nil
             let containers = try await bridge.listContainers(all: all)
-            return try! JSONResponse(containers)
+            return try JSONResponse(containers)
         }
 
         router.post("/containers/create") { request, _ in
@@ -220,7 +220,7 @@ final class DockerAPIServer: Sendable {
             let body = try await request.body.collect(upTo: 1024 * 1024)
             let createReq = try JSONDecoder().decode(DockerContainerCreateRequest.self, from: Data(buffer: body))
             let response = try await bridge.createContainer(from: createReq, name: name)
-            return try! JSONResponse(response, status: .created)
+            return try JSONResponse(response, status: .created)
         }
 
         router.post("/containers/{id}/start") { request, context in
@@ -258,7 +258,7 @@ final class DockerAPIServer: Sendable {
         router.get("/containers/{id}/json") { request, context in
             let id = context.parameters.get("id", as: String.self)!
             let inspect = try await bridge.inspectContainer(id: id)
-            return try! JSONResponse(inspect)
+            return try JSONResponse(inspect)
         }
 
         router.get("/containers/{id}/logs") { request, context in
@@ -274,13 +274,13 @@ final class DockerAPIServer: Sendable {
             let _ = context.parameters.get("id", as: String.self)!
             let execId = "exec-\(UUID().uuidString.prefix(12))"
             let response: [String: String] = ["Id": execId]
-            return try! JSONResponse(response, status: .created)
+            return try JSONResponse(response, status: .created)
         }
 
         // MARK: - Image Routes
         router.get("/images/json") { _, _ in
             let images = try await bridge.listImages()
-            return try! JSONResponse(images)
+            return try JSONResponse(images)
         }
 
         router.post("/images/create") { request, _ in
@@ -300,7 +300,7 @@ final class DockerAPIServer: Sendable {
             // Docker client may hit /images/{name}/json or /images/{name}/history
             let name = context.parameters.get("name", as: String.self)!
             let image = try await bridge.inspectImage(name: name)
-            return try! JSONResponse(image)
+            return try JSONResponse(image)
         }
 
         router.delete("/images/{name}/**") { request, context in
@@ -312,13 +312,13 @@ final class DockerAPIServer: Sendable {
         // MARK: - Network Routes
         router.get("/networks") { _, _ in
             let networks = try await bridge.listNetworks()
-            return try! JSONResponse(networks)
+            return try JSONResponse(networks)
         }
         router.get("/networks/{id}") { request, context in
             let id = context.parameters.get("id", as: String.self)!
             let networks = try await bridge.listNetworks()
             if let network = networks.first(where: { $0.id == id || $0.name == id }) {
-                return try! JSONResponse(network)
+                return try JSONResponse(network)
             }
             return Response(status: .notFound, body: .init(byteBuffer: ByteBuffer(string: "{\"message\":\"network not found\"}")))
         }
@@ -326,7 +326,7 @@ final class DockerAPIServer: Sendable {
         // MARK: - Volume Routes
         router.get("/volumes") { _, _ in
             let volumeList = try await bridge.listVolumes()
-            return try! JSONResponse(volumeList)
+            return try JSONResponse(volumeList)
         }
 
         // MARK: - Events (stub)
@@ -375,7 +375,7 @@ final class DockerAPIServer: Sendable {
             let response = WebhookListResponse(webhooks: webhooks.map {
                 WebhookInfo(name: $0.name, uuid: $0.id)
             })
-            return try! JSONResponse(response)
+            return try JSONResponse(response)
         }
 
         router.delete("/webhooks/{id}") { request, context in
@@ -393,7 +393,7 @@ final class DockerAPIServer: Sendable {
                 throw DockerAPIError.webhookNotFound(id)
             }
             let info = WebhookInfo(name: webhook.name, uuid: webhook.id)
-            return try! JSONResponse(info)
+            return try JSONResponse(info)
         }
 
         router.patch("/webhooks/{id}") { request, context in
@@ -405,7 +405,7 @@ final class DockerAPIServer: Sendable {
                 throw DockerAPIError.webhookNotFound(id)
             }
             let info = WebhookInfo(name: webhook.name, uuid: webhook.id)
-            return try! JSONResponse(info)
+            return try JSONResponse(info)
         }
 
         // Hook webhook dispatch into container events
@@ -468,7 +468,12 @@ struct DockerVersionStripMiddleware<Context: RequestContext>: RouterMiddleware {
         }
         let newPath = String(path[slashIdx...]) // includes leading /
         let query = request.uri.query.map { "?\($0)" } ?? ""
-        let newRequest = Request(head: .init(method: request.head.method, url: URL(string: (newPath + query).addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? newPath)!, headerFields: request.head.headerFields), body: request.body)
+        let urlString = newPath + query
+        guard let newURL = URL(string: urlString) ?? URL(string: urlString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? newPath) else {
+            // If URL is still unparseable, pass the original request through unmodified
+            return try await next(request, context)
+        }
+        let newRequest = Request(head: .init(method: request.head.method, url: newURL, headerFields: request.head.headerFields), body: request.body)
         return try await next(newRequest, context)
     }
 }

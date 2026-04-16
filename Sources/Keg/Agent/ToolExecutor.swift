@@ -457,7 +457,10 @@ public actor ToolExecutor {
         let count = args["count"] as? Int ?? 10
 
         // Use DuckDuckGo HTML (no API key required)
-        let searchURL = URL(string: "https://html.duckduckgo.com/html/?q=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query)")!
+        guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let searchURL = URL(string: "https://html.duckduckgo.com/html/?q=\(encodedQuery)") else {
+            return ToolOutput(content: "Failed to construct search URL for query: \(query)", isError: true)
+        }
 
         var request = URLRequest(url: searchURL)
         request.httpMethod = "GET"
