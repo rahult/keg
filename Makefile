@@ -12,7 +12,11 @@ LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Frameworks/Launc
 CODESIGN   := /usr/bin/codesign
 CODESIGN_IDENTITY ?= $(shell security find-identity -v -p codesigning 2>/dev/null | awk -F'"' '/Apple Development:|Developer ID Application:/ { print $$2; exit }')
 
-.PHONY: all build sign app open run test qa qa-live qa-agents clean
+DMG_NAME   := Keg-$(VERSION).dmg
+DMG_TEMP   := .build/dmg-temp
+DMG_RW     := .build/Keg-rw.dmg
+
+.PHONY: all build sign app open run test qa qa-live qa-agents dmg clean
 
 all: app
 
@@ -71,7 +75,20 @@ qa-live:
 qa-agents:
 	KEG_RUN_MANAGED_AGENTS=1 ./Scripts/qa.sh
 
+dmg: app
+	@echo "📦 Creating DMG..."
+	@rm -rf $(DMG_TEMP) $(DMG_RW) $(DMG_NAME)
+	@mkdir -p $(DMG_TEMP)
+	@cp -R $(APP_NAME) $(DMG_TEMP)/
+	@ln -s /Applications $(DMG_TEMP)/Applications
+	@hdiutil create -srcfolder $(DMG_TEMP) -volname "Keg" -fs HFS+ \
+		-format UDRW -size 200m $(DMG_RW) >/dev/null
+	@hdiutil convert $(DMG_RW) -format UDZO -imagekey zlib-level=9 \
+		-o $(DMG_NAME) >/dev/null
+	@rm -rf $(DMG_TEMP) $(DMG_RW)
+	@echo "✅ $(DMG_NAME) ($$(du -h $(DMG_NAME) | cut -f1))"
+
 clean:
 	swift package clean
-	@rm -rf $(APP_NAME)
+	@rm -rf $(APP_NAME) $(DMG_NAME) $(DMG_RW) $(DMG_TEMP)
 	@echo "✅ Cleaned"
