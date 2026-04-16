@@ -510,9 +510,7 @@ actor ComposeOrchestrator {
             if let tail = tail { args += ["-n", "\(tail)"] }
             args.append(containerName)
             let (code, output) = try await bridge.runCLI(args)
-            if code == 0 {
-                results.append((service: currentServiceName, logs: output))
-            }
+            results.append((service: currentServiceName, logs: code == 0 ? output : "[Error] \(output)"))
         }
         return results
     }
