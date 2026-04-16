@@ -5,6 +5,8 @@ public actor AgentRuntime {
     private let client: ManagedAgentsClient
     private let toolExecutor: ToolExecutor
     private let workingDirectory: URL
+    private let mcpRegistry: MCPServerRegistry?
+    private let mcpClient: MCPClient?
 
     public struct Config: Sendable {
         public var maxIterations: Int
@@ -54,11 +56,15 @@ public actor AgentRuntime {
     public init(
         client: ManagedAgentsClient,
         workingDirectory: URL = URL(fileURLWithPath: "."),
-        permissionMode: AgentPermissionMode = .ask
+        permissionMode: AgentPermissionMode = .ask,
+        mcpRegistry: MCPServerRegistry? = nil,
+        mcpClient: MCPClient? = nil
     ) {
         self.client = client
         self.toolExecutor = ToolExecutor(workingDirectory: workingDirectory, permissionMode: permissionMode)
         self.workingDirectory = workingDirectory
+        self.mcpRegistry = mcpRegistry
+        self.mcpClient = mcpClient
     }
 
     // MARK: - Run Session
@@ -269,24 +275,116 @@ public actor AgentRuntime {
     private func executeTool(_ toolUse: ToolUseEvent, config: Config) async throws -> SessionEvent {
         let toolName = toolUse.tool
         let toolInput = toolUse.toolInput.mapValues { $0.value }
+        let toolUseId = toolUse.toolUseId ?? UUID().uuidString
 
         do {
+            // First, try local ToolExecutor (8 hardcoded tools)
             let result = try await toolExecutor.execute(
                 ToolExecutor.ToolInput(name: toolName, arguments: toolInput)
             )
 
             let toolResult = ToolResultEvent(
-                toolUseId: toolUse.toolUseId ?? UUID().uuidString,
+                toolUseId: toolUseId,
                 toolOutput: AnyCodable(result.content),
                 isError: result.isError
             )
 
             return SessionEvent(type: .toolResult, toolResult: toolResult)
 
+        } catch let error as ToolExecutorError where isMCPFallbackEligible(error) {
+            // ToolExecutor doesn't know this tool — try MCP registry
+            if let mcpResult = await executeMCPTool(toolName: toolName, toolUseId: toolUseId, arguments: toolUse.toolInput, config: config) {
+                return mcpResult
+            }
+
+            // Not found in MCP either — return unknown tool error
+            let errorResult = ToolResultEvent(
+                toolUseId: toolUseId,
+                toolOutput: AnyCodable("Unknown tool: '\(toolName)'. Available local tools: bash, read, write, edit, glob, grep, web_fetch, web_search. Check MCP server connections for additional tools."),
+                isError: true
+            )
+            return SessionEvent(type: .toolResult, toolResult: errorResult)
+
         } catch {
             let errorResult = ToolResultEvent(
-                toolUseId: toolUse.toolUseId ?? UUID().uuidString,
+                toolUseId: toolUseId,
                 toolOutput: AnyCodable(error.localizedDescription),
+                isError: true
+            )
+
+            return SessionEvent(type: .toolResult, toolResult: errorResult)
+        }
+    }
+
+    /// Check if the error is an unknownTool error eligible for MCP fallback
+    private func isMCPFallbackEligible(_ error: ToolExecutorError) -> Bool {
+        if case .unknownTool = error { return true }
+        return false
+    }
+
+    /// Attempt to execute a tool via MCP registry and client.
+    /// Returns nil if the tool is not found in the MCP registry.
+    private func executeMCPTool(
+        toolName: String,
+        toolUseId: String,
+        arguments: [String: AnyCodable],
+        config: Config
+    ) async -> SessionEvent? {
+        guard let registry = mcpRegistry, let client = mcpClient else { return nil }
+
+        // Search the registry for a matching tool.
+        // MCP tool names from the agent may arrive as:
+        //   - "mcp_<server>_<tool>" (prefixed format from MCPTool.toAgentTool())
+        //   - "<server>:<tool>" (fully qualified ID)
+        //   - "<tool>" (bare tool name)
+
+        let toolEntry: MCPServerRegistry.ToolEntry?
+
+        if toolName.hasPrefix("mcp_") {
+            // Parse "mcp_<server>_<tool>" format
+            let stripped = String(toolName.dropFirst(4)) // remove "mcp_"
+            if let underscoreIdx = stripped.firstIndex(of: "_") {
+                let serverName = String(stripped[..<underscoreIdx])
+                let mcpToolName = String(stripped[stripped.index(after: underscoreIdx)...])
+                let toolId = "\(serverName):\(mcpToolName)"
+                toolEntry = await registry.getTool(id: toolId)
+            } else {
+                toolEntry = nil
+            }
+        } else if toolName.contains(":") {
+            // Fully qualified "server:tool" format
+            toolEntry = await registry.getTool(id: toolName)
+        } else {
+            // Bare tool name — search across all servers
+            let matches = await registry.search(query: toolName)
+            toolEntry = matches.first(where: { $0.name == toolName && $0.isEnabled })
+        }
+
+        guard let entry = toolEntry else { return nil }
+
+        if config.verbose {
+            print("[AgentRuntime] Routing to MCP server '\(entry.serverName)' for tool '\(entry.name)'")
+        }
+
+        do {
+            let result = try await client.callTool(
+                serverName: entry.serverName,
+                toolName: entry.name,
+                arguments: arguments
+            )
+
+            let toolResult = ToolResultEvent(
+                toolUseId: toolUseId,
+                toolOutput: AnyCodable(result.textOutput),
+                isError: result.isError ?? false
+            )
+
+            return SessionEvent(type: .toolResult, toolResult: toolResult)
+
+        } catch {
+            let errorResult = ToolResultEvent(
+                toolUseId: toolUseId,
+                toolOutput: AnyCodable("MCP tool execution failed: \(error.localizedDescription)"),
                 isError: true
             )
 

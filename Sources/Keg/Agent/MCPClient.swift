@@ -96,16 +96,36 @@ public actor MCPClient {
         }
     }
 
+    /// Transport type for MCP server connections
+    public enum TransportType: Sendable {
+        case http  // HTTP/SSE transport (existing)
+        case stdio // Stdio transport (launch process, communicate via stdin/stdout)
+    }
+
     /// MCP server configuration
     public struct ServerConfig: Sendable {
         public let name: String
         public let url: URL
         public let auth: [String: String]?
+        public let transport: TransportType
+        public let stdioArgs: [String]
 
+        /// HTTP/SSE transport configuration
         public init(name: String, url: URL, auth: [String: String]? = nil) {
             self.name = name
             self.url = url
             self.auth = auth
+            self.transport = .http
+            self.stdioArgs = []
+        }
+
+        /// Stdio transport configuration — launches a process and communicates via stdin/stdout JSON-RPC
+        public init(name: String, command: String, args: [String] = [], env: [String: String]? = nil) {
+            self.name = name
+            self.url = URL(fileURLWithPath: command)
+            self.auth = env
+            self.transport = .stdio
+            self.stdioArgs = args
         }
     }
 
@@ -167,18 +187,30 @@ public actor MCPClient {
 
     // MARK: - Connection State
 
-    /// Per-server connection actor — holds session state for one MCP server
+    /// Per-server connection — holds session state for one MCP server
     private struct ServerConnection: @unchecked Sendable {
         let config: ServerConfig
         var state: ServerState
         var sessionId: String?
-        var httpClient: HTTPClient
+        var httpClient: HTTPClient?
+        var stdioTransport: StdioTransport?
         var eventStreamTask: Task<Void, Never>?
 
         init(config: ServerConfig) {
             self.config = config
             self.state = .disconnected
-            self.httpClient = HTTPClient(baseURL: config.url, auth: config.auth)
+            switch config.transport {
+            case .http:
+                self.httpClient = HTTPClient(baseURL: config.url, auth: config.auth)
+                self.stdioTransport = nil
+            case .stdio:
+                self.httpClient = nil
+                self.stdioTransport = StdioTransport(
+                    command: config.url.path,
+                    arguments: config.stdioArgs,
+                    environment: config.auth
+                )
+            }
         }
     }
 
@@ -245,8 +277,9 @@ public actor MCPClient {
 
                 // Sync with registry if available
                 if let registry = toolRegistry {
+                    let transportType = connections[serverName]?.config.transport == .stdio ? "stdio" : "http"
                     await registry.removeToolsForServer(name: serverName)
-                    await registry.addTools(tools, serverName: serverName, serverType: "http")
+                    await registry.addTools(tools, serverName: serverName, serverType: transportType)
                 }
             } catch {
                 // Silently handle polling errors
@@ -256,16 +289,21 @@ public actor MCPClient {
 
     // MARK: - Server Lifecycle
 
-    /// Register and connect to an MCP server
+    /// Register and connect to an MCP server (HTTP/SSE or stdio transport)
     public func connect(to config: ServerConfig) async throws {
         guard connections[config.name] == nil else {
             throw MCPClientError.serverAlreadyConnected(config.name)
         }
 
-        var conn = ServerConnection(config: config)
+        let conn = ServerConnection(config: config)
         connections[config.name] = conn
 
         connections[config.name]?.state = .connecting
+
+        // For stdio transport, launch the process first
+        if config.transport == .stdio {
+            try connections[config.name]?.stdioTransport?.launch()
+        }
 
         // Send initialize
         let initResult: MCPInitializeResult = try await sendRequest(
@@ -289,6 +327,8 @@ public actor MCPClient {
             MCPToolsCapability(listChanged: $0.listChanged)
         })
 
+        let transportType = config.transport == .stdio ? "stdio" : "http"
+
         connections[config.name]?.state = .ready(caps)
 
         // Discover tools immediately
@@ -297,21 +337,23 @@ public actor MCPClient {
 
         // Sync with registry if available
         if let registry = toolRegistry {
-            await registry.registerServer(name: config.name, type: "http")
+            await registry.registerServer(name: config.name, type: transportType)
             await registry.updateServerState(name: config.name, state: .ready(caps))
-            await registry.addTools(tools, serverName: config.name, serverType: "http")
+            await registry.addTools(tools, serverName: config.name, serverType: transportType)
         }
 
-        // Start SSE event stream
-        startEventStream(serverName: config.name)
+        // Start SSE event stream (HTTP only — stdio uses stdin/stdout)
+        if config.transport == .http {
+            startEventStream(serverName: config.name)
+        }
     }
 
     /// Disconnect from an MCP server
     public func disconnect(serverName: String) async {
-        guard var conn = connections[serverName] else { return }
+        guard let conn = connections[serverName] else { return }
 
         conn.eventStreamTask?.cancel()
-        conn.eventStreamTask = nil
+        connections[serverName]?.eventStreamTask = nil
         connections[serverName]?.state = .disconnected
 
         // Send exit notification
@@ -320,6 +362,9 @@ public actor MCPClient {
             method: "exit",
             params: EmptyParams()
         )
+
+        // Terminate stdio process if applicable
+        connections[serverName]?.stdioTransport?.terminate()
 
         connections.removeValue(forKey: serverName)
         discoveredTools.removeValue(forKey: serverName)
@@ -444,10 +489,21 @@ public actor MCPClient {
         let request = MCPRequest(method: method, params: params)
         let body = try encoder.encode(request)
 
-        let responseData = try await conn.httpClient.post(
-            path: "/mcp",
-            body: body
-        )
+        let responseData: Data
+
+        switch conn.config.transport {
+        case .http:
+            guard let httpClient = conn.httpClient else {
+                throw MCPClientError.transportError("HTTP client not initialized for server: \(serverName)")
+            }
+            responseData = try await httpClient.post(path: "/mcp", body: body)
+
+        case .stdio:
+            guard let stdio = conn.stdioTransport else {
+                throw MCPClientError.transportError("Stdio transport not initialized for server: \(serverName)")
+            }
+            responseData = try stdio.sendRequest(body)
+        }
 
         let response = try decoder.decode(MCPResponse<T>.self, from: responseData)
 
@@ -474,19 +530,22 @@ public actor MCPClient {
         let notification = MCPNotification(method: method, params: params)
         let body = try encoder.encode(notification)
 
-        _ = try? await conn.httpClient.post(
-            path: "/mcp",
-            body: body
-        )
+        switch conn.config.transport {
+        case .http:
+            _ = try? await conn.httpClient?.post(path: "/mcp", body: body)
+        case .stdio:
+            // For stdio, write the notification (no response expected)
+            _ = try? conn.stdioTransport?.sendNotification(body)
+        }
     }
 
     private func startEventStream(serverName: String) {
-        guard let conn = connections[serverName] else { return }
+        guard let conn = connections[serverName], conn.httpClient != nil else { return }
 
         let task = Task { [weak self] in
             guard let self = self else { return }
             do {
-                for try await event in try await conn.httpClient.stream(path: "/mcp/stream") {
+                for try await event in try await conn.httpClient!.stream(path: "/mcp/stream") {
                     await self.handleServerEvent(serverName: serverName, event: event)
                 }
             } catch {
@@ -565,7 +624,8 @@ public actor MCPClient {
                 let tools = try await listTools(serverName: serverName)
 
                 if let registry = toolRegistry {
-                    await registry.addTools(tools, serverName: serverName, serverType: "http")
+                    let transportType = connections[serverName]?.config.transport == .stdio ? "stdio" : "http"
+                    await registry.addTools(tools, serverName: serverName, serverType: transportType)
                 }
             } catch {
                 // Skip servers with errors
@@ -749,26 +809,38 @@ private struct MCPToolInputSchema: Decodable {
     let required: [String]?
 
     init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
+        // Try keyed container first (standard JSON Schema object with known keys)
+        let container = try decoder.container(keyedBy: DynamicCodingKey.self)
 
-        // Handle both object form and direct property access
-        if let obj = try? container.decode([String: AnyCodable].self) {
-            self.type = obj["type"]?.value as? String
-            self.properties = nil
-            self.required = nil
+        self.type = try container.decodeIfPresent(String.self, forKey: DynamicCodingKey(stringValue: "type")!)
+        self.required = try container.decodeIfPresent([String].self, forKey: DynamicCodingKey(stringValue: "required")!)
+
+        // Decode properties as [String: MCPSchemaProperty] — each property value may have
+        // "type", "description", "enum", "items", "default", etc.
+        if let propsContainer = try? container.nestedContainer(
+            keyedBy: DynamicCodingKey.self,
+            forKey: DynamicCodingKey(stringValue: "properties")!
+        ) {
+            var props: [String: MCPSchemaProperty] = [:]
+            for key in propsContainer.allKeys {
+                if let prop = try? propsContainer.decode(MCPSchemaProperty.self, forKey: key) {
+                    props[key.stringValue] = prop
+                }
+            }
+            self.properties = props.isEmpty ? nil : props
         } else {
-            let nested = try container.decode(MCPToolInputSchemaNested.self)
-            self.type = nested.type
-            self.properties = nested.properties
-            self.required = nested.required
+            self.properties = nil
         }
     }
-}
 
-private struct MCPToolInputSchemaNested: Decodable {
-    let type: String?
-    let properties: [String: MCPSchemaProperty]?
-    let required: [String]?
+    /// Dynamic coding key for arbitrary JSON keys
+    private struct DynamicCodingKey: CodingKey {
+        var stringValue: String
+        var intValue: Int?
+
+        init?(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { self.intValue = intValue; self.stringValue = "\(intValue)" }
+    }
 }
 
 private struct MCPToolCallParams: Encodable {
@@ -929,6 +1001,121 @@ private actor HTTPClient {
         default:
             return .unknown
         }
+    }
+}
+
+// MARK: - Stdio Transport for MCP
+
+/// Stdio transport — launches an MCP server as a child process and communicates
+/// via stdin (client→server) and stdout (server→client) using newline-delimited JSON-RPC.
+/// This is the standard transport for most local MCP servers (e.g., filesystem, git, etc.).
+internal class StdioTransport: @unchecked Sendable {
+    private let command: String
+    private let arguments: [String]
+    private let environment: [String: String]?
+    private var process: Process?
+    private var stdinPipe: Pipe?
+    private var stdoutPipe: Pipe?
+    private let lock = NSLock()
+
+    init(command: String, arguments: [String], environment: [String: String]?) {
+        self.command = command
+        self.arguments = arguments
+        self.environment = environment
+    }
+
+    /// Launch the server process
+    func launch() throws {
+        let proc = Process()
+        let stdin = Pipe()
+        let stdout = Pipe()
+
+        proc.executableURL = URL(fileURLWithPath: command)
+        proc.arguments = arguments
+        proc.standardInput = stdin
+        proc.standardOutput = stdout
+        proc.standardError = FileHandle.nullDevice
+
+        // Merge parent environment with server-specific env vars
+        var env = ProcessInfo.processInfo.environment
+        if let extra = environment {
+            for (key, value) in extra {
+                env[key] = value
+            }
+        }
+        proc.environment = env
+
+        try proc.run()
+
+        self.process = proc
+        self.stdinPipe = stdin
+        self.stdoutPipe = stdout
+    }
+
+    /// Send a JSON-RPC request and read the response (synchronous read from stdout).
+    /// The protocol is newline-delimited JSON — each message is one line terminated by \n.
+    func sendRequest(_ body: Data) throws -> Data {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard let stdinPipe = stdinPipe, let stdoutPipe = stdoutPipe else {
+            throw MCPClientError.transportError("Stdio transport not launched")
+        }
+
+        guard let process = process, process.isRunning else {
+            throw MCPClientError.transportError("Stdio server process is not running")
+        }
+
+        // Write request followed by newline
+        var data = body
+        data.append(contentsOf: [0x0A]) // newline
+        stdinPipe.fileHandleForWriting.write(data)
+
+        // Read response line from stdout
+        // Read until we get a complete JSON line (terminated by newline)
+        let handle = stdoutPipe.fileHandleForReading
+        var buffer = Data()
+
+        while true {
+            let chunk = handle.availableData
+            if chunk.isEmpty {
+                // EOF — process likely crashed
+                throw MCPClientError.transportError("Stdio server closed stdout unexpectedly")
+            }
+            buffer.append(chunk)
+
+            // Check if we have a complete line
+            if let newlineIdx = buffer.firstIndex(of: 0x0A) {
+                let lineData = buffer[buffer.startIndex..<newlineIdx]
+                return Data(lineData)
+            }
+        }
+    }
+
+    /// Send a JSON-RPC notification (no response expected)
+    func sendNotification(_ body: Data) throws {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard let stdinPipe = stdinPipe else {
+            throw MCPClientError.transportError("Stdio transport not launched")
+        }
+
+        var data = body
+        data.append(contentsOf: [0x0A])
+        stdinPipe.fileHandleForWriting.write(data)
+    }
+
+    /// Terminate the server process
+    func terminate() {
+        process?.terminate()
+        process = nil
+        stdinPipe = nil
+        stdoutPipe = nil
+    }
+
+    deinit {
+        terminate()
     }
 }
 
