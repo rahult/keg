@@ -23,10 +23,14 @@ final class ImagesVM {
         defer { isLoading = false }
         do {
             images = try await ClientImage.list()
+            // Clear stale entries before reloading sizes
+            imageSizes = [:]
             // Load sizes in background
             for image in images {
                 if let size = try? await ClientImage.getFullImageSize(image: image) {
-                    imageSizes[image.reference] = ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+                    await MainActor.run {
+                        imageSizes[image.reference] = ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+                    }
                 }
             }
             errorMessage = nil
