@@ -485,6 +485,78 @@ struct StatusBadge: View {
 
 ---
 
+## 15. Agent Session View
+
+**Use structured panels for streaming agent output.** Like Xcode build phases, not chat bubbles.
+
+### Session Layout
+
+```swift
+ScrollView {
+    LazyVStack(alignment: .leading, spacing: 8) {
+        ForEach(sessionEvents) { event in
+            SessionEventRow(event: event)
+        }
+    }
+    .padding()
+}
+```
+
+### Event Row Pattern
+
+Each step in the agent session is a collapsible section:
+
+```swift
+DisclosureGroup(isExpanded: $isExpanded) {
+    // Tool input (monospaced, secondary color)
+    Text(toolInput)
+        .font(.system(.caption, design: .monospaced))
+        .foregroundStyle(.secondary)
+        .textSelection(.enabled)
+
+    Divider()
+
+    // Tool output (monospaced)
+    Text(toolOutput)
+        .font(.system(.caption, design: .monospaced))
+        .textSelection(.enabled)
+} label: {
+    HStack(spacing: 8) {
+        StatusIndicator(status: event.status) // spinning while running
+        Text(event.toolName)
+            .font(.headline)
+        Spacer()
+        Text(event.duration)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+    }
+}
+```
+
+### Session Event Types
+
+| Event | Display |
+|-------|---------|
+| User message | Left-aligned text, `.secondary` background, no disclosure |
+| Assistant message | Left-aligned text, default background, markdown rendered |
+| Tool call (running) | DisclosureGroup, expanded, spinning indicator |
+| Tool call (complete) | DisclosureGroup, collapsed by default, green checkmark |
+| Tool call (error) | DisclosureGroup, expanded, red X, error in `.red` |
+| Status update | Small centered label: "Session completed" / "Session failed" |
+
+### Session Rules
+
+- **Auto-scroll** to bottom during streaming (stop auto-scroll if user scrolls up)
+- **Collapse completed tool calls** by default (user can expand)
+- **Keep running tool call expanded** with a spinning progress indicator
+- **Copy button** on each tool output for one-click copy
+- **Monospaced** for all tool inputs and outputs
+- **Elapsed time** shown for each tool call (e.g., "2.3s")
+- **Error tool calls** stay expanded and show red status
+- Assistant messages render markdown (bold, code blocks, lists)
+
+---
+
 ## Quick Reference: File Checklist
 
 Before submitting a new view, verify:
