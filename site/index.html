@@ -4,1031 +4,615 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Keg — Containers on Apple Silicon</title>
-<meta name="description" content="Docker Desktop replacement for macOS. Native SwiftUI, hardware-level isolation, sub-second boot, near-zero idle RAM. Apache 2.0.">
+<meta name="description" content="Docker Desktop replacement for macOS. Native SwiftUI, hardware-level isolation, sub-second boot, near-zero idle RAM. Open source.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+@import url('https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap');
+
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-  --bg: #06060a;
-  --bg-elevated: #0c0c12;
-  --bg-card: #10101a;
-  --border: #1a1a2e;
-  --border-bright: #2a2a44;
-  --text: #e8e8f0;
-  --text-muted: #8888a0;
-  --text-dim: #55556a;
-  --accent: #00e5a0;
-  --accent-dim: rgba(0, 229, 160, 0.08);
-  --accent-glow: rgba(0, 229, 160, 0.15);
-  --amber: #ffb020;
-  --red: #ff4060;
-  --blue: #4488ff;
-  --mono: 'IBM Plex Mono', monospace;
-  --sans: 'IBM Plex Sans', sans-serif;
-  --display: 'Syne', sans-serif;
+  --bg: #050506;
+  --bg-card: #0a0a0f;
+  --bg-inner: #0e0e16;
+  --ring: rgba(255,255,255,0.06);
+  --ring-bright: rgba(255,255,255,0.1);
+  --text: #f0f0f5;
+  --text-secondary: #9898aa;
+  --text-dim: #5a5a6e;
+  --accent: #00e088;
+  --accent-soft: rgba(0,224,136,0.08);
+  --accent-glow: rgba(0,224,136,0.25);
+  --surface: rgba(255,255,255,0.03);
+  --display: 'Clash Display', sans-serif;
+  --body: 'Plus Jakarta Sans', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --radius-outer: 1.5rem;
+  --radius-inner: calc(1.5rem - 6px);
 }
 
-html { scroll-behavior: smooth; font-size: 16px; }
-
+html { scroll-behavior: smooth; }
 body {
-  font-family: var(--sans);
+  font-family: var(--body);
   background: var(--bg);
   color: var(--text);
-  line-height: 1.6;
-  overflow-x: hidden;
+  line-height: 1.65;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
-
 ::selection { background: var(--accent); color: var(--bg); }
 
-/* Grid background */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(var(--border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border) 1px, transparent 1px);
-  background-size: 80px 80px;
-  opacity: 0.15;
-  pointer-events: none;
-  z-index: 0;
+.noise {
+  position: fixed; inset: 0; z-index: 50; pointer-events: none; opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
-
-/* Grain overlay */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-  pointer-events: none;
-  z-index: 1;
+.mesh {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 600px 400px at 20% 30%, rgba(0,224,136,0.07), transparent),
+    radial-gradient(ellipse 500px 500px at 80% 20%, rgba(60,80,220,0.05), transparent),
+    radial-gradient(ellipse 400px 300px at 60% 80%, rgba(0,224,136,0.04), transparent);
 }
+.page { position: relative; z-index: 1; }
+a { color: inherit; text-decoration: none; }
 
-section, header, footer { position: relative; z-index: 2; }
-
-a { color: var(--accent); text-decoration: none; transition: opacity 0.2s; }
-a:hover { opacity: 0.8; }
-
-/* ─── Nav ─── */
-nav {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  padding: 16px 40px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: rgba(6, 6, 10, 0.85);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border);
+/* Nav */
+.nav-wrap { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; justify-content: center; padding-top: 20px; }
+.nav {
+  display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 20px;
+  background: rgba(10,10,18,0.7); backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid var(--ring); border-radius: 100px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
 }
-
-.nav-logo {
-  font-family: var(--display);
-  font-weight: 800;
-  font-size: 1.3rem;
-  letter-spacing: -0.02em;
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.nav-logo .icon {
-  width: 28px;
-  height: 28px;
-  background: var(--accent);
-  border-radius: 6px;
-  display: grid;
-  place-items: center;
-  color: var(--bg);
-  font-size: 14px;
-  font-weight: 800;
-}
-
-.nav-links { display: flex; gap: 32px; align-items: center; }
-.nav-links a {
-  font-family: var(--mono);
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  letter-spacing: 0.03em;
-  transition: color 0.2s;
-}
-.nav-links a:hover { color: var(--accent); opacity: 1; }
-
+.nav-logo { font-family: var(--display); font-weight: 600; font-size: 1.1rem; letter-spacing: -0.02em; display: flex; align-items: center; gap: 8px; margin-right: 8px; }
+.nav-logo .mark { width: 26px; height: 26px; background: var(--accent); border-radius: 7px; display: grid; place-items: center; color: var(--bg); font-size: 12px; font-weight: 700; box-shadow: 0 2px 8px var(--accent-glow); }
+.nav-links { display: flex; align-items: center; gap: 4px; }
+.nav-links a { font-size: 0.82rem; font-weight: 500; color: var(--text-secondary); padding: 8px 14px; border-radius: 100px; transition: all 0.3s var(--ease-spring); }
+.nav-links a:hover { color: var(--text); background: var(--surface); }
 .nav-cta {
-  font-family: var(--mono) !important;
-  font-size: 0.8rem !important;
-  color: var(--bg) !important;
-  background: var(--accent);
-  padding: 8px 20px;
-  border-radius: 6px;
-  font-weight: 600;
-  transition: transform 0.2s, box-shadow 0.2s;
+  font-family: var(--mono); font-size: 0.78rem; font-weight: 600;
+  color: var(--bg) !important; background: var(--accent) !important;
+  padding: 10px 20px; border-radius: 100px; display: flex; align-items: center; gap: 6px;
+  transition: all 0.4s var(--ease-spring); box-shadow: 0 2px 12px var(--accent-glow);
 }
-.nav-cta:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 20px var(--accent-glow);
-  opacity: 1 !important;
+.nav-cta:hover { transform: scale(1.03); box-shadow: 0 4px 24px var(--accent-glow); }
+.nav-cta:active { transform: scale(0.97); }
+.nav-cta .arrow { width: 22px; height: 22px; background: rgba(0,0,0,0.15); border-radius: 50%; display: grid; place-items: center; font-size: 11px; transition: transform 0.4s var(--ease-spring); }
+.nav-cta:hover .arrow { transform: translate(2px, -1px) scale(1.1); }
+@media (max-width: 768px) { .nav-links { display: none; } .nav { padding: 8px 8px 8px 16px; } }
+
+/* Pill badge */
+.pill { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 0.68rem; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--accent); padding: 6px 16px; border-radius: 100px; background: var(--accent-soft); border: 1px solid rgba(0,224,136,0.12); margin-bottom: 32px; }
+.pill .dot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: breathe 2.5s ease-in-out infinite; }
+@keyframes breathe { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
+
+/* Hero */
+.hero { min-height: 100dvh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 160px 24px 60px; position: relative; }
+.hero-glow { position: absolute; width: 600px; height: 600px; top: 10%; left: 50%; transform: translateX(-50%); background: radial-gradient(circle, var(--accent-glow), transparent 70%); filter: blur(80px); pointer-events: none; opacity: 0.5; }
+.hero h1 { font-family: var(--display); font-size: clamp(3.2rem, 8vw, 6rem); font-weight: 700; line-height: 1.02; letter-spacing: -0.04em; max-width: 800px; margin-bottom: 28px; }
+.hero h1 .em { background: linear-gradient(135deg, var(--accent), #40aaff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.hero-sub { font-size: 1.15rem; color: var(--text-secondary); max-width: 520px; line-height: 1.75; margin-bottom: 48px; }
+.hero-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+
+/* Buttons */
+.btn { font-family: var(--body); font-size: 0.88rem; font-weight: 600; padding: 14px 24px; border-radius: 100px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; transition: all 0.5s var(--ease-spring); text-decoration: none; }
+.btn-primary { background: var(--accent); color: var(--bg); box-shadow: 0 4px 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.2); }
+.btn-primary:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 40px var(--accent-glow); }
+.btn-primary:active { transform: scale(0.98); }
+.btn-primary .icon-wrap { width: 26px; height: 26px; background: rgba(0,0,0,0.15); border-radius: 50%; display: grid; place-items: center; font-size: 12px; transition: transform 0.5s var(--ease-spring); }
+.btn-primary:hover .icon-wrap { transform: translate(2px, -1px) scale(1.08); }
+.btn-ghost { background: var(--surface); color: var(--text); border: 1px solid var(--ring-bright); }
+.btn-ghost:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.06); transform: translateY(-1px); }
+
+/* ─── macOS Window Mockup ─── */
+.mockup-wrap { padding: 0 24px; max-width: 1100px; margin: 20px auto 0; }
+
+.mockup-bezel {
+  background: var(--surface);
+  border: 1px solid var(--ring);
+  border-radius: var(--radius-outer);
+  padding: 6px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.5), 0 4px 20px rgba(0,0,0,0.3);
 }
 
-/* ─── Hero ─── */
-.hero {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 140px 40px 80px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.hero-badge {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  color: var(--accent);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin-bottom: 24px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.hero-badge::before {
-  content: '';
-  width: 8px;
-  height: 8px;
-  background: var(--accent);
-  border-radius: 50%;
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--accent-glow); }
-  50% { opacity: 0.6; box-shadow: 0 0 0 8px transparent; }
-}
-
-.hero h1 {
-  font-family: var(--display);
-  font-size: clamp(3rem, 7vw, 5.5rem);
-  font-weight: 800;
-  line-height: 1.05;
-  letter-spacing: -0.03em;
-  max-width: 900px;
-  margin-bottom: 28px;
-}
-
-.hero h1 .gradient {
-  background: linear-gradient(135deg, var(--accent), var(--blue));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.hero-sub {
-  font-size: 1.25rem;
-  color: var(--text-muted);
-  max-width: 600px;
-  line-height: 1.7;
-  margin-bottom: 48px;
-}
-
-.hero-actions { display: flex; gap: 16px; flex-wrap: wrap; }
-
-.btn {
-  font-family: var(--mono);
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 14px 28px;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  transition: all 0.25s;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  text-decoration: none;
-}
-
-.btn-primary {
-  background: var(--accent);
-  color: var(--bg);
-}
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px var(--accent-glow);
-  opacity: 1;
-}
-
-.btn-ghost {
-  background: transparent;
-  color: var(--text);
-  border: 1px solid var(--border-bright);
-}
-.btn-ghost:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  opacity: 1;
-}
-
-/* ─── Stats Banner ─── */
-.stats {
-  padding: 0 40px;
-  max-width: 1200px;
-  margin: -20px auto 80px;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1px;
-  background: var(--border);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+.mockup-inner {
+  background: #0c0c14;
+  border: 1px solid var(--ring);
+  border-radius: var(--radius-inner);
   overflow: hidden;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.04);
 }
 
-.stat {
-  background: var(--bg-elevated);
-  padding: 32px;
-  text-align: center;
+.mockup-titlebar {
+  display: flex; align-items: center; padding: 12px 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent);
+  border-bottom: 1px solid var(--ring);
 }
+.mockup-dots { display: flex; gap: 6px; }
+.mockup-dots span { width: 10px; height: 10px; border-radius: 50%; }
+.mockup-dots .r { background: #ff5f57; }
+.mockup-dots .y { background: #febc2e; }
+.mockup-dots .g { background: #28c840; }
+.mockup-title { flex: 1; text-align: center; font-size: 0.72rem; color: var(--text-dim); font-weight: 500; }
 
-.stat-value {
-  font-family: var(--display);
-  font-size: 2.8rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  color: var(--accent);
-  line-height: 1;
-  margin-bottom: 8px;
-}
-
-.stat-value .unit {
-  font-size: 1.2rem;
-  color: var(--text-dim);
-  font-weight: 500;
-}
-
-.stat-label {
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-/* ─── Section Common ─── */
-.section {
-  padding: 120px 40px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.section-label {
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  color: var(--accent);
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  margin-bottom: 16px;
-}
-
-.section-title {
-  font-family: var(--display);
-  font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-  margin-bottom: 20px;
-}
-
-.section-desc {
-  font-size: 1.1rem;
-  color: var(--text-muted);
-  max-width: 640px;
-  line-height: 1.7;
-  margin-bottom: 56px;
-}
-
-/* ─── Architecture ─── */
-.arch-diagram {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 48px;
-  font-family: var(--mono);
-  font-size: 0.82rem;
-  line-height: 1.8;
-  color: var(--text-muted);
-  overflow-x: auto;
-  position: relative;
-}
-
-.arch-diagram .highlight { color: var(--accent); font-weight: 600; }
-.arch-diagram .amber { color: var(--amber); }
-.arch-diagram .dim { color: var(--text-dim); }
-
-/* ─── Feature Grid ─── */
-.features-grid {
+.mockup-body {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1px;
-  background: var(--border);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.feature {
-  background: var(--bg-elevated);
-  padding: 36px;
-  transition: background 0.3s;
-}
-.feature:hover { background: var(--bg-card); }
-
-.feature-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  background: var(--accent-dim);
-  border: 1px solid rgba(0, 229, 160, 0.12);
-  display: grid;
-  place-items: center;
-  margin-bottom: 20px;
-  font-size: 1.1rem;
-}
-
-.feature h3 {
-  font-family: var(--display);
-  font-size: 1.15rem;
-  font-weight: 700;
-  margin-bottom: 10px;
-  letter-spacing: -0.01em;
-}
-
-.feature p {
-  font-size: 0.9rem;
-  color: var(--text-muted);
-  line-height: 1.6;
-}
-
-/* ─── Docker Compat ─── */
-.docker-section { border-top: 1px solid var(--border); }
-
-.terminal {
-  background: #0d0d14;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.terminal-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--border);
-}
-
-.terminal-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-.terminal-dot.red { background: #ff5f57; }
-.terminal-dot.yellow { background: #febc2e; }
-.terminal-dot.green { background: #28c840; }
-
-.terminal-title {
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  color: var(--text-dim);
-  margin-left: 8px;
-}
-
-.terminal-body {
-  padding: 24px;
-  font-family: var(--mono);
-  font-size: 0.82rem;
-  line-height: 2;
-  overflow-x: auto;
-}
-
-.terminal-body .prompt { color: var(--accent); }
-.terminal-body .cmd { color: var(--text); }
-.terminal-body .comment { color: var(--text-dim); font-style: italic; }
-.terminal-body .output { color: var(--text-muted); }
-
-.docker-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
-  margin-top: 56px;
-}
-
-/* ─── Comparison Table ─── */
-.comparison { border-top: 1px solid var(--border); }
-
-.table-wrap {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-
-thead {
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border);
-}
-
-th {
-  font-family: var(--mono);
-  font-weight: 600;
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  text-align: left;
-  padding: 16px 24px;
-}
-
-th:last-child { color: var(--accent); }
-
-td {
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--border);
-  color: var(--text-muted);
-}
-
-tr:last-child td { border-bottom: none; }
-
-td:last-child {
-  color: var(--text);
-  font-weight: 500;
-}
-
-.badge-win {
-  background: var(--accent-dim);
-  color: var(--accent);
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 4px;
-  letter-spacing: 0.03em;
-}
-
-tr:hover td { background: rgba(255, 255, 255, 0.015); }
-
-/* ─── Kubernetes ─── */
-.k8s-section { border-top: 1px solid var(--border); }
-
-.k8s-steps {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
-  margin-top: 56px;
-}
-
-.k8s-step {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 32px;
-  transition: border-color 0.3s;
-}
-.k8s-step:hover { border-color: var(--accent); }
-
-.k8s-step-num {
-  font-family: var(--display);
-  font-size: 2.5rem;
-  font-weight: 800;
-  color: var(--border-bright);
-  line-height: 1;
-  margin-bottom: 16px;
-}
-
-.k8s-step h3 {
-  font-family: var(--display);
-  font-size: 1.1rem;
-  font-weight: 700;
-  margin-bottom: 10px;
-}
-
-.k8s-step p {
-  font-size: 0.88rem;
-  color: var(--text-muted);
-  line-height: 1.6;
-}
-
-.k8s-step code {
-  display: block;
-  margin-top: 14px;
-  font-family: var(--mono);
+  grid-template-columns: 220px 1fr;
+  min-height: 420px;
   font-size: 0.78rem;
-  color: var(--accent);
-  background: var(--accent-dim);
-  padding: 10px 14px;
-  border-radius: 6px;
-  border: 1px solid rgba(0, 229, 160, 0.08);
 }
 
-/* ─── Compose ─── */
-.compose-section { border-top: 1px solid var(--border); }
-
-/* ─── CTA ─── */
-.cta-section {
-  border-top: 1px solid var(--border);
-  text-align: center;
+@media (max-width: 768px) {
+  .mockup-body { grid-template-columns: 1fr; min-height: auto; }
+  .mockup-sidebar { display: none; }
 }
 
-.cta-section .section-title { max-width: 700px; margin: 0 auto 20px; }
-.cta-section .section-desc { max-width: 500px; margin: 0 auto 40px; }
-
-/* ─── Footer ─── */
-footer {
-  padding: 40px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  max-width: 1200px;
-  margin: 0 auto;
+/* Sidebar */
+.mockup-sidebar {
+  background: rgba(255,255,255,0.015);
+  border-right: 1px solid var(--ring);
+  padding: 16px 12px;
+  font-family: var(--body);
 }
 
-footer .left {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  color: var(--text-dim);
+.mock-seg {
+  display: flex; gap: 2px; padding: 3px; background: rgba(255,255,255,0.04);
+  border-radius: 8px; margin-bottom: 14px; border: 1px solid var(--ring);
+}
+.mock-seg span {
+  flex: 1; text-align: center; padding: 5px 8px; border-radius: 6px;
+  font-size: 0.68rem; font-weight: 600; color: var(--text-dim); cursor: default;
+}
+.mock-seg span.active { background: rgba(255,255,255,0.08); color: var(--text); }
+
+.mock-status {
+  background: rgba(0,224,136,0.06); border: 1px solid rgba(0,224,136,0.1);
+  border-radius: 10px; padding: 10px 12px; margin-bottom: 14px;
+}
+.mock-status-row { display: flex; align-items: center; gap: 6px; font-size: 0.68rem; color: var(--text-secondary); }
+.mock-status-dot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; }
+.mock-status-label { font-weight: 600; color: var(--text); }
+
+.mock-section-title {
+  font-size: 0.62rem; font-weight: 600; color: var(--text-dim);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 10px 8px 6px; margin-top: 4px;
 }
 
-footer .right {
-  display: flex;
-  gap: 24px;
+.mock-nav-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 8px; margin-bottom: 2px;
+  font-size: 0.75rem; color: var(--text-secondary); cursor: default;
+  transition: background 0.2s;
+}
+.mock-nav-item.active { background: rgba(255,255,255,0.06); color: var(--text); }
+.mock-nav-icon { font-size: 0.85rem; width: 18px; text-align: center; }
+.mock-badge { margin-left: auto; font-family: var(--mono); font-size: 0.6rem; background: var(--accent-soft); color: var(--accent); padding: 1px 7px; border-radius: 100px; font-weight: 600; }
+
+/* Main content */
+.mockup-main { padding: 0; }
+
+.mock-toolbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--ring);
+  background: rgba(255,255,255,0.015);
+}
+.mock-toolbar-btn {
+  font-size: 0.7rem; font-weight: 600; padding: 5px 14px;
+  border-radius: 6px; color: var(--text-dim);
+  border: 1px solid var(--ring); background: transparent;
+}
+.mock-toolbar-btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.mock-toolbar-search {
+  margin-left: auto; font-size: 0.68rem; color: var(--text-dim);
+  background: rgba(255,255,255,0.03); border: 1px solid var(--ring);
+  padding: 5px 12px; border-radius: 6px; width: 160px;
 }
 
-footer .right a {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  color: var(--text-dim);
+/* Table */
+.mock-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; }
+.mock-table thead { background: rgba(255,255,255,0.02); }
+.mock-table th {
+  text-align: left; padding: 9px 16px; font-weight: 600;
+  color: var(--text-dim); font-size: 0.65rem; letter-spacing: 0.05em;
+  text-transform: uppercase; border-bottom: 1px solid var(--ring);
 }
+.mock-table td { padding: 10px 16px; border-bottom: 1px solid var(--ring); color: var(--text-secondary); }
+.mock-table tr:nth-child(even) td { background: rgba(255,255,255,0.01); }
+.mock-table tr:hover td { background: rgba(255,255,255,0.025); }
 
-/* ─── Animations ─── */
-.reveal {
-  opacity: 0;
-  transform: translateY(24px);
-  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.reveal.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
+.mock-name { color: var(--text); font-weight: 500; }
+.mock-id { font-family: var(--mono); font-size: 0.65rem; color: var(--text-dim); }
 
-.stagger-1 { transition-delay: 0.1s; }
-.stagger-2 { transition-delay: 0.2s; }
-.stagger-3 { transition-delay: 0.3s; }
-.stagger-4 { transition-delay: 0.4s; }
-
-/* ─── Responsive ─── */
-@media (max-width: 900px) {
-  .stats-grid { grid-template-columns: repeat(2, 1fr); }
-  .features-grid { grid-template-columns: 1fr; }
-  .docker-grid { grid-template-columns: 1fr; }
-  .k8s-steps { grid-template-columns: 1fr; }
-  nav { padding: 14px 20px; }
-  .nav-links { display: none; }
-  .hero, .section, .stats, footer { padding-left: 20px; padding-right: 20px; }
+.mock-status-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.65rem; font-weight: 500;
 }
+.mock-status-badge .dot { width: 5px; height: 5px; border-radius: 50%; }
+.mock-status-badge .dot.green { background: #34d399; }
+.mock-status-badge .dot.red { background: #f87171; }
+.mock-status-badge .dot.blue { background: #60a5fa; }
 
-@media (max-width: 600px) {
-  .stats-grid { grid-template-columns: 1fr; }
-  .stat-value { font-size: 2.2rem; }
-}
+/* Section styling */
+.section { padding: 140px 24px; max-width: 1100px; margin: 0 auto; }
+.section-label { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--accent); margin-bottom: 20px; }
+.section-title { font-family: var(--display); font-size: clamp(2rem, 4.5vw, 3.2rem); font-weight: 700; letter-spacing: -0.03em; line-height: 1.08; margin-bottom: 20px; }
+.section-desc { font-size: 1.05rem; color: var(--text-secondary); max-width: 560px; line-height: 1.75; margin-bottom: 56px; }
+
+/* Double-bezel patterns */
+.bezel { background: var(--surface); border: 1px solid var(--ring); border-radius: var(--radius-outer); padding: 6px; }
+.bezel-inner { background: var(--bg-card); border: 1px solid var(--ring); border-radius: var(--radius-inner); box-shadow: inset 0 1px 1px rgba(255,255,255,0.03); overflow: hidden; }
+
+/* Stats */
+.stats-section { padding: 0 24px; max-width: 1100px; margin: 40px auto 0; }
+.stats-inner { display: grid; grid-template-columns: repeat(4, 1fr); }
+.stat { padding: 36px 24px; text-align: center; position: relative; }
+.stat + .stat::before { content: ''; position: absolute; left: 0; top: 20%; height: 60%; width: 1px; background: var(--ring); }
+.stat-val { font-family: var(--display); font-size: 2.8rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1; margin-bottom: 8px; background: linear-gradient(180deg, var(--text), var(--text-secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.stat-val .unit { font-size: 1rem; -webkit-text-fill-color: var(--text-dim); }
+.stat-label { font-family: var(--mono); font-size: 0.68rem; color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase; }
+@media (max-width: 768px) { .stats-inner { grid-template-columns: repeat(2, 1fr); } .stat + .stat::before { display: none; } .stat { border-bottom: 1px solid var(--ring); } }
+
+/* Bento */
+.bento { display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px; }
+.bento-item { background: var(--surface); border: 1px solid var(--ring); border-radius: var(--radius-outer); padding: 6px; }
+.bento-inner { background: var(--bg-card); border: 1px solid var(--ring); border-radius: var(--radius-inner); padding: 36px; height: 100%; box-shadow: inset 0 1px 1px rgba(255,255,255,0.03); transition: background 0.5s var(--ease-spring); }
+.bento-item:hover .bento-inner { background: var(--bg-inner); }
+.bento-icon { width: 44px; height: 44px; border-radius: 12px; background: var(--accent-soft); border: 1px solid rgba(0,224,136,0.1); display: grid; place-items: center; font-size: 1.2rem; margin-bottom: 24px; }
+.bento-inner h3 { font-family: var(--display); font-size: 1.15rem; font-weight: 600; margin-bottom: 10px; }
+.bento-inner p { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.65; }
+.b-8 { grid-column: span 8; } .b-4 { grid-column: span 4; } .b-6 { grid-column: span 6; }
+@media (max-width: 768px) { .b-8, .b-4, .b-6 { grid-column: span 12; } }
+
+/* Terminal */
+.term-bezel { background: var(--surface); border: 1px solid var(--ring); border-radius: var(--radius-outer); padding: 6px; }
+.term-inner { background: #08080e; border: 1px solid var(--ring); border-radius: var(--radius-inner); overflow: hidden; box-shadow: inset 0 1px 1px rgba(255,255,255,0.03); }
+.term-bar { display: flex; align-items: center; gap: 7px; padding: 14px 20px; border-bottom: 1px solid var(--ring); }
+.term-dot { width: 10px; height: 10px; border-radius: 50%; }
+.term-dot.r { background: #ff5f57; } .term-dot.y { background: #febc2e; } .term-dot.g { background: #28c840; }
+.term-title { font-family: var(--mono); font-size: 0.68rem; color: var(--text-dim); margin-left: 10px; }
+.term-body { padding: 24px; font-family: var(--mono); font-size: 0.8rem; line-height: 2; overflow-x: auto; white-space: pre; }
+.term-body .p { color: var(--accent); } .term-body .c { color: var(--text); } .term-body .o { color: var(--text-secondary); } .term-body .d { color: var(--text-dim); font-style: italic; } .term-body .w { color: #ffb040; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 768px) { .two-col { grid-template-columns: 1fr; } }
+
+/* Table comparison */
+.table-inner table { width: 100%; border-collapse: collapse; }
+.table-inner thead { background: rgba(255,255,255,0.02); }
+.table-inner th { font-family: var(--mono); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); text-align: left; padding: 16px 24px; border-bottom: 1px solid var(--ring); }
+.table-inner th:last-child { color: var(--accent); }
+.table-inner td { padding: 16px 24px; font-size: 0.88rem; color: var(--text-secondary); border-bottom: 1px solid var(--ring); }
+.table-inner tr:last-child td { border-bottom: none; }
+.table-inner td:last-child { color: var(--text); font-weight: 500; }
+.table-inner tr { transition: background 0.3s; }
+.table-inner tr:hover td { background: rgba(255,255,255,0.015); }
+.win { display: inline-block; font-family: var(--mono); font-size: 0.7rem; font-weight: 600; color: var(--accent); background: var(--accent-soft); border: 1px solid rgba(0,224,136,0.1); padding: 3px 12px; border-radius: 100px; }
+
+/* K8s steps */
+.steps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+@media (max-width: 768px) { .steps-grid { grid-template-columns: 1fr; } }
+.step-bezel { background: var(--surface); border: 1px solid var(--ring); border-radius: var(--radius-outer); padding: 6px; transition: border-color 0.5s var(--ease-spring); }
+.step-bezel:hover { border-color: rgba(0,224,136,0.2); }
+.step-inner { background: var(--bg-card); border: 1px solid var(--ring); border-radius: var(--radius-inner); padding: 36px; box-shadow: inset 0 1px 1px rgba(255,255,255,0.03); }
+.step-num { font-family: var(--display); font-size: 3rem; font-weight: 700; color: rgba(255,255,255,0.06); line-height: 1; margin-bottom: 20px; }
+.step-inner h3 { font-family: var(--display); font-size: 1.1rem; font-weight: 600; margin-bottom: 10px; }
+.step-inner p { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 16px; }
+.step-code { font-family: var(--mono); font-size: 0.75rem; color: var(--accent); background: var(--accent-soft); border: 1px solid rgba(0,224,136,0.08); padding: 12px 16px; border-radius: 10px; line-height: 1.7; }
+
+/* CTA + Footer */
+.cta { text-align: center; border-top: 1px solid var(--ring); }
+.cta .section-title { max-width: 680px; margin: 0 auto 20px; }
+.cta .section-desc { max-width: 480px; margin: 0 auto 44px; }
+footer { padding: 40px 24px; border-top: 1px solid var(--ring); max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+footer .copy { font-family: var(--mono); font-size: 0.72rem; color: var(--text-dim); }
+footer .links { display: flex; gap: 24px; }
+footer .links a { font-family: var(--mono); font-size: 0.72rem; color: var(--text-dim); transition: color 0.3s; }
+footer .links a:hover { color: var(--text-secondary); }
+
+/* Scroll reveal */
+.reveal { opacity: 0; transform: translateY(32px); filter: blur(6px); transition: opacity 0.9s var(--ease-out-expo), transform 0.9s var(--ease-out-expo), filter 0.9s var(--ease-out-expo); }
+.reveal.vis { opacity: 1; transform: translateY(0); filter: blur(0); }
+.d1 { transition-delay: 0.08s; } .d2 { transition-delay: 0.16s; } .d3 { transition-delay: 0.24s; } .d4 { transition-delay: 0.32s; }
 </style>
 </head>
 <body>
+<div class="noise"></div>
+<div class="mesh"></div>
+<div class="page">
 
 <!-- Nav -->
-<nav>
-  <div class="nav-logo">
-    <div class="icon">K</div>
-    Keg
-  </div>
-  <div class="nav-links">
-    <a href="#architecture">Architecture</a>
-    <a href="#docker">Docker</a>
-    <a href="#compose">Compose</a>
-    <a href="#kubernetes">Kubernetes</a>
-    <a href="#comparison">Compare</a>
-    <a href="https://github.com/rahult/keg" class="nav-cta">GitHub</a>
-  </div>
-</nav>
+<div class="nav-wrap">
+  <nav class="nav">
+    <a href="#" class="nav-logo"><span class="mark">K</span> Keg</a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#docker">Docker</a>
+      <a href="#compose">Compose</a>
+      <a href="#k8s">Kubernetes</a>
+      <a href="#compare">Compare</a>
+    </div>
+    <a href="https://github.com/rahult/keg/releases" class="nav-cta">Download <span class="arrow">↓</span></a>
+  </nav>
+</div>
 
 <!-- Hero -->
-<header class="hero">
-  <div class="hero-badge reveal">Apple Containerization Framework</div>
-  <h1 class="reveal stagger-1">
-    Containers on<br><span class="gradient">Apple Silicon.</span>
-  </h1>
-  <p class="hero-sub reveal stagger-2">
-    Docker Desktop replacement for macOS. Native SwiftUI. Hardware-level isolation per container. Sub-second boot. Near-zero idle RAM. Apache 2.0.
-  </p>
-  <div class="hero-actions reveal stagger-3">
-    <a href="https://github.com/rahult/keg" class="btn btn-primary">
-      <span>↓</span> Clone &amp; Build
-    </a>
-    <a href="#architecture" class="btn btn-ghost">
-      How it works
-    </a>
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div class="pill reveal"><span class="dot"></span> Apple Containerization</div>
+  <h1 class="reveal d1">Containers on<br><span class="em">Apple Silicon.</span></h1>
+  <p class="hero-sub reveal d2">The Docker Desktop replacement for macOS. Native SwiftUI. Hardware-level isolation. Sub-second boot. Open source forever.</p>
+  <div class="hero-actions reveal d3">
+    <a href="https://github.com/rahult/keg/releases" class="btn btn-primary">Download for Mac <span class="icon-wrap">↓</span></a>
+    <a href="#features" class="btn btn-ghost">See features</a>
   </div>
-</header>
+</section>
 
-<!-- Stats -->
-<div class="stats">
-  <div class="stats-grid reveal">
-    <div class="stat">
-      <div class="stat-value">618<span class="unit">ms</span></div>
-      <div class="stat-label">Container Start</div>
-    </div>
-    <div class="stat">
-      <div class="stat-value">55<span class="unit">ms</span></div>
-      <div class="stat-label">Exec Latency</div>
-    </div>
-    <div class="stat">
-      <div class="stat-value">69<span class="unit">MB</span></div>
-      <div class="stat-label">Idle RAM</div>
-    </div>
-    <div class="stat">
-      <div class="stat-value">330</div>
-      <div class="stat-label">Tests Passing</div>
+<!-- App Mockup: Container List -->
+<div class="mockup-wrap reveal d4">
+  <div class="mockup-bezel">
+    <div class="mockup-inner">
+      <div class="mockup-titlebar">
+        <div class="mockup-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+        <div class="mockup-title">Keg</div>
+        <div style="width: 54px;"></div>
+      </div>
+      <div class="mockup-body">
+        <!-- Sidebar -->
+        <div class="mockup-sidebar">
+          <div class="mock-seg"><span class="active">Keg</span><span>Agents</span></div>
+          <div class="mock-status">
+            <div class="mock-status-row">
+              <span class="mock-status-dot"></span>
+              <span class="mock-status-label">System Running</span>
+            </div>
+          </div>
+          <div class="mock-section-title">Overview</div>
+          <div class="mock-nav-item">📊 Dashboard</div>
+          <div class="mock-section-title">Workloads</div>
+          <div class="mock-nav-item active">📦 Containers <span class="mock-badge">4</span></div>
+          <div class="mock-nav-item">🔗 Compose</div>
+          <div class="mock-nav-item">☸️ Kubernetes</div>
+          <div class="mock-section-title">Content</div>
+          <div class="mock-nav-item">💿 Images</div>
+          <div class="mock-nav-item">🔨 Builds</div>
+          <div class="mock-section-title">System</div>
+          <div class="mock-nav-item">🌐 Networks</div>
+          <div class="mock-nav-item">💾 Volumes</div>
+          <div class="mock-nav-item">🔑 Registries</div>
+        </div>
+        <!-- Main -->
+        <div class="mockup-main">
+          <div class="mock-toolbar">
+            <div class="mock-toolbar-btn primary">▶ Run Container...</div>
+            <div class="mock-toolbar-btn">↻ Refresh</div>
+            <div class="mock-toolbar-search">🔍 Search containers</div>
+          </div>
+          <table class="mock-table">
+            <thead>
+              <tr><th>Name</th><th>Image</th><th>Status</th><th>ID</th><th>Ports</th><th>CPU</th><th>Memory</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="mock-name">web-frontend</span></td>
+                <td>nginx:latest</td>
+                <td><span class="mock-status-badge"><span class="dot green"></span> Running</span></td>
+                <td><span class="mock-id">a1b2c3d4e5f6</span></td>
+                <td>8080:80</td>
+                <td>0.3%</td>
+                <td>24 MB</td>
+              </tr>
+              <tr>
+                <td><span class="mock-name">api-server</span></td>
+                <td>node:20-alpine</td>
+                <td><span class="mock-status-badge"><span class="dot green"></span> Running</span></td>
+                <td><span class="mock-id">b2c3d4e5f6a1</span></td>
+                <td>3000:3000</td>
+                <td>1.2%</td>
+                <td>85 MB</td>
+              </tr>
+              <tr>
+                <td><span class="mock-name">postgres-db</span></td>
+                <td>postgres:16-alpine</td>
+                <td><span class="mock-status-badge"><span class="dot green"></span> Running</span></td>
+                <td><span class="mock-id">c3d4e5f6a1b2</span></td>
+                <td>5432:5432</td>
+                <td>0.1%</td>
+                <td>42 MB</td>
+              </tr>
+              <tr>
+                <td><span class="mock-name">redis-cache</span></td>
+                <td>redis:7-alpine</td>
+                <td><span class="mock-status-badge"><span class="dot green"></span> Running</span></td>
+                <td><span class="mock-id">d4e5f6a1b2c3</span></td>
+                <td>6379:6379</td>
+                <td>0.0%</td>
+                <td>12 MB</td>
+              </tr>
+              <tr>
+                <td><span class="mock-name">worker-queue</span></td>
+                <td>alpine:3.20</td>
+                <td><span class="mock-status-badge"><span class="dot red"></span> Stopped</span></td>
+                <td><span class="mock-id">e5f6a1b2c3d4</span></td>
+                <td></td>
+                <td></td>
+                <td></td>
+              </tr>
+              <tr>
+                <td><span class="mock-name">build-runner</span></td>
+                <td>alpine:latest</td>
+                <td><span class="mock-status-badge"><span class="dot blue"></span> Created</span></td>
+                <td><span class="mock-id">f6a1b2c3d4e5</span></td>
+                <td></td>
+                <td></td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- Architecture -->
-<section class="section" id="architecture">
-  <div class="section-label reveal">Architecture</div>
-  <h2 class="section-title reveal stagger-1">One VM per container.</h2>
-  <p class="section-desc reveal stagger-2">
-    Docker Desktop runs all containers in a single shared Linux VM. Keg gives each container its own lightweight Apple VM via Virtualization.framework. Hardware-level isolation, not namespace tricks.
-  </p>
-
-  <div class="arch-diagram reveal stagger-3">
-<pre>
-<span class="highlight">Keg.app</span> <span class="dim">(SwiftUI)</span>
-  ├── <span class="highlight">Docker API Server</span> <span class="dim">→ ~/.keg/docker.sock</span>
-  ├── <span class="amber">Compose Orchestrator</span> <span class="dim">→ YAML parse, topo sort, up/down</span>
-  ├── <span class="amber">Kubernetes Bootstrap</span> <span class="dim">→ kindest/node + kubeadm</span>
-  └── <span class="highlight">ContainerAPIClient</span> <span class="dim">→ XPC / gRPC</span>
-        │
-        ▼
-<span class="highlight">Apple Container System</span>
-  ├── API Server <span class="dim">(launchd XPC)</span>
-  ├── Network Service <span class="dim">(vmnet)</span>
-  ├── DNS Server
-  └── <span class="highlight">Containerization Framework</span>
-        ├── Virtualization.framework
-        ├── vminitd
-        └── OCI Client
-              │
-    ┌─────────┼─────────┐
-    ▼         ▼         ▼
-<span class="accent">┌─────────┐ ┌─────────┐ ┌─────────┐</span>
-<span class="accent">│ VM  1   │ │ VM  2   │ │ VM  N   │</span>  ← Each is a
-<span class="accent">│ (Linux) │ │ (Linux) │ │ (Linux) │</span>    lightweight
-<span class="accent">└─────────┘ └─────────┘ └─────────┘</span>    Apple VM
-</pre>
+<!-- Stats -->
+<div class="stats-section reveal">
+  <div class="bezel">
+    <div class="bezel-inner stats-inner">
+      <div class="stat"><div class="stat-val">618<span class="unit">ms</span></div><div class="stat-label">Container Start</div></div>
+      <div class="stat"><div class="stat-val">55<span class="unit">ms</span></div><div class="stat-label">Exec Latency</div></div>
+      <div class="stat"><div class="stat-val">69<span class="unit">MB</span></div><div class="stat-label">Idle Memory</div></div>
+      <div class="stat"><div class="stat-val">330</div><div class="stat-label">Tests Passing</div></div>
+    </div>
   </div>
-</section>
+</div>
 
-<!-- Features Grid -->
-<section class="section" style="padding-top: 0;">
-  <div class="features-grid reveal">
-    <div class="feature">
-      <div class="feature-icon">⚡</div>
-      <h3>Sub-second Boot</h3>
-      <p>Container starts in 618ms average. No daemon warmup. No shared VM startup. Just run.</p>
-    </div>
-    <div class="feature">
-      <div class="feature-icon">🔒</div>
-      <h3>Hardware Isolation</h3>
-      <p>Each container runs in its own VM via Virtualization.framework. Not namespaces. Real isolation.</p>
-    </div>
-    <div class="feature">
-      <div class="feature-icon">🪶</div>
-      <h3>Near-zero Idle</h3>
-      <p>69MB total with nothing running. Docker Desktop idles at 500MB to 2GB. That's your RAM back.</p>
-    </div>
-    <div class="feature">
-      <div class="feature-icon">🐳</div>
-      <h3>Docker API</h3>
-      <p>Full Docker Engine API on a Unix socket. Point DOCKER_HOST at Keg and your tools just work.</p>
-    </div>
-    <div class="feature">
-      <div class="feature-icon">☸️</div>
-      <h3>Kubernetes</h3>
-      <p>One-click K8s cluster via kindest/node and kubeadm. kubectl get pods in under 90 seconds.</p>
-    </div>
-    <div class="feature">
-      <div class="feature-icon">📦</div>
-      <h3>Compose</h3>
-      <p>Full docker-compose.yml support. Dependency ordering, networks, volumes, port mapping. It all works.</p>
-    </div>
+<!-- Features Bento -->
+<section class="section" id="features">
+  <div class="pill reveal"><span class="dot"></span> Features</div>
+  <h2 class="section-title reveal d1">Everything you need.</h2>
+  <p class="section-desc reveal d2">Containers, images, networks, volumes, builds, Compose, Kubernetes. All native. All fast.</p>
+  <div class="bento">
+    <div class="bento-item b-8 reveal"><div class="bento-inner"><div class="bento-icon">⚡</div><h3>Sub-second Boot</h3><p>618ms average container start. No daemon warmup, no shared VM spin-up. Each container boots its own micro-VM in under a second. That's 50x faster than Docker Desktop's cold start.</p></div></div>
+    <div class="bento-item b-4 reveal d1"><div class="bento-inner"><div class="bento-icon">🔒</div><h3>Hardware Isolation</h3><p>Per-container VMs via Virtualization.framework. Real hardware boundaries, not namespace tricks.</p></div></div>
+    <div class="bento-item b-4 reveal d2"><div class="bento-inner"><div class="bento-icon">🪶</div><h3>69MB Idle</h3><p>Docker Desktop idles at 500MB to 2GB. Keg gives you your RAM back.</p></div></div>
+    <div class="bento-item b-4 reveal d3"><div class="bento-inner"><div class="bento-icon">🐳</div><h3>Docker API</h3><p>Full Engine API on a Unix socket. docker ps, docker run, docker compose. It all works.</p></div></div>
+    <div class="bento-item b-4 reveal d4"><div class="bento-inner"><div class="bento-icon">☸️</div><h3>Kubernetes</h3><p>One-click K8s cluster. kindest/node + kubeadm. kubectl ready in 90 seconds.</p></div></div>
   </div>
 </section>
 
 <!-- Docker Compat -->
-<section class="section docker-section" id="docker">
-  <div class="section-label reveal">Docker Compatibility</div>
-  <h2 class="section-title reveal stagger-1">Drop-in replacement.</h2>
-  <p class="section-desc reveal stagger-2">
-    Your existing Docker workflow stays the same. Same CLI, same Compose files, same API. Just faster, lighter, and actually isolated.
-  </p>
+<section class="section" id="docker" style="border-top: 1px solid var(--ring);">
+  <div class="pill reveal"><span class="dot"></span> Docker Compatibility</div>
+  <h2 class="section-title reveal d1">Drop-in replacement.</h2>
+  <p class="section-desc reveal d2">Same CLI. Same Compose files. Same API. Just faster, lighter, and with real isolation.</p>
+  <div class="two-col">
+    <div class="term-bezel reveal d2"><div class="term-inner"><div class="term-bar"><div class="term-dot r"></div><div class="term-dot y"></div><div class="term-dot g"></div><span class="term-title">Native CLI</span></div><div class="term-body"><span class="d"># Run containers</span>
+<span class="p">$</span> <span class="c">container run -d --name web -p 8080:80 nginx</span>
+<span class="o">web</span>
 
-  <div class="docker-grid">
-    <div class="terminal reveal stagger-2">
-      <div class="terminal-header">
-        <div class="terminal-dot red"></div>
-        <div class="terminal-dot yellow"></div>
-        <div class="terminal-dot green"></div>
-        <span class="terminal-title">Container Operations</span>
-      </div>
-      <div class="terminal-body">
-<span class="comment"># Run containers</span>
-<span class="prompt">$</span> <span class="cmd">container run -d --name web -p 8080:80 nginx</span>
-<span class="output">web</span>
+<span class="d"># View logs</span>
+<span class="p">$</span> <span class="c">container logs web</span>
+<span class="o">"GET / HTTP/1.1" 200</span>
 
-<span class="comment"># View logs</span>
-<span class="prompt">$</span> <span class="cmd">container logs web</span>
-<span class="output">2026/04/16 - "GET / HTTP/1.1" 200</span>
+<span class="d"># Exec into container</span>
+<span class="p">$</span> <span class="c">container exec web cat /etc/nginx/nginx.conf</span>
+<span class="o">worker_processes auto;</span></div></div></div>
+    <div class="term-bezel reveal d3"><div class="term-inner"><div class="term-bar"><div class="term-dot r"></div><div class="term-dot y"></div><div class="term-dot g"></div><span class="term-title">Docker CLI via Keg</span></div><div class="term-body"><span class="d"># Point Docker at Keg</span>
+<span class="p">$</span> <span class="c">export DOCKER_HOST=unix://$HOME/.keg/docker.sock</span>
 
-<span class="comment"># Execute commands</span>
-<span class="prompt">$</span> <span class="cmd">container exec web cat /etc/nginx/nginx.conf</span>
-<span class="output">worker_processes auto;</span>
+<span class="p">$</span> <span class="c">docker ps</span>
+<span class="o">CONTAINER ID  IMAGE  STATUS  PORTS</span>
+<span class="o">a1b2c3d4e5f6  nginx  Up 2m   0.0.0.0:8080->80</span>
 
-<span class="comment"># Stop and remove</span>
-<span class="prompt">$</span> <span class="cmd">container stop web && container rm web</span>
-      </div>
-    </div>
-
-    <div class="terminal reveal stagger-3">
-      <div class="terminal-header">
-        <div class="terminal-dot red"></div>
-        <div class="terminal-dot yellow"></div>
-        <div class="terminal-dot green"></div>
-        <span class="terminal-title">Docker CLI via Socket</span>
-      </div>
-      <div class="terminal-body">
-<span class="comment"># Use Docker CLI with Keg</span>
-<span class="prompt">$</span> <span class="cmd">export DOCKER_HOST=unix://$HOME/.keg/docker.sock</span>
-
-<span class="prompt">$</span> <span class="cmd">docker ps</span>
-<span class="output">CONTAINER ID  IMAGE   STATUS   PORTS</span>
-<span class="output">a1b2c3d4e5f6  nginx   Up 2m    0.0.0.0:8080->80</span>
-
-<span class="prompt">$</span> <span class="cmd">docker images</span>
-<span class="output">REPOSITORY  TAG      SIZE</span>
-<span class="output">nginx       latest   187MB</span>
-<span class="output">alpine      3.20     7.8MB</span>
-
-<span class="prompt">$</span> <span class="cmd">docker info</span>
-<span class="output">Server: Keg (Apple Containerization)</span>
-<span class="output">Kernel: Darwin 25.3.1</span>
-      </div>
-    </div>
+<span class="p">$</span> <span class="c">docker info</span>
+<span class="o">Server: Keg (Apple Containerization)</span></div></div></div>
   </div>
 </section>
 
 <!-- Compose -->
-<section class="section compose-section" id="compose">
-  <div class="section-label reveal">Docker Compose</div>
-  <h2 class="section-title reveal stagger-1">Your compose files. No changes.</h2>
-  <p class="section-desc reveal stagger-2">
-    Bring your docker-compose.yml as-is. Keg parses YAML, resolves dependencies with topological sort, creates networks and volumes, and starts services in the right order.
-  </p>
+<section class="section" id="compose" style="border-top: 1px solid var(--ring);">
+  <div class="pill reveal"><span class="dot"></span> Docker Compose</div>
+  <h2 class="section-title reveal d1">Your compose files. Zero changes.</h2>
+  <p class="section-desc reveal d2">Dependency ordering, networks, volumes, port mapping, env vars. Keg's orchestrator handles it all.</p>
+  <div class="two-col">
+    <div class="term-bezel reveal d2"><div class="term-inner"><div class="term-bar"><div class="term-dot r"></div><div class="term-dot y"></div><div class="term-dot g"></div><span class="term-title">docker-compose.yml</span></div><div class="term-body"><span class="d">services:</span>
+  <span class="w">web:</span>
+    <span class="c">image: nginx:latest</span>
+    <span class="c">ports: ["8080:80"]</span>
+    <span class="c">depends_on: [api]</span>
+  <span class="w">api:</span>
+    <span class="c">image: node:20-alpine</span>
+    <span class="c">environment:</span>
+      <span class="c">- DATABASE_URL=postgres://db/app</span>
+    <span class="c">depends_on: [db]</span>
+  <span class="w">db:</span>
+    <span class="c">image: postgres:16-alpine</span>
+    <span class="c">volumes: [pgdata:/var/lib/postgresql/data]</span>
+<span class="d">volumes:</span>
+  <span class="w">pgdata:</span></div></div></div>
+    <div class="term-bezel reveal d3"><div class="term-inner"><div class="term-bar"><div class="term-dot r"></div><div class="term-dot y"></div><div class="term-dot g"></div><span class="term-title">Lifecycle</span></div><div class="term-body"><span class="p">$</span> <span class="c">keg compose up -d</span>
+<span class="o">Compose up: my-app</span>
+<span class="o">==> Service: db</span>
+<span class="o">==> Service: api</span>
+<span class="o">==> Service: web</span>
+<span class="o">Compose up finished.</span>
 
-  <div class="docker-grid">
-    <div class="terminal reveal stagger-2">
-      <div class="terminal-header">
-        <div class="terminal-dot red"></div>
-        <div class="terminal-dot yellow"></div>
-        <div class="terminal-dot green"></div>
-        <span class="terminal-title">docker-compose.yml</span>
-      </div>
-      <div class="terminal-body">
-<span class="comment">services:</span>
-  <span class="amber">web:</span>
-    <span class="cmd">image: nginx:latest</span>
-    <span class="cmd">ports:</span>
-      <span class="cmd">- "8080:80"</span>
-    <span class="cmd">depends_on:</span>
-      <span class="cmd">- api</span>
+<span class="p">$</span> <span class="c">keg compose ps</span>
+<span class="o">NAME         SERVICE  STATE</span>
+<span class="o">my-app-db    db       running</span>
+<span class="o">my-app-api   api      running</span>
+<span class="o">my-app-web   web      running</span>
 
-  <span class="amber">api:</span>
-    <span class="cmd">image: node:20-alpine</span>
-    <span class="cmd">environment:</span>
-      <span class="cmd">- DATABASE_URL=postgres://db:5432/app</span>
-    <span class="cmd">depends_on:</span>
-      <span class="cmd">- db</span>
-
-  <span class="amber">db:</span>
-    <span class="cmd">image: postgres:16-alpine</span>
-    <span class="cmd">volumes:</span>
-      <span class="cmd">- pgdata:/var/lib/postgresql/data</span>
-
-<span class="comment">volumes:</span>
-  <span class="amber">pgdata:</span>
-      </div>
-    </div>
-
-    <div class="terminal reveal stagger-3">
-      <div class="terminal-header">
-        <div class="terminal-dot red"></div>
-        <div class="terminal-dot yellow"></div>
-        <div class="terminal-dot green"></div>
-        <span class="terminal-title">Compose Lifecycle</span>
-      </div>
-      <div class="terminal-body">
-<span class="comment"># Start the stack</span>
-<span class="prompt">$</span> <span class="cmd">keg compose up -d</span>
-<span class="output">Compose up: my-app</span>
-<span class="output">==> Service: db</span>
-<span class="output">==> Service: api</span>
-<span class="output">==> Service: web</span>
-<span class="output">Compose up finished.</span>
-
-<span class="comment"># Check status</span>
-<span class="prompt">$</span> <span class="cmd">keg compose ps</span>
-<span class="output">NAME        SERVICE  STATE</span>
-<span class="output">my-app-db   db       running</span>
-<span class="output">my-app-api  api      running</span>
-<span class="output">my-app-web  web      running</span>
-
-<span class="comment"># View logs</span>
-<span class="prompt">$</span> <span class="cmd">keg compose logs api --tail 5</span>
-
-<span class="comment"># Tear down</span>
-<span class="prompt">$</span> <span class="cmd">keg compose down</span>
-      </div>
-    </div>
+<span class="p">$</span> <span class="c">keg compose down</span></div></div></div>
   </div>
 </section>
 
 <!-- Kubernetes -->
-<section class="section k8s-section" id="kubernetes">
-  <div class="section-label reveal">Kubernetes</div>
-  <h2 class="section-title reveal stagger-1">Local K8s in 90 seconds.</h2>
-  <p class="section-desc reveal stagger-2">
-    Full Kubernetes cluster running inside an Apple Container. kubeadm init, CNI installed, control-plane taint removed, kubeconfig extracted. Ready for kubectl.
-  </p>
-
-  <div class="k8s-steps">
-    <div class="k8s-step reveal stagger-1">
-      <div class="k8s-step-num">01</div>
-      <h3>Create Cluster</h3>
-      <p>Click "Create Cluster" in the Keg UI. A kindest/node container boots with kubeadm.</p>
-      <code>kubectl get nodes<br>NAME&nbsp;&nbsp;&nbsp;&nbsp;STATUS&nbsp;&nbsp;ROLES&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AGE<br>keg-k8s&nbsp;Ready&nbsp;&nbsp;&nbsp;control-plane&nbsp;90s</code>
-    </div>
-    <div class="k8s-step reveal stagger-2">
-      <div class="k8s-step-num">02</div>
-      <h3>Deploy Workloads</h3>
-      <p>Apply your manifests. Deployments, services, configmaps, secrets. It's real K8s.</p>
-      <code>kubectl apply -f deployment.yaml<br>kubectl get pods<br>NAME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READY&nbsp;&nbsp;STATUS<br>nginx-abc12&nbsp;&nbsp;1/1&nbsp;&nbsp;&nbsp;&nbsp;Running</code>
-    </div>
-    <div class="k8s-step reveal stagger-3">
-      <div class="k8s-step-num">03</div>
-      <h3>Scale &amp; Update</h3>
-      <p>Scale replicas, rolling updates, exec into pods, tail logs. Full kubectl support.</p>
-      <code>kubectl scale deploy nginx --replicas=3<br>kubectl set image deploy/nginx nginx=nginx:latest<br>kubectl logs -f deploy/nginx</code>
-    </div>
+<section class="section" id="k8s" style="border-top: 1px solid var(--ring);">
+  <div class="pill reveal"><span class="dot"></span> Kubernetes</div>
+  <h2 class="section-title reveal d1">Local K8s. 90 seconds.</h2>
+  <p class="section-desc reveal d2">Full cluster inside an Apple Container. kubeadm, CNI, kubeconfig. Ready for kubectl.</p>
+  <div class="steps-grid">
+    <div class="step-bezel reveal d1"><div class="step-inner"><div class="step-num">01</div><h3>Create Cluster</h3><p>One click in Keg. kindest/node boots with kubeadm init.</p><div class="step-code">kubectl get nodes<br>NAME&nbsp;&nbsp;&nbsp;&nbsp;STATUS&nbsp;&nbsp;ROLES<br>keg-k8s&nbsp;Ready&nbsp;&nbsp;&nbsp;control-plane</div></div></div>
+    <div class="step-bezel reveal d2"><div class="step-inner"><div class="step-num">02</div><h3>Deploy</h3><p>Apply manifests. Deployments, services, configmaps, secrets.</p><div class="step-code">kubectl apply -f deploy.yaml<br>kubectl get pods<br>nginx-abc12&nbsp;&nbsp;1/1&nbsp;&nbsp;Running</div></div></div>
+    <div class="step-bezel reveal d3"><div class="step-inner"><div class="step-num">03</div><h3>Scale &amp; Update</h3><p>Scale replicas, rolling updates, exec, logs. Full kubectl.</p><div class="step-code">kubectl scale deploy nginx --replicas=3<br>kubectl set image deploy/nginx ...<br>kubectl logs -f deploy/nginx</div></div></div>
   </div>
 </section>
 
 <!-- Comparison -->
-<section class="section comparison" id="comparison">
-  <div class="section-label reveal">Comparison</div>
-  <h2 class="section-title reveal stagger-1">Numbers don't lie.</h2>
-  <p class="section-desc reveal stagger-2">
-    Side-by-side with Docker Desktop and OrbStack.
-  </p>
-
-  <div class="table-wrap reveal stagger-3">
+<section class="section" id="compare" style="border-top: 1px solid var(--ring);">
+  <div class="pill reveal"><span class="dot"></span> Comparison</div>
+  <h2 class="section-title reveal d1">Numbers don't lie.</h2>
+  <p class="section-desc reveal d2">Benchmarked against Docker Desktop and OrbStack.</p>
+  <div class="bezel reveal d3"><div class="bezel-inner table-inner">
     <table>
-      <thead>
-        <tr>
-          <th></th>
-          <th>Docker Desktop</th>
-          <th>OrbStack</th>
-          <th>Keg</th>
-        </tr>
-      </thead>
+      <thead><tr><th></th><th>Docker Desktop</th><th>OrbStack</th><th>Keg</th></tr></thead>
       <tbody>
-        <tr>
-          <td>Container runtime</td>
-          <td>containerd in Linux VM</td>
-          <td>containerd in Linux VM</td>
-          <td><span class="badge-win">Apple VMs</span></td>
-        </tr>
-        <tr>
-          <td>Isolation</td>
-          <td>Process-level (namespaces)</td>
-          <td>Process-level</td>
-          <td><span class="badge-win">Hardware-level</span></td>
-        </tr>
-        <tr>
-          <td>Boot time</td>
-          <td>~30 seconds</td>
-          <td>~2 seconds</td>
-          <td><span class="badge-win">&lt; 1 second</span></td>
-        </tr>
-        <tr>
-          <td>Idle RAM</td>
-          <td>~2 GB</td>
-          <td>~500 MB</td>
-          <td><span class="badge-win">69 MB</span></td>
-        </tr>
-        <tr>
-          <td>Docker API</td>
-          <td>✓</td>
-          <td>✓</td>
-          <td>✓</td>
-        </tr>
-        <tr>
-          <td>Kubernetes</td>
-          <td>✓</td>
-          <td>✓</td>
-          <td>✓</td>
-        </tr>
-        <tr>
-          <td>Native macOS</td>
-          <td>Electron</td>
-          <td>Native-ish</td>
-          <td><span class="badge-win">SwiftUI</span></td>
-        </tr>
-        <tr>
-          <td>License</td>
-          <td>Proprietary ($9/seat)</td>
-          <td>Proprietary (paid)</td>
-          <td><span class="badge-win">Apache 2.0</span></td>
-        </tr>
+        <tr><td>Runtime</td><td>containerd in Linux VM</td><td>containerd in Linux VM</td><td><span class="win">Apple VMs</span></td></tr>
+        <tr><td>Isolation</td><td>Process-level</td><td>Process-level</td><td><span class="win">Hardware</span></td></tr>
+        <tr><td>Boot time</td><td>~30s</td><td>~2s</td><td><span class="win">&lt;1s</span></td></tr>
+        <tr><td>Idle RAM</td><td>~2 GB</td><td>~500 MB</td><td><span class="win">69 MB</span></td></tr>
+        <tr><td>Docker API</td><td>✓</td><td>✓</td><td>✓</td></tr>
+        <tr><td>Kubernetes</td><td>✓</td><td>✓</td><td>✓</td></tr>
+        <tr><td>Native macOS</td><td>Electron</td><td>Native-ish</td><td><span class="win">SwiftUI</span></td></tr>
+        <tr><td>License</td><td>$9/seat/mo</td><td>Paid</td><td><span class="win">Apache 2.0</span></td></tr>
       </tbody>
     </table>
-  </div>
+  </div></div>
 </section>
 
 <!-- CTA -->
-<section class="section cta-section">
-  <div class="section-label reveal">Get Started</div>
-  <h2 class="section-title reveal stagger-1">Built for Apple Silicon.<br>Open source. Free forever.</h2>
-  <p class="section-desc reveal stagger-2">
-    Requires macOS 26 (Tahoe), Apple Silicon, and the Apple container CLI.
-  </p>
-  <div class="hero-actions reveal stagger-3" style="justify-content: center;">
-    <a href="https://github.com/rahult/keg" class="btn btn-primary">
-      <span>↓</span> git clone
-    </a>
-    <a href="https://github.com/rahult/keg/blob/main/README.md" class="btn btn-ghost">
-      Documentation
-    </a>
+<section class="section cta">
+  <div class="pill reveal"><span class="dot"></span> Get Started</div>
+  <h2 class="section-title reveal d1">Built for Apple Silicon.<br>Open source. Free forever.</h2>
+  <p class="section-desc reveal d2">Requires macOS 26 (Tahoe) and Apple Silicon (M1/M2/M3/M4).</p>
+  <div class="hero-actions reveal d3">
+    <a href="https://github.com/rahult/keg/releases" class="btn btn-primary">Download for Mac <span class="icon-wrap">↓</span></a>
+    <a href="https://github.com/rahult/keg" class="btn btn-ghost">View on GitHub</a>
   </div>
 </section>
 
-<!-- Footer -->
 <footer>
-  <div class="left">© 2026 Keg. Apache License 2.0.</div>
-  <div class="right">
+  <div class="copy">© 2026 Keg. Apache License 2.0.</div>
+  <div class="links">
     <a href="https://github.com/rahult/keg">GitHub</a>
     <a href="https://github.com/rahult/keg/issues">Issues</a>
     <a href="https://github.com/apple/container">Apple Container</a>
   </div>
 </footer>
 
-<!-- Scroll reveal -->
+</div>
+
 <script>
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      entry.target.classList.add('visible');
-    }
-  });
-}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
-
-document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('vis'); });
+}, { threshold: 0.08, rootMargin: '0px 0px -60px 0px' });
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
 </script>
-
 </body>
 </html>
