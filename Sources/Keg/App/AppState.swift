@@ -201,9 +201,20 @@ final class AppState {
 
     func startRefreshing() {
         guard refreshTimer == nil else { return }
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+        scheduleRefreshTimer()
+    }
+
+    /// Schedule the next refresh timer tick with an adaptive interval:
+    /// 2 seconds when containers are running, 10 seconds when idle.
+    private func scheduleRefreshTimer() {
+        let interval: TimeInterval = runningContainerCount > 0 ? 2.0 : 10.0
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in
-                await self?.refresh()
+                guard let self else { return }
+                await self.refresh()
+                // Reschedule with potentially updated interval
+                self.refreshTimer = nil
+                self.scheduleRefreshTimer()
             }
         }
     }
