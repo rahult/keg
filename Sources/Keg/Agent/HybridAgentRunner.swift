@@ -5,10 +5,6 @@ private struct SendableArguments: @unchecked Sendable {
     let storage: [String: Any]
 }
 
-// MARK: - Sendable extension for [String: Any]
-
-extension Dictionary: @unchecked Sendable where Key == String, Value == Any {}
-
 /// Hybrid Agent Runner - Process or Container execution
 ///
 /// Optimization: Use process for simple agents, container for dangerous operations
