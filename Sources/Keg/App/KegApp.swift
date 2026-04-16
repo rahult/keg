@@ -55,7 +55,7 @@ struct KegApp: App {
         WindowGroup(id: "main") {
             MainView()
                 .environment(appState)
-                .frame(minWidth: 900, minHeight: 600)
+                .frame(minWidth: 700, minHeight: 500)
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified(showsTitle: true))
