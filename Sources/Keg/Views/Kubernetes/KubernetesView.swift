@@ -71,7 +71,6 @@ final class KubernetesVM {
                 kubeconfigPath = kcPath
                 if var kcContent = try? String(contentsOfFile: kcPath, encoding: .utf8) {
                     kcContent = kcContent.replacingOccurrences(of: "kubernetes.default.svc", with: "127.0.0.1")
-                    kcContent = kcContent.replacingOccurrences(of: ":6443", with: ":6443")
                     try? kcContent.write(toFile: kcPath, atomically: true, encoding: .utf8)
                 }
             }
@@ -93,7 +92,7 @@ final class KubernetesVM {
         errorMessage = nil
 
         let result = try? await runCLI(["container", "delete", "-f", clusterName])
-        if let (code, _) = result, code == 0 || code == 1 {
+        if let (code, _) = result, code == 0 {
             if let kcPath = kubeconfigPath { try? FileManager.default.removeItem(atPath: kcPath) }
             kubeconfigPath = nil
             clusterStatus = "Not Created"
