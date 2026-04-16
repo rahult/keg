@@ -40,6 +40,8 @@ final class AppState {
     var isRefreshingAgentAutomation = false
     var runningContainerCount = 0
     var unhealthyContainerCount = 0
+    var activeAgentCount = 0
+    var activeSessionCount = 0
 
     private let containerClient = ContainerClient()
     private let agentAutomationService = AgentAutomationService()
@@ -219,6 +221,7 @@ final class AppState {
         defer { isRefreshing = false }
         await checkSystemStatus()
         await refreshDashboardCounts()
+        await refreshAgentCounts()
     }
 
     private func refreshDashboardCounts() async {
@@ -242,6 +245,29 @@ final class AppState {
         } catch {
             runningContainerCount = 0
             unhealthyContainerCount = 0
+        }
+    }
+
+    func refreshAgentCounts() async {
+        guard isAgentAuthenticated else {
+            activeAgentCount = 0
+            activeSessionCount = 0
+            return
+        }
+        do {
+            let client = try await ManagedAgentsClient.fromKeychain()
+            let response = try await client.listAgents()
+            let agents = response.data.filter { $0.archivedAt == nil }
+            activeAgentCount = agents.count
+
+            var sessionTotal = 0
+            for agent in agents.prefix(10) {
+                let sessions = try await client.listSessions(agentId: agent.id)
+                sessionTotal += sessions.data.filter { $0.status != .completed }.count
+            }
+            activeSessionCount = sessionTotal
+        } catch {
+            // Keep existing counts on failure
         }
     }
 

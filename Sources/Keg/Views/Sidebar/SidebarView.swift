@@ -25,6 +25,34 @@ struct SidebarView: View {
                 SystemDashboardView()
                     .padding(.horizontal, 12)
                     .padding(.bottom, 8)
+
+                if appState.activeSessionCount > 0 {
+                    CrossAreaLink(
+                        icon: "person.2.badge.gearshape",
+                        label: "Agents: \(appState.activeSessionCount) active \(appState.activeSessionCount == 1 ? "session" : "sessions")",
+                        color: .purple
+                    ) {
+                        appState.currentArea = .agents
+                        appState.selectedAgentSection = .sessions
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
+                }
+            }
+
+            if appState.currentArea == .agents {
+                if appState.runningContainerCount > 0 {
+                    CrossAreaLink(
+                        icon: "cube.box.fill",
+                        label: "Containers: \(appState.runningContainerCount) running",
+                        color: .green
+                    ) {
+                        appState.currentArea = .keg
+                        appState.selectedKegSection = .containers
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
+                }
             }
 
             Divider()
@@ -255,6 +283,38 @@ struct AgentSidebarContent: View {
         .listStyle(.sidebar)
         .accessibilityLabel("Agent sections")
         .accessibilityHint("Use arrow keys to move between agent sections")
+    }
+}
+
+// MARK: - Cross-Area Link
+
+struct CrossAreaLink: View {
+    let icon: String
+    let label: String
+    let color: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.caption)
+                    .foregroundStyle(color)
+                Text(label)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(8)
+            .background(color.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityHint("Switch to the other area")
     }
 }
 
