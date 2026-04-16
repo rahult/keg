@@ -425,7 +425,7 @@ final class DockerShadowTests: XCTestCase {
 
         let (code, output) = try runProcess([
             "curl", "--unix-socket", socketPath,
-            "-s", "http://localhost/v1.41/containers/json?all=true"
+            "-s", "http://localhost/containers/json?all=true"
         ])
         XCTAssertEqual(code, 0)
 
@@ -452,7 +452,7 @@ final class DockerShadowTests: XCTestCase {
 
         let (code, output) = try runProcess([
             "curl", "--unix-socket", socketPath,
-            "-s", "http://localhost/v1.41/images/json"
+            "-s", "http://localhost/images/json"
         ])
         XCTAssertEqual(code, 0)
 
@@ -478,7 +478,7 @@ final class DockerShadowTests: XCTestCase {
 
         let (code, output) = try runProcess([
             "curl", "--unix-socket", socketPath,
-            "-s", "http://localhost/v1.41/info"
+            "-s", "http://localhost/info"
         ])
         XCTAssertEqual(code, 0)
 
@@ -505,7 +505,7 @@ final class DockerShadowTests: XCTestCase {
 
         let (code, output) = try runProcess([
             "curl", "--unix-socket", socketPath,
-            "-s", "http://localhost/v1.41/networks"
+            "-s", "http://localhost/networks"
         ])
         XCTAssertEqual(code, 0)
 
