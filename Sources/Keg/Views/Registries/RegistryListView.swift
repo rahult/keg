@@ -4,6 +4,7 @@ struct RegistryListView: View {
     @State private var registries: [String] = []
     @State private var isLoading = false
     @State private var showLoginSheet = false
+    @State private var errorMessage: String?
 
     var body: some View {
         Group {
@@ -36,12 +37,16 @@ struct RegistryListView: View {
                 .listStyle(.inset(alternatesRowBackgrounds: true))
             }
         }
+        .accessibilityLabel("Registries")
+        .accessibilityHint("Manage container registry logins")
         .navigationTitle("Registries")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button("Login...") {
+                Button("Login…") {
                     showLoginSheet = true
                 }
+                .accessibilityLabel("Login to registry")
+                .accessibilityHint("Opens a form to log in to a container registry")
             }
 
             ToolbarItem(placement: .automatic) {
@@ -51,6 +56,7 @@ struct RegistryListView: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .keyboardShortcut("r", modifiers: .command)
+                .accessibilityLabel("Refresh registries")
             }
         }
         .task {
@@ -65,23 +71,28 @@ struct RegistryListView: View {
 
     private func loadRegistries() async {
         isLoading = true
+        errorMessage = nil
         let process = Process()
         let pipe = Pipe()
         process.executableURL = URL(filePath: "/usr/bin/env")
         process.arguments = ["container", "registry", "list"]
         process.standardOutput = pipe
         process.standardError = pipe
-        try? process.run()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        try? pipe.fileHandleForReading.close()
-        process.waitUntilExit()
-        if let output = String(data: data, encoding: .utf8) {
-            registries = output.split(separator: "\n").map(String.init)
+        do {
+            try process.run()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            try? pipe.fileHandleForReading.close()
+            process.waitUntilExit()
+            if process.terminationStatus != 0 {
+                errorMessage = String(data: data, encoding: .utf8) ?? "Failed to list registries"
+            } else if let output = String(data: data, encoding: .utf8) {
+                registries = output.split(separator: "\n").map(String.init)
+            }
+        } catch {
+            errorMessage = "Failed to list registries: \(error.localizedDescription)"
         }
         isLoading = false
     }
-
-    @State private var logoutError: String?
 
     private func logout(registry: String) {
         Task {
@@ -96,12 +107,12 @@ struct RegistryListView: View {
                 process.waitUntilExit()
                 if process.terminationStatus != 0 {
                     let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                    logoutError = String(data: data, encoding: .utf8) ?? "Logout failed with exit code \(process.terminationStatus)"
+                    errorMessage = String(data: data, encoding: .utf8) ?? "Logout failed"
                 } else {
-                    logoutError = nil
+                    errorMessage = nil
                 }
             } catch {
-                logoutError = "Failed to run logout: \(error.localizedDescription)"
+                errorMessage = "Failed to logout: \(error.localizedDescription)"
             }
             await loadRegistries()
         }
@@ -124,10 +135,13 @@ struct RegistryLoginView: View {
 
             TextField("Registry URL", text: $registryURL, prompt: Text("https://registry.example.com"))
                 .textFieldStyle(.roundedBorder)
+                .accessibilityLabel("Registry URL")
             TextField("Username", text: $username)
                 .textFieldStyle(.roundedBorder)
+                .accessibilityLabel("Username")
             SecureField("Password", text: $password)
                 .textFieldStyle(.roundedBorder)
+                .accessibilityLabel("Password")
 
             if let errorMessage {
                 Text(errorMessage)
@@ -175,7 +189,13 @@ struct RegistryLoginView: View {
             inputPipe.fileHandleForWriting.write(credentialData)
             try? inputPipe.fileHandleForWriting.close()
 
-            try? process.run()
+            do {
+                try process.run()
+            } catch {
+                errorMessage = "Failed to start login: \(error.localizedDescription)"
+                isLoggingIn = false
+                return
+            }
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
 

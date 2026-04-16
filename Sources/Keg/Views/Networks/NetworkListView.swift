@@ -56,7 +56,7 @@ struct NetworkListView: View {
                 ProgressView("Loading networks...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if vm.networks.isEmpty {
-                ContentUnavailableView("No Networks", systemImage: "network")
+                ContentUnavailableView("No Networks", systemImage: "network", description: Text("Networks will appear here when created"))
             } else {
                 Table(wrappedNetworks, selection: $selectedNetworkID) {
                     TableColumn("ID") { item in
@@ -86,6 +86,8 @@ struct NetworkListView: View {
                 }
             }
         }
+        .accessibilityLabel("Networks")
+        .accessibilityHint("View and manage container networks")
         .navigationTitle("Networks")
         .toolbar {
             ToolbarItem(placement: .automatic) {
@@ -95,6 +97,7 @@ struct NetworkListView: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .keyboardShortcut("r", modifiers: .command)
+                .accessibilityLabel("Refresh networks")
             }
         }
         .overlay {

@@ -42,7 +42,7 @@ struct VolumeListView: View {
                 ProgressView("Loading volumes...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if vm.volumes.isEmpty {
-                ContentUnavailableView("No Volumes", systemImage: "externaldrive")
+                ContentUnavailableView("No Volumes", systemImage: "externaldrive", description: Text("Volumes will appear here when created"))
             } else {
                 Table(vm.volumes, selection: $selectedVolumeName) {
                     TableColumn("Name") { volume in

@@ -34,7 +34,7 @@ final class ImagesVM {
                             try await Task.sleep(for: .seconds(15))
                             throw CancellationError()
                         }
-                        let result = try await group.next()!
+                        let result = try await group.next() ?? 0
                         group.cancelAll()
                         return result
                     }

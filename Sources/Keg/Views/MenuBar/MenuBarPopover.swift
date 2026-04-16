@@ -92,7 +92,7 @@ struct MenuBarPopover: View {
         case .stopped:
             return "Container System Stopped"
         case .error(let msg):
-            return "Error: \(msg)"
+            return msg
         }
     }
 

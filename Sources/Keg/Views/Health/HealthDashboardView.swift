@@ -24,6 +24,8 @@ struct HealthDashboardView: View {
                 }
             }
         }
+        .accessibilityLabel("Health Dashboard")
+        .accessibilityHint("Overview of container health scores and resource usage")
         .navigationTitle("Health")
         .toolbar(id: "health-toolbar") {
             ToolbarItem(id: "refresh", placement: .automatic) {
@@ -33,6 +35,7 @@ struct HealthDashboardView: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .keyboardShortcut("r", modifiers: .command)
+                .accessibilityLabel("Refresh health data")
             }
         }
         .toolbarRole(.editor)

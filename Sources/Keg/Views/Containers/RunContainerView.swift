@@ -24,21 +24,28 @@ struct RunContainerView: View {
             Form {
                 TextField("Image", text: $imageName, prompt: Text("nginx:latest"))
                     .textFieldStyle(.roundedBorder)
+                    .accessibilityLabel("Container image")
+                    .accessibilityHint("Docker image name and tag to run")
 
                 TextField("Name", text: $containerName, prompt: Text("my-container"))
                     .textFieldStyle(.roundedBorder)
+                    .accessibilityLabel("Container name")
 
                 TextField("Command", text: $command, prompt: Text("Optional: override entrypoint"))
                     .textFieldStyle(.roundedBorder)
+                    .accessibilityLabel("Command override")
 
                 TextField("Environment Variables", text: $envVars, prompt: Text("KEY=VALUE, separated by commas"))
                     .textFieldStyle(.roundedBorder)
+                    .accessibilityLabel("Environment variables")
 
                 TextField("Ports", text: $ports, prompt: Text("8080:80, 443:443"))
                     .textFieldStyle(.roundedBorder)
+                    .accessibilityLabel("Port mappings")
 
                 TextField("Volumes", text: $volumes, prompt: Text("host-path:/container-path"))
                     .textFieldStyle(.roundedBorder)
+                    .accessibilityLabel("Volume mounts")
 
                 HStack {
                     Stepper("CPUs: \(cpus)", value: $cpus, in: 1...32)
@@ -70,6 +77,8 @@ struct RunContainerView: View {
         }
         .padding(20)
         .frame(width: 500)
+        .accessibilityLabel("Run Container")
+        .accessibilityHint("Configure and launch a new container")
     }
 
     private func runContainer() {

@@ -91,28 +91,36 @@ final class KubernetesVM {
         output = ""
         errorMessage = nil
 
-        let result = try? await runCLI(["container", "delete", "-f", clusterName])
-        if let (code, _) = result, code == 0 {
-            if let kcPath = kubeconfigPath { try? FileManager.default.removeItem(atPath: kcPath) }
-            kubeconfigPath = nil
-            clusterStatus = "Not Created"
-            output = "Cluster deleted"
-        } else {
-            errorMessage = result?.1 ?? "Delete failed"
+        do {
+            let (code, out) = try await runCLI(["container", "delete", "-f", clusterName])
+            if code == 0 {
+                if let kcPath = kubeconfigPath { try? FileManager.default.removeItem(atPath: kcPath) }
+                kubeconfigPath = nil
+                clusterStatus = "Not Created"
+                output = "Cluster deleted"
+            } else {
+                errorMessage = out.isEmpty ? "Failed to delete cluster" : out
+            }
+        } catch {
+            errorMessage = error.localizedDescription
         }
         isDeleting = false
     }
 
     func checkClusterStatus() async {
-        let (code, _) = (try? await runCLI(["container", "list", "--format", "json"])) ?? (1, "")
-        if code == 0 {
-            let (inspectCode, _) = (try? await runCLI(["container", "inspect", clusterName])) ?? (1, "")
-            if inspectCode == 0 {
-                clusterStatus = "Running"
-                kubeconfigPath = NSHomeDirectory() + "/.keg/kubeconfig"
-            } else {
-                clusterStatus = "Not Created"
+        do {
+            let (code, _) = try await runCLI(["container", "list", "--format", "json"])
+            if code == 0 {
+                let (inspectCode, _) = try await runCLI(["container", "inspect", clusterName])
+                if inspectCode == 0 {
+                    clusterStatus = "Running"
+                    kubeconfigPath = NSHomeDirectory() + "/.keg/kubeconfig"
+                } else {
+                    clusterStatus = "Not Created"
+                }
             }
+        } catch {
+            // Status check is best-effort on launch; leave status unchanged
         }
     }
 

@@ -656,7 +656,7 @@ private struct LocalModelConfigSheet: View {
                         TextField("Path to GGUF file", text: $modelPath)
                             .textFieldStyle(.roundedBorder)
 
-                        Button("Browse...") {
+                        Button("Browse…") {
                             showFilePicker = true
                         }
                         .buttonStyle(.bordered)

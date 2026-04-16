@@ -121,7 +121,7 @@ struct TerminalView: View {
         output += "$ \(trimmed)\n"
 
         if let pipe = inputPipe, process?.isRunning == true {
-            let data = (trimmed + "\n").data(using: .utf8)!
+            guard let data = (trimmed + "\n").data(using: .utf8) else { return }
             pipe.fileHandleForWriting.write(data)
             return
         }
@@ -161,7 +161,7 @@ struct TerminalView: View {
                 }
             }
         } catch {
-            output += "Error: \(error.localizedDescription)\n\n"
+            output += "\(error.localizedDescription)\n\n"
             isRunning = false
         }
     }

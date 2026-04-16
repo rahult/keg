@@ -138,6 +138,8 @@ struct ContainerLogsView: View {
                 logContent
             }
         }
+        .accessibilityLabel("Container Logs")
+        .accessibilityHint("View and filter log output for this container")
         .navigationTitle("Logs")
         .searchable(text: $searchText, prompt: "Search logs")
         .toolbar {
@@ -149,6 +151,8 @@ struct ContainerLogsView: View {
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 200)
+                .accessibilityLabel("Log level filter")
+                .accessibilityHint("Filter logs by severity level")
             }
 
             ToolbarItem(placement: .automatic) {
@@ -157,6 +161,8 @@ struct ContainerLogsView: View {
                 }
                 .toggleStyle(.button)
                 .tint(isFollowing ? .accentColor : .secondary)
+                .accessibilityLabel("Follow logs")
+                .accessibilityHint("Automatically scroll to new log entries")
             }
 
             ToolbarItem(placement: .automatic) {
@@ -165,6 +171,7 @@ struct ContainerLogsView: View {
                 } label: {
                     Label("Copy All", systemImage: "doc.on.doc")
                 }
+                .accessibilityLabel("Copy all logs")
             }
 
             ToolbarItem(placement: .automatic) {
@@ -173,6 +180,7 @@ struct ContainerLogsView: View {
                 } label: {
                     Label("Clear", systemImage: "trash")
                 }
+                .accessibilityLabel("Clear logs")
             }
         }
         .task {

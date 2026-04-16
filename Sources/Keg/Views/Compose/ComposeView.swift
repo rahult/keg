@@ -182,9 +182,12 @@ struct ComposeView: View {
                             HStack(spacing: 8) {
                                 TextField("/path/to/docker-compose.yml", text: $vm.composeFilePath)
                                     .textFieldStyle(.roundedBorder)
+                                    .accessibilityLabel("Compose file path")
                                 Button("Browse…") {
                                     showFilePicker = true
                                 }
+                                .accessibilityLabel("Browse for compose file")
+                                .accessibilityHint("Opens a file picker to select a Docker Compose file")
                             }
                         }
 
@@ -301,6 +304,8 @@ struct ComposeView: View {
                 .padding(12)
             }
         }
+        .accessibilityLabel("Compose")
+        .accessibilityHint("Manage Docker Compose services")
         .navigationTitle("Compose")
         .toolbar(id: "compose-toolbar") {
             ToolbarItem(id: "up", placement: .primaryAction) {
@@ -310,6 +315,8 @@ struct ComposeView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(vm.composeFilePath.isEmpty || vm.isRunning)
                 .keyboardShortcut(.defaultAction)
+                .accessibilityLabel("Compose Up")
+                .accessibilityHint("Start all services defined in the compose file")
             }
 
             ToolbarItem(id: "down", placement: .automatic) {
@@ -317,6 +324,8 @@ struct ComposeView: View {
                     Task { await vm.down() }
                 }
                 .disabled(vm.composeFilePath.isEmpty || vm.isRunning)
+                .accessibilityLabel("Compose Down")
+                .accessibilityHint("Stop and remove all compose services")
             }
 
             ToolbarItem(id: "refresh", placement: .automatic) {
@@ -327,6 +336,7 @@ struct ComposeView: View {
                 }
                 .disabled(vm.composeFilePath.isEmpty || vm.isRunning)
                 .keyboardShortcut("r", modifiers: .command)
+                .accessibilityLabel("Refresh services")
             }
         }
         .toolbarRole(.editor)

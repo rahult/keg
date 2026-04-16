@@ -33,6 +33,8 @@ struct ContainerStatsView: View {
                             .font(.caption.monospacedDigit())
                     }
                     .gaugeStyle(.accessoryCircularCapacity)
+                    .accessibilityLabel("CPU usage")
+                    .accessibilityValue(String(format: "%.1f percent", cpuPercent))
 
                     Gauge(value: memPercent, in: 0...100) {
                         Text("Memory")
@@ -41,13 +43,21 @@ struct ContainerStatsView: View {
                             .font(.caption.monospacedDigit())
                     }
                     .gaugeStyle(.accessoryCircularCapacity)
+                    .accessibilityLabel("Memory usage")
+                    .accessibilityValue(memString)
 
                     StatBox(title: "Net I/O", value: netString)
+                        .accessibilityLabel("Network I/O")
+                        .accessibilityValue(netString)
                     StatBox(title: "Block I/O", value: blockString)
+                        .accessibilityLabel("Block I/O")
+                        .accessibilityValue(blockString)
                 }
                 .padding(.horizontal, 12)
             }
         }
+        .accessibilityLabel("Container Stats")
+        .accessibilityHint("Live resource usage statistics for this container")
         .task {
             await pollStats()
         }
