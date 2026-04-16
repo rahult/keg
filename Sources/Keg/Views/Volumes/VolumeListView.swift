@@ -33,6 +33,8 @@ final class VolumesVM {
 struct VolumeListView: View {
     @State private var vm = VolumesVM()
     @State private var selectedVolumeName: String?
+    @State private var showingDeleteConfirmation = false
+    @State private var volumeToDelete: String?
 
     var body: some View {
         Group {
@@ -65,7 +67,10 @@ struct VolumeListView: View {
                 .tableStyle(.inset(alternatesRowBackgrounds: true))
                 .contextMenu(forSelectionType: String.self) { names in
                     if let name = names.first {
-                        VolumeContextMenu(name: name, vm: vm)
+                        VolumeContextMenu(name: name, onDelete: {
+                            volumeToDelete = name
+                            showingDeleteConfirmation = true
+                        })
                     }
                 }
             }
@@ -101,6 +106,18 @@ struct VolumeListView: View {
                 }
             }
         }
+        .alert("Delete Volume", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                if let name = volumeToDelete {
+                    Task { await vm.delete(name: name) }
+                }
+            }
+        } message: {
+            if let name = volumeToDelete {
+                Text("Are you sure you want to delete the volume \"\(name)\"? This action cannot be undone.")
+            }
+        }
         .task {
             await vm.refresh()
         }
@@ -109,7 +126,7 @@ struct VolumeListView: View {
 
 struct VolumeContextMenu: View {
     let name: String
-    let vm: VolumesVM
+    let onDelete: () -> Void
 
     var body: some View {
         Button("Copy Name") {
@@ -118,7 +135,7 @@ struct VolumeContextMenu: View {
         }
         Divider()
         Button("Delete", role: .destructive) {
-            Task { await vm.delete(name: name) }
+            onDelete()
         }
     }
 }
