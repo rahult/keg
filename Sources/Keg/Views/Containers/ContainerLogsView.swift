@@ -295,7 +295,10 @@ struct ContainerLogsView: View {
         let process = Process()
         let pipe = Pipe()
         process.executableURL = URL(filePath: "/usr/bin/env")
-        process.arguments = ["container", "logs", isFollowing ? "-f" : "", containerID].compactMap { $0.isEmpty ? nil : $0 }
+        var args = ["container", "logs"]
+        if isFollowing { args.append("-f") }
+        args.append(containerID)
+        process.arguments = args
         process.standardOutput = pipe
         process.standardError = pipe
 
