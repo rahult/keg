@@ -55,7 +55,7 @@ func barrelPath(in rect: NSRect) -> NSBezierPath {
 
 func writePNG(_ rep: NSBitmapImageRep, to path: String) throws {
     guard let data = rep.representation(using: .png, properties: [:]) else {
-        throw NSError(domain: "GenerateKegIcon", code: 1)
+        throw NSError(domain: "GenerateMeadowIcon", code: 1)
     }
     try data.write(to: URL(fileURLWithPath: path))
 }
@@ -74,12 +74,12 @@ func makeBitmap(size: CGFloat) throws -> (NSBitmapImageRep, NSGraphicsContext) {
         bytesPerRow: 0,
         bitsPerPixel: 0
     ) else {
-        throw NSError(domain: "GenerateKegIcon", code: 2)
+        throw NSError(domain: "GenerateMeadowIcon", code: 2)
     }
 
     rep.size = NSSize(width: size, height: size)
     guard let context = NSGraphicsContext(bitmapImageRep: rep) else {
-        throw NSError(domain: "GenerateKegIcon", code: 3)
+        throw NSError(domain: "GenerateMeadowIcon", code: 3)
     }
 
     context.cgContext.interpolationQuality = .high
@@ -280,13 +280,13 @@ func renderIconset(output: String) throws {
     process.waitUntilExit()
 
     guard process.terminationStatus == 0 else {
-        throw NSError(domain: "GenerateKegIcon", code: Int(process.terminationStatus))
+        throw NSError(domain: "GenerateMeadowIcon", code: Int(process.terminationStatus))
     }
 }
 
 let arguments = CommandLine.arguments
-let iconOutput = arguments.dropFirst().first ?? "Resources/Keg.icns"
-let menuBarOutput = arguments.dropFirst().dropFirst().first ?? "Resources/KegMenuBarTemplate.png"
+let iconOutput = arguments.dropFirst().first ?? "Resources/Meadow.icns"
+let menuBarOutput = arguments.dropFirst().dropFirst().first ?? "Resources/MeadowMenuBarTemplate.png"
 try renderIconset(output: iconOutput)
 try drawMenuBarTemplate(size: 32, to: menuBarOutput)
 print("Generated \(iconOutput)")
