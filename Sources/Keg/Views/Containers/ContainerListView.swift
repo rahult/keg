@@ -181,8 +181,7 @@ struct ContainerListView: View {
             showingDeleteConfirmation = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .kegFocusSearch)) { _ in
-            guard appState.currentArea == .keg,
-                  appState.selectedKegSection == .containers else { return }
+            guard appState.selectedKegSection == .containers else { return }
             isSearchFocused = true
         }
         .onDisappear {

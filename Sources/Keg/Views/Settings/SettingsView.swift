@@ -3,21 +3,6 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(AppState.self) private var appState
-    @State private var apiKeyInput = ""
-    @State private var isConnecting = false
-    @State private var connectionError: String?
-    @State private var accountInfo: AccountInfo?
-    @State private var storedAPIKeyPreview: String?
-
-    private var apiKeyValidation: APIKeyValidation {
-        APIKeyValidation(apiKey: apiKeyInput)
-    }
-
-    private var apiKeyValidationMessage: String? {
-        let trimmed = apiKeyValidation.trimmedAPIKey
-        guard !trimmed.isEmpty else { return nil }
-        return apiKeyValidation.message
-    }
 
     var body: some View {
         Form {
@@ -123,16 +108,12 @@ struct SettingsView: View {
                     }
                     Spacer()
                     if appState.isDockerAPIRunning {
-                        Button("Stop") {
-                            appState.stopDockerAPI()
-                        }
-                        .controlSize(.small)
+                        Button("Stop") { appState.stopDockerAPI() }
+                            .controlSize(.small)
                     } else {
-                        Button("Start") {
-                            appState.startDockerAPI()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
+                        Button("Start") { appState.startDockerAPI() }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
                     }
                 }
 
@@ -141,10 +122,6 @@ struct SettingsView: View {
                 Text("Enables Docker CLI compatibility via Unix socket")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            }
-
-            Section("Claude Agents API") {
-                agentAPISection
             }
 
             Section("About") {
@@ -159,223 +136,8 @@ struct SettingsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("Settings")
         .task {
-            appState.refreshAgentAuthentication()
             await appState.checkSystemStatus()
-            if appState.isAgentAuthenticated {
-                loadStoredAPIKeyPreview()
-                await loadAccountInfo()
-            } else {
-                storedAPIKeyPreview = nil
-                accountInfo = nil
-            }
         }
-        .alert("Connection Error", isPresented: .init(
-            get: { connectionError != nil },
-            set: { if !$0 { connectionError = nil } }
-        )) {
-            Button("OK") { connectionError = nil }
-        } message: {
-            Text(connectionError ?? "")
-        }
-    }
-
-    @ViewBuilder
-    private var agentAPISection: some View {
-        if appState.isAgentAuthenticated {
-            authenticatedView
-        } else {
-            unauthenticatedView
-        }
-    }
-
-    private var authenticatedView: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text("Connected")
-                    .font(.headline)
-                Spacer()
-                Button("Disconnect") {
-                    disconnect()
-                }
-                .controlSize(.small)
-            }
-
-            if let storedAPIKeyPreview {
-                LabeledContent("Stored API Key") {
-                    Text(storedAPIKeyPreview)
-                        .font(.system(.body, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            SecureField("Replace API Key", text: $apiKeyInput)
-                .textFieldStyle(.roundedBorder)
-
-            if let apiKeyValidationMessage {
-                Text(apiKeyValidationMessage)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            }
-
-            HStack {
-                Button {
-                    Task { await connect() }
-                } label: {
-                    HStack {
-                        if isConnecting {
-                            ProgressView()
-                                .controlSize(.small)
-                        }
-                        Text("Update Key")
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!apiKeyValidation.isValid || isConnecting)
-
-                Button("Reload Account") {
-                    Task {
-                        loadStoredAPIKeyPreview()
-                        await loadAccountInfo()
-                    }
-                }
-                .controlSize(.small)
-                .disabled(isConnecting)
-            }
-
-            if let info = accountInfo {
-                LabeledContent("Account") {
-                    Text(info.email ?? info.userId)
-                        .foregroundStyle(.secondary)
-                }
-                if let plan = info.plan {
-                    LabeledContent("Plan") {
-                        Text(plan)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-        }
-    }
-
-    private var unauthenticatedView: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(.red)
-                Text("Not Connected")
-                    .font(.headline)
-            }
-
-            Text("Enter your Claude API key to use Agents")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            SecureField("API Key", text: $apiKeyInput)
-                .textFieldStyle(.roundedBorder)
-
-            if let apiKeyValidationMessage {
-                Text(apiKeyValidationMessage)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            }
-
-            HStack {
-                Button {
-                    Task { await connect() }
-                } label: {
-                    HStack {
-                        if isConnecting {
-                            ProgressView()
-                                .controlSize(.small)
-                        }
-                        Text("Connect")
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!apiKeyValidation.isValid || isConnecting)
-
-                Button("Get API Key") {
-                    openAPIKeyHelp()
-                }
-                .buttonStyle(.borderless)
-                .controlSize(.small)
-            }
-        }
-    }
-
-    private func connect() async {
-        guard apiKeyValidation.isValid else {
-            connectionError = apiKeyValidation.message
-            return
-        }
-
-        isConnecting = true
-        defer { isConnecting = false }
-
-        do {
-            try AgentAuth.storeAPIKey(apiKeyValidation.trimmedAPIKey)
-            let client = try await ManagedAgentsClient.fromKeychain()
-            try await client.validateCredentials()
-
-            apiKeyInput = ""
-            appState.refreshAgentAuthentication()
-            loadStoredAPIKeyPreview()
-            await loadAccountInfo()
-        } catch {
-            try? AgentAuth.deleteAPIKey()
-            appState.refreshAgentAuthentication()
-            storedAPIKeyPreview = nil
-            connectionError = AgentIssuePresentation(error: error).message
-        }
-    }
-
-    private func disconnect() {
-        do {
-            try AgentAuth.deleteAPIKey()
-            apiKeyInput = ""
-            storedAPIKeyPreview = nil
-            accountInfo = nil
-            appState.refreshAgentAuthentication()
-        } catch {
-            connectionError = AgentIssuePresentation(error: error).message
-        }
-    }
-
-    private func loadAccountInfo() async {
-        do {
-            let client = try await ManagedAgentsClient.fromKeychain()
-            accountInfo = try await client.getAccountInfo()
-            appState.updateAgentServiceReachability(for: nil)
-        } catch {
-            let issue = AgentIssuePresentation(error: error)
-            accountInfo = nil
-            appState.updateAgentServiceReachability(for: issue.message)
-            if issue.kind == .auth {
-                connectionError = issue.message
-            }
-        }
-    }
-
-    private func loadStoredAPIKeyPreview() {
-        guard let apiKey = try? AgentAuth.retrieveAPIKey() else {
-            storedAPIKeyPreview = nil
-            return
-        }
-        storedAPIKeyPreview = maskAPIKey(apiKey)
-    }
-
-    private func maskAPIKey(_ apiKey: String) -> String {
-        guard apiKey.count > 8 else { return String(repeating: "•", count: apiKey.count) }
-        let prefix = apiKey.prefix(6)
-        let suffix = apiKey.suffix(4)
-        return "\(prefix)••••••••\(suffix)"
-    }
-
-    private func openAPIKeyHelp() {
-        guard let url = URL(string: "https://console.anthropic.com/settings/keys") else { return }
-        NSWorkspace.shared.open(url)
     }
 }
 

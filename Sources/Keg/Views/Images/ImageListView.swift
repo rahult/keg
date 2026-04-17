@@ -114,8 +114,7 @@ struct ImageListView: View {
             Task { await vm.refresh() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .kegFocusSearch)) { _ in
-            guard appState.currentArea == .keg,
-                  appState.selectedKegSection == .images else { return }
+            guard appState.selectedKegSection == .images else { return }
             isSearchFocused = true
         }
         .onDisappear {

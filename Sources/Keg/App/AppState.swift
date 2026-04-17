@@ -11,7 +11,6 @@ enum SystemStatus: Sendable {
 @Observable
 @MainActor
 final class AppState {
-    private static let agentPermissionModeDefaultsKey = "agents.permission-mode"
     private static let dockerAPIAutoStartDefaultsKey = "dockerAPI.autoStart"
 
     // Docker API server
@@ -35,32 +34,16 @@ final class AppState {
         }
     }
 
-    // Area navigation
-    var currentArea: AppArea = .keg
+    // Navigation
     var selectedKegSection: KegSection = .containers
-    var selectedAgentSection: AgentSection = .dashboard
-    var agentPermissionMode: AgentPermissionMode {
-        didSet {
-            UserDefaults.standard.set(agentPermissionMode.rawValue, forKey: Self.agentPermissionModeDefaultsKey)
-        }
-    }
 
     var selectedContainerID: String?
     var selectedImageReference: String?
-    var selectedAgentID: String?
-    var selectedSessionID: String?
-    var agentServiceReachability: AgentServiceReachability = .unknown
-    var agentAutomationState = AgentAutomationState()
-    var agentApprovalItems: [AgentApprovalItem] = []
     var isRefreshing = false
-    var isRefreshingAgentAutomation = false
     var runningContainerCount = 0
     var unhealthyContainerCount = 0
-    var activeAgentCount = 0
-    var activeSessionCount = 0
 
     private let containerClient = ContainerClient()
-    private let agentAutomationService = AgentAutomationService()
     private var refreshTimer: Timer?
 
     init() {
@@ -71,7 +54,6 @@ final class AppState {
             Self.dockerAPIAutoStartDefaultsKey: true
         ])
 
-        self.agentPermissionMode = Self.loadAgentPermissionMode()
         self.dockerAPIAutoStart = UserDefaults.standard.bool(forKey: Self.dockerAPIAutoStartDefaultsKey)
 
         // A stale socket file from a previous Keg run makes `docker info` return EOF
@@ -79,15 +61,6 @@ final class AppState {
         // Remove it eagerly so clients get ECONNREFUSED (which they retry cleanly)
         // until the real server binds.
         try? FileManager.default.removeItem(atPath: DockerAPIServer.socketPath())
-
-        Task { @MainActor [weak self] in
-            do {
-                try AgentAuth.migrateAPIKeyIfNeeded()
-            } catch {
-            }
-            self?.refreshAgentAuthentication()
-            await self?.refreshAgentAutomation()
-        }
     }
 
     /// Bring the container backend and Docker API up without user intervention.
@@ -111,58 +84,8 @@ final class AppState {
         return false
     }
 
-    var isAgentAuthenticated = AgentAuth.hasAPIKey()
-
-    /// Lazy-initialized Agent API client
-    var agentClient: ManagedAgentsClient? {
-        get async {
-            guard isAgentAuthenticated else { return nil }
-            return try? await ManagedAgentsClient.fromKeychain()
-        }
-    }
-
-    func refreshAgentAuthentication() {
-        isAgentAuthenticated = AgentAuth.hasAPIKey()
-    }
-
-    var pendingAgentApprovals: [AgentApprovalItem] {
-        agentApprovalItems.filter { $0.status == .pending }
-    }
-
-    func refreshAgentAutomation() async {
-        guard !isRefreshingAgentAutomation else { return }
-        isRefreshingAgentAutomation = true
-        defer { isRefreshingAgentAutomation = false }
-        agentAutomationState = await agentAutomationService.captureState()
-    }
-
-    func requestAgentNotificationAccess() async {
-        agentAutomationState.notificationStatus = await agentAutomationService.requestNotificationAuthorization()
-    }
-
-    func queueApprovalPreview(for useCase: AgentUseCase) async {
-        let item = AgentApprovalItem.preview(for: useCase, context: agentAutomationState.context)
-        agentApprovalItems.insert(item, at: 0)
-        await agentAutomationService.scheduleNotification(for: item)
-    }
-
-    func approveAgentApproval(_ id: UUID) {
-        guard let index = agentApprovalItems.firstIndex(where: { $0.id == id }) else { return }
-        agentApprovalItems[index].status = .approved
-    }
-
-    func rejectAgentApproval(_ id: UUID) {
-        guard let index = agentApprovalItems.firstIndex(where: { $0.id == id }) else { return }
-        agentApprovalItems[index].status = .rejected
-    }
-
-    func clearResolvedAgentApprovals() {
-        agentApprovalItems.removeAll { $0.status != .pending }
-    }
-
     /// Show the system dashboard in the detail area
     func showDashboard() {
-        currentArea = .keg
         selectedKegSection = .dashboard
     }
 
@@ -292,7 +215,6 @@ final class AppState {
         defer { isRefreshing = false }
         await checkSystemStatus()
         await refreshDashboardCounts()
-        await refreshAgentCounts()
     }
 
     private func refreshDashboardCounts() async {
@@ -316,79 +238,6 @@ final class AppState {
         } catch {
             runningContainerCount = 0
             unhealthyContainerCount = 0
-        }
-    }
-
-    func refreshAgentCounts() async {
-        guard isAgentAuthenticated else {
-            activeAgentCount = 0
-            activeSessionCount = 0
-            return
-        }
-        do {
-            let client = try await ManagedAgentsClient.fromKeychain()
-            let response = try await client.listAgents()
-            let agents = response.data.filter { $0.archivedAt == nil }
-            activeAgentCount = agents.count
-
-            var sessionTotal = 0
-            for agent in agents.prefix(10) {
-                let sessions = try await client.listSessions(agentId: agent.id)
-                sessionTotal += sessions.data.filter { $0.status != .completed }.count
-            }
-            activeSessionCount = sessionTotal
-        } catch {
-            // Keep existing counts on failure
-        }
-    }
-
-    private static func loadAgentPermissionMode() -> AgentPermissionMode {
-        guard let rawValue = UserDefaults.standard.string(forKey: agentPermissionModeDefaultsKey),
-              let mode = AgentPermissionMode(rawValue: rawValue) else {
-            return .ask
-        }
-        return mode
-    }
-}
-
-// MARK: - Agent Permission Mode
-
-public enum AgentPermissionMode: String, CaseIterable, Identifiable, Sendable {
-    case explore = "Explore"
-    case ask = "Ask"
-    case execute = "Execute"
-
-    public var id: String { rawValue }
-
-    public var iconName: String {
-        switch self {
-        case .explore: return "binoculars"
-        case .ask: return "questionmark.circle"
-        case .execute: return "bolt.fill"
-        }
-    }
-
-    public var summary: String {
-        switch self {
-        case .explore: return "Research-first mode"
-        case .ask: return "Confirm before changes"
-        case .execute: return "Trusted autonomous execution"
-        }
-    }
-}
-
-// MARK: - Top-Level Area
-
-enum AppArea: String, CaseIterable, Identifiable {
-    case keg = "Keg"
-    case agents = "Agents"
-
-    var id: String { rawValue }
-
-    var iconName: String {
-        switch self {
-        case .keg: return "shippingbox"
-        case .agents: return "person.2.badge.gearshape"
         }
     }
 }
@@ -431,30 +280,6 @@ enum KegSection: String, CaseIterable, Identifiable {
         case .health: return "heart.fill"
         case .devcontainers: return "chevron.left.forwardslash.chevron.right"
         case .settings: return "gearshape"
-        }
-    }
-}
-
-// MARK: - Agent Sections
-
-enum AgentSection: String, CaseIterable, Identifiable {
-    case dashboard = "Dashboard"
-    case useCases = "Use Cases"
-    case agents = "Agents"
-    case sessions = "Sessions"
-    case sources = "Sources"
-    case skills = "Skills"
-
-    var id: String { rawValue }
-
-    var iconName: String {
-        switch self {
-        case .dashboard: return "square.grid.2x2"
-        case .useCases: return "wand.and.stars"
-        case .agents: return "person.2.badge.gearshape"
-        case .sessions: return "clock"
-        case .sources: return "square.stack.3d.up"
-        case .skills: return "book"
         }
     }
 }

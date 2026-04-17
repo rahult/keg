@@ -1,0 +1,391 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1776376859704,
+  "projectRoot": "/Users/rahul.trikha/Code/projects/keg",
+  "techStack": {
+    "languages": [
+      {
+        "name": "C/C++",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "Makefile"
+        ]
+      }
+    ],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": "make build",
+    "testCommand": "make test",
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "docs"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "Keg.app": {
+      "path": "Keg.app",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1776376859700,
+      "keyFiles": []
+    },
+    "Resources": {
+      "path": "Resources",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1776376859700,
+      "keyFiles": [
+        "Keg.icns",
+        "KegMenuBarTemplate.png"
+      ]
+    },
+    "Scripts": {
+      "path": "Scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 3,
+      "lastAccessed": 1776376859700,
+      "keyFiles": [
+        "GenerateKegIcon.swift",
+        "qa.sh",
+        "test-sse.sh"
+      ]
+    },
+    "Sources": {
+      "path": "Sources",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1776376859700,
+      "keyFiles": []
+    },
+    "Tests": {
+      "path": "Tests",
+      "purpose": "Test files",
+      "fileCount": 0,
+      "lastAccessed": 1776376859701,
+      "keyFiles": []
+    },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 2,
+      "lastAccessed": 1776376859702,
+      "keyFiles": [
+        "ARCHITECTURE.md",
+        "IntegrationDesign.md"
+      ]
+    },
+    "outputs": {
+      "path": "outputs",
+      "purpose": null,
+      "fileCount": 29,
+      "lastAccessed": 1776376859702,
+      "keyFiles": [
+        "agent-platform-roadmap.md",
+        "agent-platform-spec.md",
+        "agents-accessibility-note.md",
+        "agents-automation-architecture.md",
+        "agents-macos-ui-audit.md"
+      ]
+    },
+    "site": {
+      "path": "site",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1776376859703,
+      "keyFiles": [
+        "index.html"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "Sources/Keg/Views/Kubernetes/KubernetesView.swift",
+      "accessCount": 27,
+      "lastAccessed": 1776402123484,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg",
+      "accessCount": 14,
+      "lastAccessed": 1776408666075,
+      "type": "directory"
+    },
+    {
+      "path": "Sources/Keg/App/AppState.swift",
+      "accessCount": 10,
+      "lastAccessed": 1776408239553,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/App/KegApp.swift",
+      "accessCount": 8,
+      "lastAccessed": 1776408313107,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Views/Settings/SettingsView.swift",
+      "accessCount": 8,
+      "lastAccessed": 1776408375969,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/DockerAPI/DockerAPIServer.swift",
+      "accessCount": 6,
+      "lastAccessed": 1776388002284,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Views/Sidebar/SidebarView.swift",
+      "accessCount": 6,
+      "lastAccessed": 1776408271769,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Views/Dashboard/SystemDashboardDetailView.swift",
+      "accessCount": 6,
+      "lastAccessed": 1776408459099,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Views/Containers/ContainerDetailView.swift",
+      "accessCount": 5,
+      "lastAccessed": 1776401912425,
+      "type": "file"
+    },
+    {
+      "path": "Makefile",
+      "accessCount": 4,
+      "lastAccessed": 1776388312984,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Views",
+      "accessCount": 4,
+      "lastAccessed": 1776390866012,
+      "type": "directory"
+    },
+    {
+      "path": "Sources/Keg/Views/Terminal/TerminalView.swift",
+      "accessCount": 4,
+      "lastAccessed": 1776407093866,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Views/Containers/ContainerListView.swift",
+      "accessCount": 4,
+      "lastAccessed": 1776408413426,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Views/Settings/IntegrationSettingsView.swift",
+      "accessCount": 3,
+      "lastAccessed": 1776390853280,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/DockerAPI/ContainerBridge.swift",
+      "accessCount": 3,
+      "lastAccessed": 1776401505351,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Views/Containers/ContainerLogsView.swift",
+      "accessCount": 3,
+      "lastAccessed": 1776407114807,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Views/Images/ImageListView.swift",
+      "accessCount": 3,
+      "lastAccessed": 1776408419288,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Containers/ContainerCLI.swift",
+      "accessCount": 2,
+      "lastAccessed": 1776389466502,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Components/ErrorBanner.swift",
+      "accessCount": 2,
+      "lastAccessed": 1776401643607,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Views/Logs/MultiContainerLogsView.swift",
+      "accessCount": 2,
+      "lastAccessed": 1776407106358,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Views/MenuBar/MenuBarPopover.swift",
+      "accessCount": 2,
+      "lastAccessed": 1776408495899,
+      "type": "file"
+    },
+    {
+      "path": "README.md",
+      "accessCount": 1,
+      "lastAccessed": 1776380269937,
+      "type": "file"
+    },
+    {
+      "path": "SPEC.md",
+      "accessCount": 1,
+      "lastAccessed": 1776380270313,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/DockerAPI",
+      "accessCount": 1,
+      "lastAccessed": 1776388001273,
+      "type": "directory"
+    },
+    {
+      "path": "Sources/Keg/Containers",
+      "accessCount": 1,
+      "lastAccessed": 1776389428143,
+      "type": "directory"
+    },
+    {
+      "path": "Sources/Keg/Containers/SupaglueContainer.swift",
+      "accessCount": 1,
+      "lastAccessed": 1776390391069,
+      "type": "directory"
+    },
+    {
+      "path": "Sources/Keg/Views/Builds/BuildView.swift",
+      "accessCount": 1,
+      "lastAccessed": 1776390845171,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Views/Compose/ComposeView.swift",
+      "accessCount": 1,
+      "lastAccessed": 1776390845617,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Views/Networks/NetworkListView.swift",
+      "accessCount": 1,
+      "lastAccessed": 1776390845666,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Views/Volumes/VolumeListView.swift",
+      "accessCount": 1,
+      "lastAccessed": 1776390848313,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Views/Registries/RegistryListView.swift",
+      "accessCount": 1,
+      "lastAccessed": 1776390848502,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Views/DevContainer/DevContainerView.swift",
+      "accessCount": 1,
+      "lastAccessed": 1776390849200,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Views/Health/HealthDashboardView.swift",
+      "accessCount": 1,
+      "lastAccessed": 1776390849403,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Views/Ports/PortDashboardView.swift",
+      "accessCount": 1,
+      "lastAccessed": 1776390849568,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Views/Sidebar",
+      "accessCount": 1,
+      "lastAccessed": 1776390853810,
+      "type": "directory"
+    },
+    {
+      "path": "Sources/Keg/Views/Shared/StatusBadge.swift",
+      "accessCount": 1,
+      "lastAccessed": 1776390857442,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Views/Agents/AgentListView.swift",
+      "accessCount": 1,
+      "lastAccessed": 1776390860323,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Components/CopyableRow.swift",
+      "accessCount": 1,
+      "lastAccessed": 1776401559647,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Components/SectionGrid.swift",
+      "accessCount": 1,
+      "lastAccessed": 1776401600961,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Components/StatCard.swift",
+      "accessCount": 1,
+      "lastAccessed": 1776401615610,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Components/EmptyState.swift",
+      "accessCount": 1,
+      "lastAccessed": 1776401626689,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Components/DetailHeader.swift",
+      "accessCount": 1,
+      "lastAccessed": 1776401637022,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/Components/ErrorBannerModifier.swift",
+      "accessCount": 1,
+      "lastAccessed": 1776401657811,
+      "type": "file"
+    },
+    {
+      "path": "Sources/Keg/ViewModels/ContainersVM.swift",
+      "accessCount": 1,
+      "lastAccessed": 1776401993297,
+      "type": "file"
+    },
+    {
+      "path": "docs/GTM-PLAN.md",
+      "accessCount": 1,
+      "lastAccessed": 1776408026371,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

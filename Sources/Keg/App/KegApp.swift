@@ -12,7 +12,6 @@ struct KegApp: App {
     }
 
     private func presentRunContainer() {
-        appState.currentArea = .keg
         appState.selectedKegSection = .containers
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: .kegRunContainer, object: nil)
@@ -20,18 +19,9 @@ struct KegApp: App {
     }
 
     private func presentPullImage() {
-        appState.currentArea = .keg
         appState.selectedKegSection = .images
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: .kegPullImage, object: nil)
-        }
-    }
-
-    private func presentNewAgent() {
-        appState.currentArea = .agents
-        appState.selectedAgentSection = .agents
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(name: .kegNewAgent, object: nil)
         }
     }
 
@@ -144,7 +134,6 @@ extension Notification.Name {
     static let kegRefresh = Notification.Name("keg.refresh")
     static let kegPullImage = Notification.Name("keg.pullImage")
     static let kegToggleSidebar = Notification.Name("keg.toggleSidebar")
-    static let kegNewAgent = Notification.Name("keg.newAgent")
     static let kegFocusSearch = Notification.Name("keg.focusSearch")
 }
 
@@ -183,8 +172,9 @@ struct MainView: View {
             SidebarView()
                 .environment(appState)
         } detail: {
-            DetailView()
+            KegDetailView()
                 .environment(appState)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationSplitViewStyle(.balanced)
         .toolbar {
@@ -214,18 +204,7 @@ struct MainView: View {
     }
 }
 
-// MARK: - Detail Routing
-
-struct DetailView: View {
-    @Environment(AppState.self) private var appState
-
-    var body: some View {
-        KegDetailView()
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-// MARK: - Keg Detail View
+// MARK: - Keg Detail Routing
 
 struct KegDetailView: View {
     @Environment(AppState.self) private var appState
@@ -262,29 +241,6 @@ struct KegDetailView: View {
             MultiContainerLogsView()
         case .settings:
             SettingsView()
-        }
-    }
-}
-
-// MARK: - Agent Area View (routing)
-
-struct AgentAreaView: View {
-    @Environment(AppState.self) private var appState
-
-    var body: some View {
-        switch appState.selectedAgentSection {
-        case .dashboard:
-            AgentDashboardView()
-        case .useCases:
-            AgentUseCaseLibraryView()
-        case .agents:
-            AgentListView()
-        case .sessions:
-            SessionListView()
-        case .sources:
-            SourceListView()
-        case .skills:
-            SkillListView()
         }
     }
 }
