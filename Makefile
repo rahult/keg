@@ -1,5 +1,6 @@
 BINARY     := Keg
-APP_NAME   := Keg.app
+RELEASE_DIR := release
+APP_NAME   := $(RELEASE_DIR)/Keg.app
 BUNDLE_ID  := dev.rahult.keg
 VERSION    := 0.1.0-alpha
 BUILD_DIR  := .build/release
@@ -12,11 +13,11 @@ LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Frameworks/Launc
 CODESIGN   := /usr/bin/codesign
 CODESIGN_IDENTITY ?= $(shell security find-identity -v -p codesigning 2>/dev/null | awk -F'"' '/Apple Development:|Developer ID Application:/ { print $$2; exit }')
 
-DMG_NAME   := Keg-$(VERSION).dmg
+DMG_NAME   := $(RELEASE_DIR)/Keg-$(VERSION).dmg
 DMG_TEMP   := .build/dmg-temp
 DMG_RW     := .build/Keg-rw.dmg
 
-.PHONY: all build sign app open run test qa qa-live qa-agents dmg clean
+.PHONY: all build sign app open run test qa qa-live qa-agents dmg install clean
 
 all: app
 
@@ -88,7 +89,16 @@ dmg: app
 	@rm -rf $(DMG_TEMP) $(DMG_RW)
 	@echo "✅ $(DMG_NAME) ($$(du -h $(DMG_NAME) | cut -f1))"
 
+install: app
+	@echo "🚚 Installing to /Applications/Keg.app..."
+	@osascript -e 'tell application id "$(BUNDLE_ID)" to quit' >/dev/null 2>&1 || true
+	@sleep 1
+	@rm -rf /Applications/Keg.app
+	@cp -R $(APP_NAME) /Applications/Keg.app
+	@$(LSREGISTER) -f /Applications/Keg.app >/dev/null 2>&1 || true
+	@echo "✅ Installed /Applications/Keg.app"
+
 clean:
 	swift package clean
-	@rm -rf $(APP_NAME) $(DMG_NAME) $(DMG_RW) $(DMG_TEMP)
+	@rm -rf $(RELEASE_DIR) $(DMG_RW) $(DMG_TEMP)
 	@echo "✅ Cleaned"

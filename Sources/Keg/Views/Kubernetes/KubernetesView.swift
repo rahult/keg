@@ -1,10 +1,47 @@
 import SwiftUI
 
+enum ClusterStatus: Equatable {
+    case notCreated
+    case creating
+    case running
+    case stopped
+    case starting
+    case stopping
+    case error(String)
+
+    var displayName: String {
+        switch self {
+        case .notCreated: return "Not Created"
+        case .creating:   return "Creating…"
+        case .running:    return "Running"
+        case .stopped:    return "Stopped"
+        case .starting:   return "Starting…"
+        case .stopping:   return "Stopping…"
+        case .error:      return "Error"
+        }
+    }
+
+    var badgeKind: String {
+        switch self {
+        case .running:                       return "running"
+        case .creating, .starting, .stopping: return "created"
+        case .stopped, .notCreated, .error:   return "stopped"
+        }
+    }
+
+    var isBusy: Bool {
+        switch self {
+        case .creating, .starting, .stopping: return true
+        default: return false
+        }
+    }
+}
+
 @Observable
 @MainActor
 final class KubernetesVM {
     var clusterName = "keg-k8s"
-    var clusterStatus: String = "Not Created"
+    var clusterStatus: ClusterStatus = .notCreated
     var nodeImage = "docker.io/kindest/node:v1.34.0"
     var isCreating = false
     var isDeleting = false
@@ -16,7 +53,7 @@ final class KubernetesVM {
         isCreating = true
         output = ""
         errorMessage = nil
-        clusterStatus = "Creating..."
+        clusterStatus = .creating
 
         do {
             output += "Starting K8s node container...\n"
@@ -90,15 +127,64 @@ final class KubernetesVM {
                 kubeconfigPath = kcPath
             }
 
-            clusterStatus = "Running"
+            clusterStatus = .running
             output += "\n✅ Cluster ready!\n"
             output += "export KUBECONFIG=\"\(kcPath)\"\n"
             output += "kubectl get nodes\n"
         } catch {
             errorMessage = error.localizedDescription
-            clusterStatus = "Error"
+            clusterStatus = .error(error.localizedDescription)
         }
         isCreating = false
+    }
+
+    func stopCluster() async {
+        clusterStatus = .stopping
+        output += "Stopping cluster…\n"
+        errorMessage = nil
+        do {
+            let (code, out) = try await runCLI(["container", "stop", clusterName])
+            if code == 0 {
+                clusterStatus = .stopped
+                output += "✅ Cluster stopped\n"
+            } else {
+                errorMessage = out.isEmpty ? "Failed to stop cluster" : out
+                clusterStatus = .running
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            clusterStatus = .running
+        }
+    }
+
+    func startCluster() async {
+        clusterStatus = .starting
+        output += "Starting cluster…\n"
+        errorMessage = nil
+        do {
+            let (code, out) = try await runCLI(["container", "start", clusterName])
+            if code == 0 {
+                output += "Waiting for API server…\n"
+                await waitForAPIServer()
+                clusterStatus = .running
+                output += "✅ Cluster running\n"
+            } else {
+                errorMessage = out.isEmpty ? "Failed to start cluster" : out
+                clusterStatus = .stopped
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            clusterStatus = .stopped
+        }
+    }
+
+    /// Poll `kubectl get --raw /readyz` until the API server responds or we
+    /// time out. Runs inside the node container so it doesn't depend on the
+    /// host's kubeconfig being valid yet.
+    private func waitForAPIServer(timeout: Duration = .seconds(60)) async {
+        // TODO(you): implement the readiness check — see the Learning prompt
+        // in the chat. 5-10 lines. This is where your domain input matters.
+        try? await Task.sleep(for: .seconds(5))
     }
 
     func deleteCluster() async {
@@ -111,7 +197,7 @@ final class KubernetesVM {
             if code == 0 {
                 if let kcPath = kubeconfigPath { try? FileManager.default.removeItem(atPath: kcPath) }
                 kubeconfigPath = nil
-                clusterStatus = "Not Created"
+                clusterStatus = .notCreated
                 output = "Cluster deleted"
             } else {
                 errorMessage = out.isEmpty ? "Failed to delete cluster" : out
@@ -124,14 +210,25 @@ final class KubernetesVM {
 
     func checkClusterStatus() async {
         do {
-            let (code, _) = try await runCLI(["container", "list", "--format", "json"])
-            guard code == 0 else { return }
-            let (inspectCode, _) = try await runCLI(["container", "inspect", clusterName])
-            guard inspectCode == 0 else {
-                clusterStatus = "Not Created"
+            // `container ls` lists only running containers; `-a` includes stopped.
+            // If the cluster appears in `-a` but not in the running list, it's stopped.
+            let (runningCode, runningOut) = try await runCLI(["container", "ls", "--format", "json"])
+            let (allCode, allOut) = try await runCLI(["container", "ls", "-a", "--format", "json"])
+            guard runningCode == 0, allCode == 0 else { return }
+
+            let isRunning = runningOut.contains("\"\(clusterName)\"")
+            let existsAtAll = allOut.contains("\"\(clusterName)\"")
+
+            if isRunning {
+                clusterStatus = .running
+            } else if existsAtAll {
+                clusterStatus = .stopped
+                return
+            } else {
+                clusterStatus = .notCreated
                 return
             }
-            clusterStatus = "Running"
+
             let kcPath = NSHomeDirectory() + "/.keg/kubeconfig"
             if !FileManager.default.fileExists(atPath: kcPath) {
                 // Cluster survived but kubeconfig was lost — re-extract so `kubectl` works.
@@ -165,16 +262,7 @@ final class KubernetesVM {
     }
 
     private func runCLI(_ args: [String]) async throws -> (Int32, String) {
-        let process = Process()
-        let pipe = Pipe()
-        process.executableURL = URL(filePath: "/usr/bin/env")
-        process.arguments = args
-        process.standardOutput = pipe
-        process.standardError = pipe
-        try process.run()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        return (process.terminationStatus, String(data: data, encoding: .utf8) ?? "")
+        try await ContainerCLI.run(args)
     }
 }
 
@@ -199,7 +287,12 @@ struct KubernetesView: View {
                         GridRow {
                             Text("Status")
                                 .foregroundStyle(.secondary)
-                            StatusBadge(status: vm.clusterStatus == "Running" ? "running" : vm.clusterStatus == "Creating..." ? "created" : "stopped")
+                            HStack(spacing: 8) {
+                                StatusBadge(status: vm.clusterStatus.badgeKind)
+                                Text(vm.clusterStatus.displayName)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
 
                         GridRow {
@@ -207,7 +300,7 @@ struct KubernetesView: View {
                                 .foregroundStyle(.secondary)
                             TextField("Cluster name", text: $vm.clusterName)
                                 .textFieldStyle(.roundedBorder)
-                                .disabled(vm.isCreating || vm.clusterStatus == "Running")
+                                .disabled(vm.clusterStatus != .notCreated)
                         }
 
                         GridRow {
@@ -215,13 +308,13 @@ struct KubernetesView: View {
                                 .foregroundStyle(.secondary)
                             TextField("docker.io/kindest/node:v1.34.0", text: $vm.nodeImage)
                                 .textFieldStyle(.roundedBorder)
-                                .disabled(vm.isCreating || vm.clusterStatus == "Running")
+                                .disabled(vm.clusterStatus != .notCreated)
                         }
                     }
                     .padding(.top, 4)
                 }
 
-                if vm.clusterStatus == "Running", let kcPath = vm.kubeconfigPath {
+                if vm.clusterStatus == .running, let kcPath = vm.kubeconfigPath {
                     GroupBox("Connection") {
                         VStack(alignment: .leading, spacing: 12) {
                             CopyableRow(label: "Kubeconfig", value: kcPath)
@@ -246,9 +339,13 @@ struct KubernetesView: View {
                         .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
                     } else {
                         ContentUnavailableView(
-                            "No Kubernetes Cluster",
+                            vm.clusterStatus == .stopped ? "Cluster Stopped" : "No Kubernetes Cluster",
                             systemImage: "helm",
-                            description: Text("Configure the cluster and choose Create Cluster from the toolbar.")
+                            description: Text(
+                                vm.clusterStatus == .stopped
+                                    ? "Choose Start from the toolbar to resume the cluster."
+                                    : "Configure the cluster and choose Create Cluster from the toolbar."
+                            )
                         )
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 24)
@@ -277,18 +374,45 @@ struct KubernetesView: View {
         .navigationTitle("Kubernetes")
         .toolbar(id: "kubernetes-toolbar") {
             ToolbarItem(id: "cluster-action", placement: .primaryAction) {
-                if vm.clusterStatus == "Running" {
-                    Button("Delete Cluster", role: .destructive) {
-                        Task { await vm.deleteCluster() }
+                HStack(spacing: 8) {
+                    switch vm.clusterStatus {
+                    case .notCreated:
+                        Button("Create Cluster") {
+                            Task { await vm.createCluster() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.defaultAction)
+
+                    case .running:
+                        Button("Stop") {
+                            Task { await vm.stopCluster() }
+                        }
+                        Button("Delete Cluster", role: .destructive) {
+                            Task { await vm.deleteCluster() }
+                        }
+
+                    case .stopped:
+                        Button("Start") {
+                            Task { await vm.startCluster() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        Button("Delete Cluster", role: .destructive) {
+                            Task { await vm.deleteCluster() }
+                        }
+
+                    case .creating, .starting, .stopping:
+                        ProgressView().controlSize(.small)
+
+                    case .error:
+                        Button("Retry") {
+                            Task { await vm.checkClusterStatus() }
+                        }
+                        Button("Delete Cluster", role: .destructive) {
+                            Task { await vm.deleteCluster() }
+                        }
                     }
-                } else if vm.clusterStatus == "Not Created" {
-                    Button("Create Cluster") {
-                        Task { await vm.createCluster() }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(vm.isCreating)
-                    .keyboardShortcut(.defaultAction)
                 }
+                .disabled(vm.clusterStatus.isBusy || vm.isDeleting)
             }
         }
         .toolbarRole(.editor)

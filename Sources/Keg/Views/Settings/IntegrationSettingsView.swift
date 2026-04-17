@@ -308,7 +308,7 @@ final class IntegrationSettingsVM {
             }
 
             let (_, startOut, _) = try await supaglueContainer.run()
-            if (try? await supaglueContainer.status()) != .running {
+            if await supaglueContainer.status() != .running {
                 errorMessage = "Container failed to start: \(startOut)"
                 isLoading = false
                 return

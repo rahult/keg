@@ -4,6 +4,7 @@
 DerivedData/
 .DS_Store
 Keg.app/
+release/
 *.dmg
 *.dSYM/
 .pi/

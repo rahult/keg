@@ -7,24 +7,13 @@ actor ContainerBridge {
     private var pendingContainers: [String: DockerContainerCreateRequest] = [:]
 
     func runCLI(_ args: [String]) async throws -> (exitCode: Int32, output: String) {
-        let process = Process()
-        let pipe = Pipe()
-        process.executableURL = URL(filePath: "/usr/bin/env")
-        process.arguments = args
-        process.standardOutput = pipe
-        process.standardError = pipe
-        try process.run()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        let output = String(data: data, encoding: .utf8) ?? ""
-        return (process.terminationStatus, output)
+        let (code, output) = try await ContainerCLI.run(args)
+        return (code, output)
     }
 
     func runCLIStreaming(_ args: [String]) async throws -> Process {
-        let process = Process()
+        let process = try ContainerCLI.makeProcess(args)
         let pipe = Pipe()
-        process.executableURL = URL(filePath: "/usr/bin/env")
-        process.arguments = args
         process.standardOutput = pipe
         process.standardError = pipe
         try process.run()
