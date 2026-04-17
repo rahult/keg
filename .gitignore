@@ -4,6 +4,7 @@
 DerivedData/
 .DS_Store
 Keg.app/
+*.dmg
 *.dSYM/
 .pi/
 outputs/qa/

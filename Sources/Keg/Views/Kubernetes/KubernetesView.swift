@@ -38,10 +38,25 @@ final class KubernetesVM {
             output += "Enabling IP forwarding...\n"
             let _ = try await runCLI(["container", "exec", clusterName, "sysctl", "-w", "net.ipv4.ip_forward=1"])
 
+            // Apple's container networking does not run a DNS service on the vmnet
+            // gateway, so the default /etc/resolv.conf (which points at that
+            // gateway) fails to resolve `registry.k8s.io`, blocking kubeadm's
+            // image pull. Overwrite with public resolvers before init.
+            output += "Configuring DNS resolvers...\n"
+            let _ = try await runCLI([
+                "container", "exec", clusterName, "sh", "-euc",
+                "printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf"
+            ])
+
             output += "Initializing Kubernetes (this takes ~60s)...\n"
+            // `--apiserver-cert-extra-sans` adds `127.0.0.1` to the API server's
+            // TLS cert so `kubectl` against the published `127.0.0.1:6443` port
+            // passes TLS verification without `--insecure-skip-tls-verify`.
             let (initCode, initOut) = try await runCLI([
                 "container", "exec", clusterName,
-                "kubeadm", "init", "--pod-network-cidr=10.244.0.0/16"
+                "kubeadm", "init",
+                "--pod-network-cidr=10.244.0.0/16",
+                "--apiserver-cert-extra-sans", "127.0.0.1,localhost"
             ])
             output += initOut + "\n"
             if initCode != 0 { throw K8sError.createFailed(initOut) }
@@ -67,12 +82,12 @@ final class KubernetesVM {
                 "container", "exec", clusterName, "cat", "/etc/kubernetes/admin.conf"
             ])
             if kcCode == 0 {
-                try kcOut.write(toFile: kcPath, atomically: true, encoding: .utf8)
+                // The kubeconfig kubeadm emits points at the node's vmnet IP
+                // (unreachable from macOS). Rewrite the server URL to the
+                // published `127.0.0.1:6443` port so kubectl works from the host.
+                let rewritten = Self.rewriteKubeconfigServer(kcOut, host: "127.0.0.1", port: 6443)
+                try rewritten.write(toFile: kcPath, atomically: true, encoding: .utf8)
                 kubeconfigPath = kcPath
-                if var kcContent = try? String(contentsOfFile: kcPath, encoding: .utf8) {
-                    kcContent = kcContent.replacingOccurrences(of: "kubernetes.default.svc", with: "127.0.0.1")
-                    try? kcContent.write(toFile: kcPath, atomically: true, encoding: .utf8)
-                }
             }
 
             clusterStatus = "Running"
@@ -110,18 +125,43 @@ final class KubernetesVM {
     func checkClusterStatus() async {
         do {
             let (code, _) = try await runCLI(["container", "list", "--format", "json"])
-            if code == 0 {
-                let (inspectCode, _) = try await runCLI(["container", "inspect", clusterName])
-                if inspectCode == 0 {
-                    clusterStatus = "Running"
-                    kubeconfigPath = NSHomeDirectory() + "/.keg/kubeconfig"
-                } else {
-                    clusterStatus = "Not Created"
+            guard code == 0 else { return }
+            let (inspectCode, _) = try await runCLI(["container", "inspect", clusterName])
+            guard inspectCode == 0 else {
+                clusterStatus = "Not Created"
+                return
+            }
+            clusterStatus = "Running"
+            let kcPath = NSHomeDirectory() + "/.keg/kubeconfig"
+            if !FileManager.default.fileExists(atPath: kcPath) {
+                // Cluster survived but kubeconfig was lost — re-extract so `kubectl` works.
+                let (kcCode, kcOut) = try await runCLI([
+                    "container", "exec", clusterName, "cat", "/etc/kubernetes/admin.conf"
+                ])
+                if kcCode == 0 {
+                    let dir = (kcPath as NSString).deletingLastPathComponent
+                    try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+                    let content = kcOut.replacingOccurrences(of: "kubernetes.default.svc", with: "127.0.0.1")
+                    try? content.write(toFile: kcPath, atomically: true, encoding: .utf8)
                 }
             }
+            kubeconfigPath = kcPath
         } catch {
             // Status check is best-effort on launch; leave status unchanged
         }
+    }
+
+    /// Replace `server: https://<ip>:<port>` lines in a kubeconfig YAML with
+    /// the given host/port so kubectl can reach the API server from the host.
+    static func rewriteKubeconfigServer(_ kubeconfig: String, host: String, port: Int) -> String {
+        let pattern = #"server:\s*https://[^\s]+"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return kubeconfig }
+        let range = NSRange(kubeconfig.startIndex..., in: kubeconfig)
+        return regex.stringByReplacingMatches(
+            in: kubeconfig,
+            range: range,
+            withTemplate: "server: https://\(host):\(port)"
+        )
     }
 
     private func runCLI(_ args: [String]) async throws -> (Int32, String) {

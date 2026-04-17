@@ -198,7 +198,7 @@ struct MainView: View {
             }
         }
         .task {
-            await appState.checkSystemStatus()
+            await appState.ensureReady()
             appState.startRefreshing()
         }
         .onReceive(NotificationCenter.default.publisher(for: .kegToggleSidebar)) { _ in

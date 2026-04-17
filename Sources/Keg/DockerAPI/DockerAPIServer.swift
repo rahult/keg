@@ -179,241 +179,237 @@ final class DockerAPIServer: Sendable {
         try? FileManager.default.removeItem(atPath: socketPath)
 
         let bridge = self.bridge
-
-        let router = Router()
-        router.middlewares.add(DockerVersionStripMiddleware())
-
-        // MARK: - System Routes
-        router.get("/_ping") { _, _ in
-            return Response(status: .ok, body: .init(byteBuffer: ByteBuffer(string: "OK")))
-        }
-
-        router.get("/version") { _, _ in
-            let version = DockerVersion(
-                version: "0.1.0",
-                apiVersion: "1.45",
-                minAPIVersion: "1.24",
-                gitCommit: "keg",
-                goVersion: "swift",
-                os: "darwin",
-                arch: "arm64",
-                kernelVersion: "Darwin",
-                buildTime: ""
-            )
-            return try JSONResponse(version)
-        }
-
-        router.get("/info") { request, _ in
-            let info = try await bridge.systemInfo()
-            return try JSONResponse(info)
-        }
-
-        // MARK: - Container Routes
-        router.get("/containers/json") { request, _ in
-            let all = request.uri.queryParameters.get("all") != nil
-            let containers = try await bridge.listContainers(all: all)
-            return try JSONResponse(containers)
-        }
-
-        router.post("/containers/create") { request, _ in
-            let name = request.uri.queryParameters.get("name")
-            let body = try await request.body.collect(upTo: 1024 * 1024)
-            let createReq = try JSONDecoder().decode(DockerContainerCreateRequest.self, from: Data(buffer: body))
-            let response = try await bridge.createContainer(from: createReq, name: name)
-            return try JSONResponse(response, status: .created)
-        }
-
-        router.post("/containers/{id}/start") { request, context in
-            let id = context.parameters.get("id", as: String.self)!
-            try await bridge.startContainer(id: id)
-            return Response(status: .noContent)
-        }
-
-        router.post("/containers/{id}/stop") { request, context in
-            let id = context.parameters.get("id", as: String.self)!
-            try? await bridge.stopContainer(id: id)
-            return Response(status: .noContent)
-        }
-
-        router.post("/containers/{id}/kill") { request, context in
-            let id = context.parameters.get("id", as: String.self)!
-            try? await bridge.killContainer(id: id)
-            return Response(status: .noContent)
-        }
-
-        router.post("/containers/{id}/restart") { request, context in
-            let id = context.parameters.get("id", as: String.self)!
-            try? await bridge.stopContainer(id: id)
-            try? await bridge.startContainer(id: id)
-            return Response(status: .noContent)
-        }
-
-        router.delete("/containers/{id}") { request, context in
-            let id = context.parameters.get("id", as: String.self)!
-            let force = request.uri.queryParameters.get("force") != nil
-            try await bridge.removeContainer(id: id, force: force)
-            return Response(status: .noContent)
-        }
-
-        router.get("/containers/{id}/json") { request, context in
-            let id = context.parameters.get("id", as: String.self)!
-            let inspect = try await bridge.inspectContainer(id: id)
-            return try JSONResponse(inspect)
-        }
-
-        router.get("/containers/{id}/logs") { request, context in
-            let id = context.parameters.get("id", as: String.self)!
-            let tail = request.uri.queryParameters.get("tail").flatMap(Int.init)
-            let follow = request.uri.queryParameters.get("follow") == "1" || request.uri.queryParameters.get("follow") == "true"
-            let logs = try await bridge.containerLogs(id: id, tail: tail, follow: follow)
-            return Response(status: .ok, body: .init(byteBuffer: ByteBuffer(string: logs)))
-        }
-
-        // MARK: - Exec Routes (stub)
-        router.post("/containers/{id}/exec") { request, context in
-            let _ = context.parameters.get("id", as: String.self)!
-            let execId = "exec-\(UUID().uuidString.prefix(12))"
-            let response: [String: String] = ["Id": execId]
-            return try JSONResponse(response, status: .created)
-        }
-
-        // MARK: - Image Routes
-        router.get("/images/json") { _, _ in
-            let images = try await bridge.listImages()
-            return try JSONResponse(images)
-        }
-
-        router.post("/images/create") { request, _ in
-            let fromImage = request.uri.queryParameters.get("fromImage") ?? ""
-            let input = request.uri.queryParameters.get("input") ?? ""
-            let imageRef = fromImage.isEmpty ? input : fromImage
-
-            guard !imageRef.isEmpty else {
-                throw DockerAPIError.badRequest("No image specified")
-            }
-
-            try await bridge.pullImage(from: imageRef)
-            return Response(status: .ok, body: .init(byteBuffer: ByteBuffer(string: "")))
-        }
-
-        router.get("/images/{name}/**") { request, context in
-            // Docker client may hit /images/{name}/json or /images/{name}/history
-            let name = context.parameters.get("name", as: String.self)!
-            let image = try await bridge.inspectImage(name: name)
-            return try JSONResponse(image)
-        }
-
-        router.delete("/images/{name}/**") { request, context in
-            let name = context.parameters.get("name", as: String.self)!
-            try await bridge.removeImage(name: name)
-            return Response(status: .noContent)
-        }
-
-        // MARK: - Network Routes
-        router.get("/networks") { _, _ in
-            let networks = try await bridge.listNetworks()
-            return try JSONResponse(networks)
-        }
-        router.get("/networks/{id}") { request, context in
-            let id = context.parameters.get("id", as: String.self)!
-            let networks = try await bridge.listNetworks()
-            if let network = networks.first(where: { $0.id == id || $0.name == id }) {
-                return try JSONResponse(network)
-            }
-            return Response(status: .notFound, body: .init(byteBuffer: ByteBuffer(string: "{\"message\":\"network not found\"}")))
-        }
-
-        // MARK: - Volume Routes
-        router.get("/volumes") { _, _ in
-            let volumeList = try await bridge.listVolumes()
-            return try JSONResponse(volumeList)
-        }
-
-        // MARK: - Events (stub)
-        router.get("/events") { _, _ in
-            return Response(status: .ok, body: .init(byteBuffer: ByteBuffer(string: "")))
-        }
-
-        // MARK: - Webhook Routes
         let whManager = self.webhookManager
         let whBridge = self.bridge
 
-        router.post("/webhooks") { request, _ in
-            let body = try await request.body.collect(upTo: 1024 * 1024)
-            let createReq = try JSONDecoder().decode(CreateWebhookRequest.self, from: Data(buffer: body))
+        let router = Router()
 
-            guard let endpoint = URL(string: createReq.endpoint) else {
-                throw DockerAPIError.badRequest("Invalid webhook endpoint URL")
+        // Docker CLI sends requests with a /v1.XX version prefix. Hummingbird
+        // matches routes by path before middlewares run, so rewriting the URI
+        // in a middleware can't re-route. Instead, register every route twice:
+        // once at the bare path, once under `/v1.{apiVersion}` so the same
+        // handler serves both shapes.
+        let registerRoutes: (String) -> Void = { prefix in
+            // MARK: System
+            router.get("\(prefix)/_ping") { _, _ in
+                Response(status: .ok, body: .init(byteBuffer: ByteBuffer(string: "OK")))
             }
 
-            let secret = createReq.secret ?? generateWebhookSecret()
-            let filter = createReq.containerFilter.flatMap { filterReq -> ContainerFilter? in
-                ContainerFilter(labels: filterReq.labels, name: filterReq.name, image: filterReq.image)
+            router.get("\(prefix)/version") { _, _ in
+                let version = DockerVersion(
+                    version: "0.1.0",
+                    apiVersion: "1.45",
+                    minAPIVersion: "1.24",
+                    gitCommit: "keg",
+                    goVersion: "swift",
+                    os: "darwin",
+                    arch: "arm64",
+                    kernelVersion: "Darwin",
+                    buildTime: ""
+                )
+                return try JSONResponse(version)
             }
 
-            let webhook = await whManager.create(
-                name: createReq.name,
-                endpoint: endpoint,
-                containerFilter: filter,
-                events: createReq.events.compactMap { WebhookEvent(rawValue: $0) },
-                secret: secret
-            )
-
-            // Return webhook info (without secret)
-            let response: [String: Any] = [
-                "ID": webhook.id,
-                "Name": webhook.name,
-                "Endpoint": webhook.endpoint.absoluteString,
-                "Secret": secret // Only shown on creation
-            ]
-            let responseData = try! JSONSerialization.data(withJSONObject: response)
-            return Response(status: .created, body: .init(byteBuffer: ByteBuffer(data: responseData)))
-        }
-
-        router.get("/webhooks") { _, _ in
-            let webhooks = await whManager.list()
-            let response = WebhookListResponse(webhooks: webhooks.map {
-                WebhookInfo(name: $0.name, uuid: $0.id)
-            })
-            return try JSONResponse(response)
-        }
-
-        router.delete("/webhooks/{id}") { request, context in
-            let id = context.parameters.get("id", as: String.self)!
-            let deleted = await whManager.delete(id: id)
-            if !deleted {
-                throw DockerAPIError.webhookNotFound(id)
+            router.get("\(prefix)/info") { _, _ in
+                let info = try await bridge.systemInfo()
+                return try JSONResponse(info)
             }
-            return Response(status: .noContent)
-        }
 
-        router.get("/webhooks/{id}") { request, context in
-            let id = context.parameters.get("id", as: String.self)!
-            guard let webhook = await whManager.get(id: id) else {
-                throw DockerAPIError.webhookNotFound(id)
+            // MARK: Containers
+            router.get("\(prefix)/containers/json") { request, _ in
+                let all = request.uri.queryParameters.get("all") != nil
+                let containers = try await bridge.listContainers(all: all)
+                return try JSONResponse(containers)
             }
-            let info = WebhookInfo(name: webhook.name, uuid: webhook.id)
-            return try JSONResponse(info)
-        }
 
-        router.patch("/webhooks/{id}") { request, context in
-            let id = context.parameters.get("id", as: String.self)!
-            let body = try await request.body.collect(upTo: 1024 * 1024)
-            let updateReq = try JSONDecoder().decode(UpdateWebhookRequest.self, from: Data(buffer: body))
-
-            guard let webhook = await whManager.update(id: id, name: updateReq.name, enabled: updateReq.enabled) else {
-                throw DockerAPIError.webhookNotFound(id)
+            router.post("\(prefix)/containers/create") { request, _ in
+                let name = request.uri.queryParameters.get("name")
+                let body = try await request.body.collect(upTo: 1024 * 1024)
+                let createReq = try JSONDecoder().decode(DockerContainerCreateRequest.self, from: Data(buffer: body))
+                let response = try await bridge.createContainer(from: createReq, name: name)
+                return try JSONResponse(response, status: .created)
             }
-            let info = WebhookInfo(name: webhook.name, uuid: webhook.id)
-            return try JSONResponse(info)
+
+            router.post("\(prefix)/containers/{id}/start") { _, context in
+                let id = context.parameters.get("id", as: String.self)!
+                try await bridge.startContainer(id: id)
+                return Response(status: .noContent)
+            }
+
+            router.post("\(prefix)/containers/{id}/stop") { _, context in
+                let id = context.parameters.get("id", as: String.self)!
+                try? await bridge.stopContainer(id: id)
+                return Response(status: .noContent)
+            }
+
+            router.post("\(prefix)/containers/{id}/kill") { _, context in
+                let id = context.parameters.get("id", as: String.self)!
+                try? await bridge.killContainer(id: id)
+                return Response(status: .noContent)
+            }
+
+            router.post("\(prefix)/containers/{id}/restart") { _, context in
+                let id = context.parameters.get("id", as: String.self)!
+                try? await bridge.stopContainer(id: id)
+                try? await bridge.startContainer(id: id)
+                return Response(status: .noContent)
+            }
+
+            router.delete("\(prefix)/containers/{id}") { request, context in
+                let id = context.parameters.get("id", as: String.self)!
+                let force = request.uri.queryParameters.get("force") != nil
+                try await bridge.removeContainer(id: id, force: force)
+                return Response(status: .noContent)
+            }
+
+            router.get("\(prefix)/containers/{id}/json") { _, context in
+                let id = context.parameters.get("id", as: String.self)!
+                let inspect = try await bridge.inspectContainer(id: id)
+                return try JSONResponse(inspect)
+            }
+
+            router.get("\(prefix)/containers/{id}/logs") { request, context in
+                let id = context.parameters.get("id", as: String.self)!
+                let tail = request.uri.queryParameters.get("tail").flatMap(Int.init)
+                let follow = request.uri.queryParameters.get("follow") == "1" || request.uri.queryParameters.get("follow") == "true"
+                let logs = try await bridge.containerLogs(id: id, tail: tail, follow: follow)
+                return Response(status: .ok, body: .init(byteBuffer: ByteBuffer(string: logs)))
+            }
+
+            // MARK: Exec (stub)
+            router.post("\(prefix)/containers/{id}/exec") { _, context in
+                _ = context.parameters.get("id", as: String.self)!
+                let execId = "exec-\(UUID().uuidString.prefix(12))"
+                let response: [String: String] = ["Id": execId]
+                return try JSONResponse(response, status: .created)
+            }
+
+            // MARK: Images
+            router.get("\(prefix)/images/json") { _, _ in
+                let images = try await bridge.listImages()
+                return try JSONResponse(images)
+            }
+
+            router.post("\(prefix)/images/create") { request, _ in
+                let fromImage = request.uri.queryParameters.get("fromImage") ?? ""
+                let input = request.uri.queryParameters.get("input") ?? ""
+                let imageRef = fromImage.isEmpty ? input : fromImage
+                guard !imageRef.isEmpty else {
+                    throw DockerAPIError.badRequest("No image specified")
+                }
+                try await bridge.pullImage(from: imageRef)
+                return Response(status: .ok, body: .init(byteBuffer: ByteBuffer(string: "")))
+            }
+
+            router.get("\(prefix)/images/{name}/**") { _, context in
+                // Docker client may hit /images/{name}/json or /images/{name}/history
+                let name = context.parameters.get("name", as: String.self)!
+                let image = try await bridge.inspectImage(name: name)
+                return try JSONResponse(image)
+            }
+
+            router.delete("\(prefix)/images/{name}/**") { _, context in
+                let name = context.parameters.get("name", as: String.self)!
+                try await bridge.removeImage(name: name)
+                return Response(status: .noContent)
+            }
+
+            // MARK: Networks
+            router.get("\(prefix)/networks") { _, _ in
+                let networks = try await bridge.listNetworks()
+                return try JSONResponse(networks)
+            }
+            router.get("\(prefix)/networks/{id}") { _, context in
+                let id = context.parameters.get("id", as: String.self)!
+                let networks = try await bridge.listNetworks()
+                if let network = networks.first(where: { $0.id == id || $0.name == id }) {
+                    return try JSONResponse(network)
+                }
+                return Response(status: .notFound, body: .init(byteBuffer: ByteBuffer(string: "{\"message\":\"network not found\"}")))
+            }
+
+            // MARK: Volumes
+            router.get("\(prefix)/volumes") { _, _ in
+                let volumeList = try await bridge.listVolumes()
+                return try JSONResponse(volumeList)
+            }
+
+            // MARK: Events (stub)
+            router.get("\(prefix)/events") { _, _ in
+                Response(status: .ok, body: .init(byteBuffer: ByteBuffer(string: "")))
+            }
+
+            // MARK: Webhooks
+            router.post("\(prefix)/webhooks") { request, _ in
+                let body = try await request.body.collect(upTo: 1024 * 1024)
+                let createReq = try JSONDecoder().decode(CreateWebhookRequest.self, from: Data(buffer: body))
+                guard let endpoint = URL(string: createReq.endpoint) else {
+                    throw DockerAPIError.badRequest("Invalid webhook endpoint URL")
+                }
+                let secret = createReq.secret ?? generateWebhookSecret()
+                let filter = createReq.containerFilter.flatMap { filterReq -> ContainerFilter? in
+                    ContainerFilter(labels: filterReq.labels, name: filterReq.name, image: filterReq.image)
+                }
+                let webhook = await whManager.create(
+                    name: createReq.name,
+                    endpoint: endpoint,
+                    containerFilter: filter,
+                    events: createReq.events.compactMap { WebhookEvent(rawValue: $0) },
+                    secret: secret
+                )
+                let response: [String: Any] = [
+                    "ID": webhook.id,
+                    "Name": webhook.name,
+                    "Endpoint": webhook.endpoint.absoluteString,
+                    "Secret": secret
+                ]
+                let responseData = try! JSONSerialization.data(withJSONObject: response)
+                return Response(status: .created, body: .init(byteBuffer: ByteBuffer(data: responseData)))
+            }
+
+            router.get("\(prefix)/webhooks") { _, _ in
+                let webhooks = await whManager.list()
+                let response = WebhookListResponse(webhooks: webhooks.map {
+                    WebhookInfo(name: $0.name, uuid: $0.id)
+                })
+                return try JSONResponse(response)
+            }
+
+            router.delete("\(prefix)/webhooks/{id}") { _, context in
+                let id = context.parameters.get("id", as: String.self)!
+                let deleted = await whManager.delete(id: id)
+                if !deleted { throw DockerAPIError.webhookNotFound(id) }
+                return Response(status: .noContent)
+            }
+
+            router.get("\(prefix)/webhooks/{id}") { _, context in
+                let id = context.parameters.get("id", as: String.self)!
+                guard let webhook = await whManager.get(id: id) else {
+                    throw DockerAPIError.webhookNotFound(id)
+                }
+                return try JSONResponse(WebhookInfo(name: webhook.name, uuid: webhook.id))
+            }
+
+            router.patch("\(prefix)/webhooks/{id}") { request, context in
+                let id = context.parameters.get("id", as: String.self)!
+                let body = try await request.body.collect(upTo: 1024 * 1024)
+                let updateReq = try JSONDecoder().decode(UpdateWebhookRequest.self, from: Data(buffer: body))
+                guard let webhook = await whManager.update(id: id, name: updateReq.name, enabled: updateReq.enabled) else {
+                    throw DockerAPIError.webhookNotFound(id)
+                }
+                return try JSONResponse(WebhookInfo(name: webhook.name, uuid: webhook.id))
+            }
         }
+
+        registerRoutes("")
+        registerRoutes("/v1.{apiVersion}")
 
         // Hook webhook dispatch into container events
         await hookContainerEvents(manager: whManager, bridge: whBridge)
 
-        // Catch-all for unmatched routes
-        router.get("/**") { request, _ in
-            return Response(status: .notFound, body: .init(byteBuffer: ByteBuffer(string: "{}")))
+        // Catch-all for unmatched routes (must be registered last)
+        router.get("/**") { _, _ in
+            Response(status: .notFound, body: .init(byteBuffer: ByteBuffer(string: "{}")))
         }
 
         let app = Application(
@@ -448,34 +444,6 @@ final class DockerAPIServer: Sendable {
 private func JSONResponse<T: Encodable>(_ value: T, status: HTTPResponse.Status = .ok) throws -> Response {
     let data = try JSONEncoder().encode(value)
     return Response(status: status, body: .init(byteBuffer: ByteBuffer(data: data)))
-}
-
-// MARK: - Docker Version Strip Middleware
-
-/// Strips /v1.XX prefix from request URI before routing.
-/// Docker CLI sends `/v1.54/containers/json` but routes are at `/containers/json`.
-struct DockerVersionStripMiddleware<Context: RequestContext>: RouterMiddleware {
-    public func handle(_ request: Request, context: Context, next: (Request, Context) async throws -> Response) async throws -> Response {
-        let path = request.uri.path
-        // Match /v1.XX/... → /...
-        guard path.hasPrefix("/v1.") else {
-            return try await next(request, context)
-        }
-        // Find the slash after the version number
-        let afterPrefix = path.index(path.startIndex, offsetBy: 4) // after "/v1."
-        guard let slashIdx = path[afterPrefix...].firstIndex(of: "/") else {
-            return try await next(request, context)
-        }
-        let newPath = String(path[slashIdx...]) // includes leading /
-        let query = request.uri.query.map { "?\($0)" } ?? ""
-        let urlString = newPath + query
-        guard let newURL = URL(string: urlString) ?? URL(string: urlString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? newPath) else {
-            // If URL is still unparseable, pass the original request through unmodified
-            return try await next(request, context)
-        }
-        let newRequest = Request(head: .init(method: request.head.method, url: newURL, headerFields: request.head.headerFields), body: request.body)
-        return try await next(newRequest, context)
-    }
 }
 
 // MARK: - Webhook Request/Response Types

@@ -64,8 +64,21 @@ final class AppState {
     private var refreshTimer: Timer?
 
     init() {
+        // Ship with Docker API auto-start on by default. First-run users should get
+        // a working `docker` CLI without hunting through Settings. Existing users who
+        // explicitly set the key keep their choice.
+        UserDefaults.standard.register(defaults: [
+            Self.dockerAPIAutoStartDefaultsKey: true
+        ])
+
         self.agentPermissionMode = Self.loadAgentPermissionMode()
         self.dockerAPIAutoStart = UserDefaults.standard.bool(forKey: Self.dockerAPIAutoStartDefaultsKey)
+
+        // A stale socket file from a previous Keg run makes `docker info` return EOF
+        // because the kernel accepts the connect() and then immediately closes it.
+        // Remove it eagerly so clients get ECONNREFUSED (which they retry cleanly)
+        // until the real server binds.
+        try? FileManager.default.removeItem(atPath: DockerAPIServer.socketPath())
 
         Task { @MainActor [weak self] in
             do {
@@ -74,6 +87,22 @@ final class AppState {
             }
             self?.refreshAgentAuthentication()
             await self?.refreshAgentAutomation()
+        }
+    }
+
+    /// Bring the container backend and Docker API up without user intervention.
+    /// Called from the main window on launch.
+    func ensureReady() async {
+        await checkSystemStatus()
+        if case .stopped = systemStatus {
+            await startSystem()
+        }
+        // systemStatus.didSet starts the Docker API when autoStart is on.
+        // Belt-and-braces: start it explicitly if the system is running but the
+        // auto-start path somehow missed (e.g. status was already .running before
+        // didSet wiring).
+        if isSystemRunning, dockerAPIAutoStart, !isDockerAPIRunning {
+            startDockerAPI()
         }
     }
 
