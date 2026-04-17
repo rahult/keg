@@ -258,6 +258,8 @@ struct KegDetailView: View {
             DevContainerView()
         case .kubernetes:
             KubernetesView()
+        case .logs:
+            MultiContainerLogsView()
         case .settings:
             SettingsView()
         }

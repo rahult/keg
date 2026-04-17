@@ -338,39 +338,19 @@ struct KubernetesView: View {
                         .frame(minHeight: 220, alignment: .top)
                         .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
                     } else {
-                        ContentUnavailableView(
+                        EmptyState(
                             vm.clusterStatus == .stopped ? "Cluster Stopped" : "No Kubernetes Cluster",
-                            systemImage: "helm",
-                            description: Text(
-                                vm.clusterStatus == .stopped
-                                    ? "Choose Start from the toolbar to resume the cluster."
-                                    : "Configure the cluster and choose Create Cluster from the toolbar."
-                            )
+                            description: vm.clusterStatus == .stopped
+                                ? "Choose Start from the toolbar to resume the cluster."
+                                : "Configure the cluster and choose Create Cluster from the toolbar.",
+                            systemImage: "helm"
                         )
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 24)
                     }
                 }
             }
             .padding(20)
         }
-        .overlay(alignment: .bottom) {
-            if let error = vm.errorMessage {
-                HStack {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                    Text(error)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Button("Dismiss") { vm.errorMessage = nil }
-                        .controlSize(.small)
-                    Spacer()
-                }
-                .padding(8)
-                .background(.bar, in: RoundedRectangle(cornerRadius: 6))
-                .padding(12)
-            }
-        }
+        .errorBanner($vm.errorMessage)
         .navigationTitle("Kubernetes")
         .toolbar(id: "kubernetes-toolbar") {
             ToolbarItem(id: "cluster-action", placement: .primaryAction) {
@@ -422,43 +402,3 @@ struct KubernetesView: View {
     }
 }
 
-struct CopyableRow: View {
-    @State private var isHovered = false
-
-    let label: String
-    let value: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            HStack(spacing: 4) {
-                Text(value)
-                    .font(.system(.caption, design: .monospaced))
-                    .textSelection(.enabled)
-                Spacer()
-                Button {
-                    copyValue()
-                } label: {
-                    Image(systemName: "doc.on.doc")
-                        .font(.caption)
-                }
-                .buttonStyle(.borderless)
-                .controlSize(.small)
-                .accessibilityLabel("Copy \(label)")
-            }
-        }
-        .padding(8)
-        .background(isHovered ? Color.primary.opacity(0.06) : .clear, in: RoundedRectangle(cornerRadius: 6))
-        .contentShape(RoundedRectangle(cornerRadius: 6))
-        .onHover { isHovered = $0 }
-        .onTapGesture { copyValue() }
-        .help("Click to copy \(label.lowercased())")
-    }
-
-    private func copyValue() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(value, forType: .string)
-    }
-}

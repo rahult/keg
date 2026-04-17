@@ -148,7 +148,7 @@ struct KegSidebarContent: View {
 
     private let sections: [SidebarSection] = [
         SidebarSection(name: "Overview", items: [.dashboard]),
-        SidebarSection(name: "Workloads", items: [.containers, .compose, .kubernetes]),
+        SidebarSection(name: "Workloads", items: [.containers, .compose, .kubernetes, .logs]),
         SidebarSection(name: "Content", items: [.images, .builds]),
         SidebarSection(name: "System", items: [.networks, .volumes, .registries]),
         SidebarSection(name: "Tools", items: [.terminal, .devcontainers, .health]),

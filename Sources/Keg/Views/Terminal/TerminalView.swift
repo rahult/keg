@@ -94,9 +94,17 @@ struct TerminalView: View {
         shell.standardInput = inPipe
         shell.environment = ProcessInfo.processInfo.environment
 
+        // Detach the handler as soon as the child closes stdout. Without this
+        // self-heal, after the shell exits macOS keeps firing the handler on
+        // an empty pipe and availableData becomes a busy spin on EOF reads —
+        // ~50% CPU per leaked handler on the fd_monitoring dispatch queue.
         outPipe.fileHandleForReading.readabilityHandler = { handle in
             let data = handle.availableData
-            if let str = String(data: data, encoding: .utf8), !str.isEmpty {
+            guard !data.isEmpty else {
+                handle.readabilityHandler = nil
+                return
+            }
+            if let str = String(data: data, encoding: .utf8) {
                 Task { @MainActor in
                     output += str
                 }
@@ -135,9 +143,14 @@ struct TerminalView: View {
         proc.standardError = outPipe
         proc.environment = ProcessInfo.processInfo.environment
 
+        // Same self-heal as startShell() — see comment there.
         outPipe.fileHandleForReading.readabilityHandler = { handle in
             let data = handle.availableData
-            if let str = String(data: data, encoding: .utf8), !str.isEmpty {
+            guard !data.isEmpty else {
+                handle.readabilityHandler = nil
+                return
+            }
+            if let str = String(data: data, encoding: .utf8) {
                 Task { @MainActor in
                     output += str
                 }
@@ -151,6 +164,9 @@ struct TerminalView: View {
 
             Task.detached {
                 proc.waitUntilExit()
+                // Clear the handler before readDataToEndOfFile to avoid the
+                // handler racing with the manual read and double-reporting.
+                outPipe.fileHandleForReading.readabilityHandler = nil
                 let remaining = outPipe.fileHandleForReading.readDataToEndOfFile()
                 if let str = String(data: remaining, encoding: .utf8), !str.isEmpty {
                     await MainActor.run { output += str }

@@ -315,10 +315,15 @@ struct ContainerLogsView: View {
             logProcess = process
 
             if isFollowing {
-                // Stream logs — append new lines as they arrive
+                // Stream logs — append new lines as they arrive. Detach the
+                // handler on EOF so it doesn't spin after the child exits.
                 pipe.fileHandleForReading.readabilityHandler = { handle in
                     let data = handle.availableData
-                    if let str = String(data: data, encoding: .utf8), !str.isEmpty {
+                    if data.isEmpty {
+                        handle.readabilityHandler = nil
+                        return
+                    }
+                    if let str = String(data: data, encoding: .utf8) {
                         Task { @MainActor in
                             appendLogText(str)
                         }
