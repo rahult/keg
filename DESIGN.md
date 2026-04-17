@@ -1,4 +1,4 @@
-# Keg — UX Design Guide
+# Meadow — UX Design Guide
 
 macOS developer-tool conventions we follow. Reference when building or reviewing any view.
 

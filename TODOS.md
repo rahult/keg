@@ -1,4 +1,4 @@
-# Keg — TODOS
+# Meadow — TODOS
 
 ## P0: Post-demo critical
 
@@ -10,12 +10,12 @@ Write integration tests that start DockerAPIServer on a Unix socket, connect wit
 ## P1: Ship polish
 
 ### Launch-at-login + socket cleanup
-Add "Launch at Login" toggle in Settings using SMAppService (macOS native). Add socket cleanup on app quit (remove stale ~/.keg/docker.sock). Add crash recovery (detect and clean stale sockets on launch). Makes Keg invisible infrastructure like Docker Desktop. Requires proper code signing for SMAppService. Depends on: Docker API auto-start setting.
+Add "Launch at Login" toggle in Settings using SMAppService (macOS native). Add socket cleanup on app quit (remove stale ~/.meadow/docker.sock). Add crash recovery (detect and clean stale sockets on launch). Makes Meadow invisible infrastructure like Docker Desktop. Requires proper code signing for SMAppService. Depends on: Docker API auto-start setting.
 **Status:** not started
 **Added:** 2026-04-16 (eng review)
 
 ### Cross-area references in sidebar
-Show agent container count badge in the Keg sidebar when agents are running containers. Show running container count in the Agent dashboard. Bridges the dual identity so users see that agents USE containers. Decision from design review Pass 1.
+Show agent container count badge in the Meadow sidebar when agents are running containers. Show running container count in the Agent dashboard. Bridges the dual identity so users see that agents USE containers. Decision from design review Pass 1.
 **Status:** not started
 **Added:** 2026-04-16 (design review)
 
@@ -25,7 +25,7 @@ Specify and implement empty, loading, error, and success states for all agent vi
 **Added:** 2026-04-16 (design review)
 
 ### Agent discovery card on container dashboard
-When in Keg area with 0 agents configured, show a dismissable card on the system dashboard: "Run AI agents in isolated containers. Switch to Agents to get started." Bridges the user journey from Docker replacement to agent platform. Decision from design review Pass 3.
+When in Meadow area with 0 agents configured, show a dismissable card on the system dashboard: "Run AI agents in isolated containers. Switch to Agents to get started." Bridges the user journey from Docker replacement to agent platform. Decision from design review Pass 3.
 **Status:** not started
 **Added:** 2026-04-16 (design review)
 

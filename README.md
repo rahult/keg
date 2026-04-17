@@ -1,8 +1,8 @@
-# Keg
+# Meadow
 
 **Docker Desktop replacement for macOS** — native SwiftUI app built on Apple Containerization.
 
-Keg provides containers, Docker API compatibility, Compose, and Kubernetes — all running on Apple's first-party container runtime with hardware-level isolation per container.
+Meadow provides containers, Docker API compatibility, Compose, and Kubernetes — all running on Apple's first-party container runtime with hardware-level isolation per container.
 
 ## Features
 
@@ -13,7 +13,7 @@ Keg provides containers, Docker API compatibility, Compose, and Kubernetes — a
 | Networks (create/delete/list) | ✅ |
 | Volumes (create/delete/list) | ✅ |
 | Registry auth (login/logout) | ✅ |
-| Docker-compatible API (`~/.keg/docker.sock`) | ✅ |
+| Docker-compatible API (`~/.meadow/docker.sock`) | ✅ |
 | Docker Compose (`docker-compose.yml`) | ✅ |
 | Kubernetes (kubeadm on kindest/node) | ✅ |
 | Menu bar widget | ✅ |
@@ -29,9 +29,9 @@ Keg provides containers, Docker API compatibility, Compose, and Kubernetes — a
 ## Build
 
 ```bash
-git clone https://github.com/rahult/keg.git
-cd keg
-make app     # Build Keg.app
+git clone https://github.com/rahult/meadow.git
+cd meadow
+make app     # Build Meadow.app
 make open    # Build and open
 ```
 
@@ -49,7 +49,7 @@ swift build -c release
 container system start
 ```
 
-Or start it from Keg's Settings view.
+Or start it from Meadow's Settings view.
 
 ### Run containers
 
@@ -61,10 +61,10 @@ container run -d --name web -p 8080:80 nginx:latest
 
 ### Docker API compatibility
 
-Start the Docker API server from Keg Settings, then:
+Start the Docker API server from Meadow Settings, then:
 
 ```bash
-export DOCKER_HOST=unix://$HOME/.keg/docker.sock
+export DOCKER_HOST=unix://$HOME/.meadow/docker.sock
 docker ps
 docker run -d -p 3000:3000 my-app
 docker compose up -d
@@ -81,18 +81,18 @@ Select a `docker-compose.yml` file in the Compose view and click **Up**.
 3. Connect:
 
 ```bash
-export KUBECONFIG="$HOME/.keg/kubeconfig"
+export KUBECONFIG="$HOME/.meadow/kubeconfig"
 kubectl get nodes
 kubectl apply -f deployment.yaml
 ```
 
 ## Architecture
 
-Keg wraps Apple's [Containerization](https://github.com/apple/containerization) framework — each container runs in its own lightweight Linux VM via Virtualization.framework:
+Meadow wraps Apple's [Containerization](https://github.com/apple/containerization) framework — each container runs in its own lightweight Linux VM via Virtualization.framework:
 
 ```
-Keg App (SwiftUI)
-  → Docker API Server (Hummingbird, ~/.keg/docker.sock)
+Meadow App (SwiftUI)
+  → Docker API Server (Hummingbird, ~/.meadow/docker.sock)
   → Compose Orchestrator (YAML parser, dependency resolution)
   → Kubernetes Bootstrap (kindest/node + kubeadm)
   → ContainerAPIClient (XPC/gRPC)
@@ -109,7 +109,7 @@ Keg App (SwiftUI)
 ## Project Structure
 
 ```
-Sources/Keg/
+Sources/Meadow/
 ├── App/                    # App entry, state, navigation
 ├── DockerAPI/              # Docker Engine API compatibility layer
 │   ├── DockerAPIServer.swift
@@ -134,9 +134,9 @@ Sources/Keg/
 └── Tests/
 ```
 
-## Why Keg?
+## Why Meadow?
 
-| | Docker Desktop | OrbStack | **Keg** |
+| | Docker Desktop | OrbStack | **Meadow** |
 |---|---|---|---|
 | Container runtime | containerd in Linux VM | containerd in Linux VM | Apple Containerization (native VMs) |
 | Isolation | Process-level (namespaces) | Process-level | Hardware-level (per-container VM) |

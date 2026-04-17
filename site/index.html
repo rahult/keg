@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Keg — Containers on Apple Silicon</title>
+<title>Meadow — Containers on Apple Silicon</title>
 <meta name="description" content="Docker Desktop replacement for macOS. Native SwiftUI, hardware-level isolation, sub-second boot, near-zero idle RAM. Open source.">
-<meta property="og:title" content="Keg — Containers on Apple Silicon">
+<meta property="og:title" content="Meadow — Containers on Apple Silicon">
 <meta property="og:description" content="Docker Desktop replacement for macOS. Sub-second boot. 69MB idle RAM. Hardware isolation. Open source.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://github.com/rahult/keg">
+<meta property="og:url" content="https://github.com/rahult/meadow">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Keg — Containers on Apple Silicon">
+<meta name="twitter:title" content="Meadow — Containers on Apple Silicon">
 <meta name="twitter:description" content="Docker Desktop replacement for macOS. Sub-second boot. 69MB idle RAM. Hardware isolation. Open source.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -434,7 +434,7 @@ a:focus-visible, .btn:focus-visible, .nav-cta:focus-visible {
 <!-- Nav -->
 <div class="nav-wrap">
   <nav class="nav">
-    <a href="#" class="nav-logo"><span class="mark">K</span> Keg</a>
+    <a href="#" class="nav-logo"><span class="mark">K</span> Meadow</a>
     <div class="nav-links">
       <a href="#features">Features</a>
       <a href="#docker">Docker</a>
@@ -442,7 +442,7 @@ a:focus-visible, .btn:focus-visible, .nav-cta:focus-visible {
       <a href="#k8s">Kubernetes</a>
       <a href="#compare">Compare</a>
     </div>
-    <a href="https://github.com/rahult/keg/releases" class="nav-cta">Download <span class="arrow">↓</span></a>
+    <a href="https://github.com/rahult/meadow/releases" class="nav-cta">Download <span class="arrow">↓</span></a>
   </nav>
 </div>
 
@@ -453,7 +453,7 @@ a:focus-visible, .btn:focus-visible, .nav-cta:focus-visible {
   <h1 class="reveal d1">Containers on<br><span class="em">Apple Silicon.</span></h1>
   <p class="hero-sub reveal d2">The Docker Desktop replacement for macOS. Native SwiftUI. Hardware-level isolation. Sub-second boot. Open source forever.</p>
   <div class="hero-actions reveal d3">
-    <a href="https://github.com/rahult/keg/releases" class="btn btn-primary">Download for Mac <span class="icon-wrap">↓</span></a>
+    <a href="https://github.com/rahult/meadow/releases" class="btn btn-primary">Download for Mac <span class="icon-wrap">↓</span></a>
     <a href="#features" class="btn btn-ghost">See features</a>
   </div>
 </section>
@@ -464,13 +464,13 @@ a:focus-visible, .btn:focus-visible, .nav-cta:focus-visible {
     <div class="mockup-inner">
       <div class="mockup-titlebar">
         <div class="mockup-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
-        <div class="mockup-title">Keg</div>
+        <div class="mockup-title">Meadow</div>
         <div style="width: 54px;"></div>
       </div>
       <div class="mockup-body">
         <!-- Sidebar -->
         <div class="mockup-sidebar">
-          <div class="mock-seg"><span class="active">Keg</span></div>
+          <div class="mock-seg"><span class="active">Meadow</span></div>
           <div class="mock-status">
             <div class="mock-status-row">
               <span class="mock-status-dot"></span>
@@ -585,7 +585,7 @@ a:focus-visible, .btn:focus-visible, .nav-cta:focus-visible {
   <div class="bento">
     <div class="bento-item b-8 reveal"><div class="bento-inner"><div class="bento-icon">⚡</div><h3>Sub-second Boot</h3><p>618ms average container start. No daemon warmup, no shared VM spin-up. Each container boots its own micro-VM in under a second. That's 50x faster than Docker Desktop's cold start.</p></div></div>
     <div class="bento-item b-4 reveal d1"><div class="bento-inner"><div class="bento-icon">🔒</div><h3>Hardware Isolation</h3><p>Per-container VMs via Virtualization.framework. Real hardware boundaries, not namespace tricks.</p></div></div>
-    <div class="bento-item b-4 reveal d2"><div class="bento-inner"><div class="bento-icon">🪶</div><h3>69MB Idle</h3><p>Docker Desktop idles at 500MB to 2GB. Keg gives you your RAM back.</p></div></div>
+    <div class="bento-item b-4 reveal d2"><div class="bento-inner"><div class="bento-icon">🪶</div><h3>69MB Idle</h3><p>Docker Desktop idles at 500MB to 2GB. Meadow gives you your RAM back.</p></div></div>
     <div class="bento-item b-4 reveal d3"><div class="bento-inner"><div class="bento-icon">🐳</div><h3>Docker API</h3><p>Full Engine API on a Unix socket. docker ps, docker run, docker compose. It all works.</p></div></div>
     <div class="bento-item b-4 reveal d4"><div class="bento-inner"><div class="bento-icon">☸️</div><h3>Kubernetes</h3><p>One-click K8s cluster. kindest/node + kubeadm. kubectl ready in 90 seconds.</p></div></div>
   </div>
@@ -608,15 +608,15 @@ a:focus-visible, .btn:focus-visible, .nav-cta:focus-visible {
 <span class="d"># Exec into container</span>
 <span class="p">$</span> <span class="c">container exec web cat /etc/nginx/nginx.conf</span>
 <span class="o">worker_processes auto;</span></div></div></div>
-    <div class="term-bezel reveal d3"><div class="term-inner"><div class="term-bar"><div class="term-dot r"></div><div class="term-dot y"></div><div class="term-dot g"></div><span class="term-title">Docker CLI via Keg</span></div><div class="term-body"><span class="d"># Point Docker at Keg</span>
-<span class="p">$</span> <span class="c">export DOCKER_HOST=unix://$HOME/.keg/docker.sock</span>
+    <div class="term-bezel reveal d3"><div class="term-inner"><div class="term-bar"><div class="term-dot r"></div><div class="term-dot y"></div><div class="term-dot g"></div><span class="term-title">Docker CLI via Meadow</span></div><div class="term-body"><span class="d"># Point Docker at Meadow</span>
+<span class="p">$</span> <span class="c">export DOCKER_HOST=unix://$HOME/.meadow/docker.sock</span>
 
 <span class="p">$</span> <span class="c">docker ps</span>
 <span class="o">CONTAINER ID  IMAGE  STATUS  PORTS</span>
 <span class="o">a1b2c3d4e5f6  nginx  Up 2m   0.0.0.0:8080->80</span>
 
 <span class="p">$</span> <span class="c">docker info</span>
-<span class="o">Server: Keg (Apple Containerization)</span></div></div></div>
+<span class="o">Server: Meadow (Apple Containerization)</span></div></div></div>
   </div>
 </section>
 
@@ -624,7 +624,7 @@ a:focus-visible, .btn:focus-visible, .nav-cta:focus-visible {
 <section class="section" id="compose" style="border-top: 1px solid var(--ring);">
   <div class="pill reveal"><span class="dot"></span> Docker Compose</div>
   <h2 class="section-title reveal d1">Your compose files. Zero changes.</h2>
-  <p class="section-desc reveal d2">Dependency ordering, networks, volumes, port mapping, env vars. Keg's orchestrator handles it all.</p>
+  <p class="section-desc reveal d2">Dependency ordering, networks, volumes, port mapping, env vars. Meadow's orchestrator handles it all.</p>
   <div class="two-col">
     <div class="term-bezel reveal d2"><div class="term-inner"><div class="term-bar"><div class="term-dot r"></div><div class="term-dot y"></div><div class="term-dot g"></div><span class="term-title">docker-compose.yml</span></div><div class="term-body"><span class="d">services:</span>
   <span class="w">web:</span>
@@ -641,20 +641,20 @@ a:focus-visible, .btn:focus-visible, .nav-cta:focus-visible {
     <span class="c">volumes: [pgdata:/var/lib/postgresql/data]</span>
 <span class="d">volumes:</span>
   <span class="w">pgdata:</span></div></div></div>
-    <div class="term-bezel reveal d3"><div class="term-inner"><div class="term-bar"><div class="term-dot r"></div><div class="term-dot y"></div><div class="term-dot g"></div><span class="term-title">Lifecycle</span></div><div class="term-body"><span class="p">$</span> <span class="c">keg compose up -d</span>
+    <div class="term-bezel reveal d3"><div class="term-inner"><div class="term-bar"><div class="term-dot r"></div><div class="term-dot y"></div><div class="term-dot g"></div><span class="term-title">Lifecycle</span></div><div class="term-body"><span class="p">$</span> <span class="c">meadow compose up -d</span>
 <span class="o">Compose up: my-app</span>
 <span class="o">==> Service: db</span>
 <span class="o">==> Service: api</span>
 <span class="o">==> Service: web</span>
 <span class="o">Compose up finished.</span>
 
-<span class="p">$</span> <span class="c">keg compose ps</span>
+<span class="p">$</span> <span class="c">meadow compose ps</span>
 <span class="o">NAME         SERVICE  STATE</span>
 <span class="o">my-app-db    db       running</span>
 <span class="o">my-app-api   api      running</span>
 <span class="o">my-app-web   web      running</span>
 
-<span class="p">$</span> <span class="c">keg compose down</span></div></div></div>
+<span class="p">$</span> <span class="c">meadow compose down</span></div></div></div>
   </div>
 </section>
 
@@ -664,7 +664,7 @@ a:focus-visible, .btn:focus-visible, .nav-cta:focus-visible {
   <h2 class="section-title reveal d1">Local K8s. 90 seconds.</h2>
   <p class="section-desc reveal d2">Full cluster inside an Apple Container. kubeadm, CNI, kubeconfig. Ready for kubectl.</p>
   <div class="steps-grid">
-    <div class="step-bezel reveal d1"><div class="step-inner"><div class="step-num">01</div><h3>Create Cluster</h3><p>One click in Keg. kindest/node boots with kubeadm init.</p><div class="step-code">kubectl get nodes<br>NAME&nbsp;&nbsp;&nbsp;&nbsp;STATUS&nbsp;&nbsp;ROLES<br>keg-k8s&nbsp;Ready&nbsp;&nbsp;&nbsp;control-plane</div></div></div>
+    <div class="step-bezel reveal d1"><div class="step-inner"><div class="step-num">01</div><h3>Create Cluster</h3><p>One click in Meadow. kindest/node boots with kubeadm init.</p><div class="step-code">kubectl get nodes<br>NAME&nbsp;&nbsp;&nbsp;&nbsp;STATUS&nbsp;&nbsp;ROLES<br>meadow-k8s&nbsp;Ready&nbsp;&nbsp;&nbsp;control-plane</div></div></div>
     <div class="step-bezel reveal d2"><div class="step-inner"><div class="step-num">02</div><h3>Deploy</h3><p>Apply manifests. Deployments, services, configmaps, secrets.</p><div class="step-code">kubectl apply -f deploy.yaml<br>kubectl get pods<br>nginx-abc12&nbsp;&nbsp;1/1&nbsp;&nbsp;Running</div></div></div>
     <div class="step-bezel reveal d3"><div class="step-inner"><div class="step-num">03</div><h3>Scale &amp; Update</h3><p>Scale replicas, rolling updates, exec, logs. Full kubectl.</p><div class="step-code">kubectl scale deploy nginx --replicas=3<br>kubectl set image deploy/nginx ...<br>kubectl logs -f deploy/nginx</div></div></div>
   </div>
@@ -677,7 +677,7 @@ a:focus-visible, .btn:focus-visible, .nav-cta:focus-visible {
   <p class="section-desc reveal d2">Benchmarked against Docker Desktop and OrbStack.</p>
   <div class="bezel reveal d3"><div class="bezel-inner table-inner"><div class="table-scroll">
     <table>
-      <thead><tr><th></th><th>Docker Desktop</th><th>OrbStack</th><th>Keg</th></tr></thead>
+      <thead><tr><th></th><th>Docker Desktop</th><th>OrbStack</th><th>Meadow</th></tr></thead>
       <tbody>
         <tr><td>Runtime</td><td>containerd in Linux VM</td><td>containerd in Linux VM</td><td><span class="win">Apple VMs</span></td></tr>
         <tr><td>Isolation</td><td>Process-level</td><td>Process-level</td><td><span class="win">Hardware</span></td></tr>
@@ -698,16 +698,16 @@ a:focus-visible, .btn:focus-visible, .nav-cta:focus-visible {
   <h2 class="section-title reveal d1">Built for Apple Silicon.<br>Open source. Free forever.</h2>
   <p class="section-desc reveal d2">Requires macOS 26 (Tahoe) and Apple Silicon (M1/M2/M3/M4).</p>
   <div class="hero-actions reveal d3">
-    <a href="https://github.com/rahult/keg/releases" class="btn btn-primary">Download for Mac <span class="icon-wrap">↓</span></a>
-    <a href="https://github.com/rahult/keg" class="btn btn-ghost">View on GitHub</a>
+    <a href="https://github.com/rahult/meadow/releases" class="btn btn-primary">Download for Mac <span class="icon-wrap">↓</span></a>
+    <a href="https://github.com/rahult/meadow" class="btn btn-ghost">View on GitHub</a>
   </div>
 </section>
 
 <footer>
-  <div class="copy">© 2026 Keg. Apache License 2.0.</div>
+  <div class="copy">© 2026 Meadow. Apache License 2.0.</div>
   <div class="links">
-    <a href="https://github.com/rahult/keg">GitHub</a>
-    <a href="https://github.com/rahult/keg/issues">Issues</a>
+    <a href="https://github.com/rahult/meadow">GitHub</a>
+    <a href="https://github.com/rahult/meadow/issues">Issues</a>
     <a href="https://github.com/apple/container">Apple Container</a>
   </div>
 </footer>

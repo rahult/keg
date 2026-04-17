@@ -1,12 +1,12 @@
-# Testing Keg
+# Testing Meadow
 
-This document covers testing Keg's Docker API compatibility and Kubernetes integration using standard `docker` and `kubectl` CLIs.
+This document covers testing Meadow's Docker API compatibility and Kubernetes integration using standard `docker` and `kubectl` CLIs.
 
 ## Docker API
 
-Keg exposes a Docker-compatible API server via Unix socket at:
+Meadow exposes a Docker-compatible API server via Unix socket at:
 - `/var/run/docker.sock` (if writable)
-- `~/.keg/docker.sock` (fallback)
+- `~/.meadow/docker.sock` (fallback)
 
 Set `DOCKER_HOST` before running Docker CLI commands:
 
@@ -61,14 +61,14 @@ docker build -t myapp:latest ./path/to/dockerfile
 
 ## Kubernetes
 
-Kubeconfig is generated at `~/.keg/kubeconfig` after cluster creation via the Keg UI (Kubernetes section).
+Kubeconfig is generated at `~/.meadow/kubeconfig` after cluster creation via the Meadow UI (Kubernetes section).
 
-> **Note**: Create the K8s cluster through the Keg UI first. Single-node clusters use the `kindest/node` image with kubeadm inside an Apple Container.
+> **Note**: Create the K8s cluster through the Meadow UI first. Single-node clusters use the `kindest/node` image with kubeadm inside an Apple Container.
 
 ### Configure kubectl
 
 ```bash
-export KUBECONFIG=~/.keg/kubeconfig
+export KUBECONFIG=~/.meadow/kubeconfig
 ```
 
 ### Verify cluster
@@ -133,11 +133,11 @@ set -e
 export DOCKER_HOST=unix:///var/run/docker.sock
 echo "=== Docker API ==="
 docker info | head -3
-docker run --rm --name smoke-test alpine echo "Keg Docker API works!"
+docker run --rm --name smoke-test alpine echo "Meadow Docker API works!"
 docker rmi alpine
 
 # Test Kubernetes
-export KUBECONFIG=~/.keg/kubeconfig
+export KUBECONFIG=~/.meadow/kubeconfig
 echo ""
 echo "=== Kubernetes ==="
 kubectl get nodes
@@ -150,21 +150,21 @@ kubectl delete job smoke
 
 ### Docker socket not found
 
-Keg's Docker API auto-starts when the system is running. Ensure:
-1. Keg app is running
+Meadow's Docker API auto-starts when the system is running. Ensure:
+1. Meadow app is running
 2. Container system is started via the UI
 3. `dockerAPIAutoStart` is enabled in settings
 
 ### Kubernetes cluster not found
 
-The K8s cluster must be created through the Keg UI (Kubernetes section). Check the output panel for errors during cluster creation.
+The K8s cluster must be created through the Meadow UI (Kubernetes section). Check the output panel for errors during cluster creation.
 
 ### Connection refused
 
 If you see `Cannot connect to the Docker daemon`, verify the socket exists:
 
 ```bash
-ls -la /var/run/docker.sock ~/.keg/docker.sock 2>/dev/null || echo "Socket not found"
+ls -la /var/run/docker.sock ~/.meadow/docker.sock 2>/dev/null || echo "Socket not found"
 ```
 
-Restart the Docker API server via the Keg UI settings.
+Restart the Docker API server via the Meadow UI settings.
