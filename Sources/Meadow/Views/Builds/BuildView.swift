@@ -174,7 +174,6 @@ struct BuildView: View {
                 }
             }
         }
-        .toolbarRole(.editor)
         .fileImporter(isPresented: $showContextPicker, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
             if case .success(let urls) = result, let url = urls.first {
                 contextDir = url.path

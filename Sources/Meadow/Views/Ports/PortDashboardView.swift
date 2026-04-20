@@ -100,7 +100,6 @@ struct PortDashboardView: View {
                 .keyboardShortcut("r", modifiers: .command)
             }
         }
-        .toolbarRole(.editor)
         .task {
             await vm.refresh()
         }

@@ -9,46 +9,41 @@ func roundedRect(_ rect: NSRect, radius: CGFloat) -> NSBezierPath {
     NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
 }
 
-func barrelPath(in rect: NSRect) -> NSBezierPath {
-    let x = rect.minX
-    let y = rect.minY
-    let w = rect.width
-    let h = rect.height
-    let rimInset = w * 0.14
-    let belly = w * 0.045
+/// Draws a tapered blade-of-grass shape from `base` to `tip`.
+///
+/// Control points bulge perpendicular to the blade's spine so leaning blades
+/// still taper naturally — without this, a non-vertical blade drawn with
+/// vertical control points looks like a banana.
+func bladePath(
+    baseX: CGFloat, baseY: CGFloat,
+    tipX: CGFloat, tipY: CGFloat,
+    baseWidth: CGFloat,
+    bulge: CGFloat = 0.18
+) -> NSBezierPath {
+    let halfW = baseWidth / 2
+    let dx = tipX - baseX
+    let dy = tipY - baseY
+    let length = max(sqrt(dx * dx + dy * dy), 0.0001)
+    let nx = -dy / length  // perpendicular, rotated +90°
+    let ny = dx / length
+    let mx = (baseX + tipX) / 2
+    let my = (baseY + tipY) / 2
+    let out = halfW + bulge * length
+
+    let baseLeft = NSPoint(x: baseX + nx * halfW, y: baseY + ny * halfW)
+    let baseRight = NSPoint(x: baseX - nx * halfW, y: baseY - ny * halfW)
+    let tip = NSPoint(x: tipX, y: tipY)
+    let leftBulge = NSPoint(x: mx + nx * out, y: my + ny * out)
+    let rightBulge = NSPoint(x: mx - nx * out, y: my - ny * out)
+    let nearTipLeft = NSPoint(x: leftBulge.x * 0.35 + tipX * 0.65,
+                              y: leftBulge.y * 0.35 + tipY * 0.65)
+    let nearTipRight = NSPoint(x: rightBulge.x * 0.35 + tipX * 0.65,
+                               y: rightBulge.y * 0.35 + tipY * 0.65)
 
     let path = NSBezierPath()
-    path.move(to: NSPoint(x: x + rimInset, y: y + h))
-    path.curve(
-        to: NSPoint(x: x + w - rimInset, y: y + h),
-        controlPoint1: NSPoint(x: x + w * 0.30, y: y + h + h * 0.07),
-        controlPoint2: NSPoint(x: x + w * 0.70, y: y + h + h * 0.07)
-    )
-    path.curve(
-        to: NSPoint(x: x + w - belly, y: y + h * 0.18),
-        controlPoint1: NSPoint(x: x + w * 0.98, y: y + h * 0.90),
-        controlPoint2: NSPoint(x: x + w * 1.00, y: y + h * 0.42)
-    )
-    path.curve(
-        to: NSPoint(x: x + w - rimInset, y: y),
-        controlPoint1: NSPoint(x: x + w * 0.98, y: y + h * 0.08),
-        controlPoint2: NSPoint(x: x + w * 0.92, y: y - h * 0.06)
-    )
-    path.curve(
-        to: NSPoint(x: x + rimInset, y: y),
-        controlPoint1: NSPoint(x: x + w * 0.70, y: y - h * 0.07),
-        controlPoint2: NSPoint(x: x + w * 0.30, y: y - h * 0.07)
-    )
-    path.curve(
-        to: NSPoint(x: x + belly, y: y + h * 0.18),
-        controlPoint1: NSPoint(x: x + w * 0.08, y: y - h * 0.06),
-        controlPoint2: NSPoint(x: x + w * 0.02, y: y + h * 0.08)
-    )
-    path.curve(
-        to: NSPoint(x: x + rimInset, y: y + h),
-        controlPoint1: NSPoint(x: x, y: y + h * 0.42),
-        controlPoint2: NSPoint(x: x + w * 0.02, y: y + h * 0.90)
-    )
+    path.move(to: baseLeft)
+    path.curve(to: tip, controlPoint1: leftBulge, controlPoint2: nearTipLeft)
+    path.curve(to: baseRight, controlPoint1: nearTipRight, controlPoint2: rightBulge)
     path.close()
     return path
 }
@@ -96,116 +91,105 @@ func drawIcon(size: CGFloat, to path: String) throws {
     NSColor.clear.setFill()
     canvas.fill()
 
-    let baseRect = canvas.insetBy(dx: size * 0.06, dy: size * 0.06)
-    let base = roundedRect(baseRect, radius: size * 0.23)
+    // Rounded-square tile, brand dark palette (matches site --bg / --bg-inner).
+    let tileRect = canvas.insetBy(dx: size * 0.06, dy: size * 0.06)
+    let tile = roundedRect(tileRect, radius: size * 0.23)
 
-    let shadow = NSShadow()
-    shadow.shadowOffset = NSSize(width: 0, height: -size * 0.012)
-    shadow.shadowBlurRadius = size * 0.04
-    shadow.shadowColor = color(0, 0, 0, 0.18)
-    shadow.set()
+    let tileShadow = NSShadow()
+    tileShadow.shadowOffset = NSSize(width: 0, height: -size * 0.012)
+    tileShadow.shadowBlurRadius = size * 0.045
+    tileShadow.shadowColor = color(0, 0, 0, 0.32)
+    tileShadow.set()
 
     NSGradient(colorsAndLocations:
-        (color(246, 248, 252), 0.0),
-        (color(225, 232, 241), 0.18),
-        (color(156, 174, 197), 1.0)
-    )?.draw(in: base, angle: 90)
+        (color(18, 20, 28), 0.0),  // top: #12141c (slightly lifted)
+        (color(8, 8, 12), 0.55),
+        (color(4, 4, 6), 1.0)      // bottom: near-black
+    )?.draw(in: tile, angle: -90)
 
     NSGraphicsContext.restoreGraphicsState()
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = context
 
-    color(255, 255, 255, 0.46).setStroke()
-    base.lineWidth = max(1, size * 0.008)
-    base.stroke()
+    // Everything from here in is clipped to the tile (glow + blades).
+    tile.addClip()
 
-    let topWash = NSBezierPath(roundedRect: NSRect(x: size * 0.14, y: size * 0.60, width: size * 0.72, height: size * 0.16), xRadius: size * 0.08, yRadius: size * 0.08)
-    color(255, 255, 255, 0.18).setFill()
-    topWash.fill()
-
-    let kegRect = NSRect(x: size * 0.305, y: size * 0.165, width: size * 0.39, height: size * 0.63)
-    let keg = barrelPath(in: kegRect)
-
-    let kegShadow = NSShadow()
-    kegShadow.shadowOffset = NSSize(width: 0, height: -size * 0.01)
-    kegShadow.shadowBlurRadius = size * 0.03
-    kegShadow.shadowColor = color(0, 0, 0, 0.16)
-    kegShadow.set()
-
+    // Soft accent-green radial glow anchored to the "ground" line.
+    let glowCenter = NSPoint(
+        x: tileRect.midX,
+        y: tileRect.minY + tileRect.height * 0.22
+    )
     NSGradient(colorsAndLocations:
-        (color(252, 253, 255), 0.0),
-        (color(219, 225, 235), 0.20),
-        (color(168, 177, 191), 0.50),
-        (color(235, 239, 246), 0.78),
-        (color(176, 184, 196), 1.0)
-    )?.draw(in: keg, angle: 0)
+        (color(0, 224, 136, 0.38), 0.0),
+        (color(0, 224, 136, 0.10), 0.45),
+        (color(0, 224, 136, 0.00), 1.0)
+    )?.draw(
+        fromCenter: glowCenter, radius: 0,
+        toCenter: glowCenter, radius: tileRect.width * 0.55,
+        options: []
+    )
+
+    // Faint horizon line where blades emerge.
+    let horizonY = tileRect.minY + tileRect.height * 0.22
+    let horizon = NSBezierPath()
+    horizon.move(to: NSPoint(x: tileRect.minX + tileRect.width * 0.18, y: horizonY))
+    horizon.line(to: NSPoint(x: tileRect.maxX - tileRect.width * 0.18, y: horizonY))
+    color(0, 224, 136, 0.22).setStroke()
+    horizon.lineWidth = max(0.6, size * 0.003)
+    horizon.stroke()
+
+    // Three blades — base coordinates are fractions of the tile rect so the
+    // composition stays identical at every render size.
+    let bx = tileRect.minX
+    let by = tileRect.minY
+    let sz = tileRect.width
+
+    // TUNABLE — blade geometry. Adjust tipX/tipY for lean, baseWidth for heft.
+    let leftBlade = bladePath(
+        baseX: bx + sz * 0.36, baseY: by + sz * 0.22,
+        tipX:  bx + sz * 0.26, tipY:  by + sz * 0.62,
+        baseWidth: sz * 0.075
+    )
+    let midBlade = bladePath(
+        baseX: bx + sz * 0.50, baseY: by + sz * 0.20,
+        tipX:  bx + sz * 0.505, tipY: by + sz * 0.86,
+        baseWidth: sz * 0.085
+    )
+    let rightBlade = bladePath(
+        baseX: bx + sz * 0.64, baseY: by + sz * 0.22,
+        tipX:  bx + sz * 0.74, tipY:  by + sz * 0.68,
+        baseWidth: sz * 0.075
+    )
+
+    // Side blades: darker, desaturated — they frame the middle blade.
+    let sideGradient = NSGradient(colorsAndLocations:
+        (color(10, 58, 40), 0.0),
+        (color(28, 110, 78), 0.55),
+        (color(52, 162, 116), 1.0)
+    )
+    sideGradient?.draw(in: leftBlade, angle: 96)
+    sideGradient?.draw(in: rightBlade, angle: 84)
+
+    // Middle blade: full-strength brand accent, brighter at tip.
+    NSGradient(colorsAndLocations:
+        (color(0, 130, 80), 0.0),
+        (color(0, 224, 136), 0.55),
+        (color(120, 255, 198), 1.0)
+    )?.draw(in: midBlade, angle: 90)
+
+    // Hairline highlight on middle blade edge — only shows at larger sizes.
+    color(200, 255, 224, 0.45).setStroke()
+    midBlade.lineWidth = max(0.5, size * 0.0028)
+    midBlade.stroke()
 
     NSGraphicsContext.restoreGraphicsState()
+
+    // Inner tile edge — thin bright rim for depth.
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = context
-
-    color(255, 255, 255, 0.32).setStroke()
-    keg.lineWidth = max(1, size * 0.004)
-    keg.stroke()
-
-    keg.addClip()
-
-    let leftHighlight = NSBezierPath(roundedRect: NSRect(x: kegRect.minX + size * 0.02, y: kegRect.minY + size * 0.05, width: size * 0.022, height: kegRect.height - size * 0.10), xRadius: size * 0.011, yRadius: size * 0.011)
-    color(255, 255, 255, 0.34).setFill()
-    leftHighlight.fill()
-
-    let rightShade = NSBezierPath(roundedRect: NSRect(x: kegRect.maxX - size * 0.036, y: kegRect.minY + size * 0.05, width: size * 0.024, height: kegRect.height - size * 0.10), xRadius: size * 0.012, yRadius: size * 0.012)
-    color(37, 51, 69, 0.10).setFill()
-    rightShade.fill()
-
-    let bandColorTop = color(41, 59, 82)
-    let bandColorBottom = color(73, 97, 127)
-    for bandY in [0.30, 0.70] as [CGFloat] {
-        let band = roundedRect(
-            NSRect(
-                x: kegRect.minX - size * 0.008,
-                y: kegRect.minY + kegRect.height * bandY - size * 0.024,
-                width: kegRect.width + size * 0.016,
-                height: size * 0.048
-            ),
-            radius: size * 0.024
-        )
-        NSGradient(colorsAndLocations:
-            (bandColorTop, 0.0),
-            (bandColorBottom, 1.0)
-        )?.draw(in: band, angle: 90)
-    }
-
-    let badgeRect = NSRect(x: size * 0.435, y: size * 0.405, width: size * 0.13, height: size * 0.16)
-    let badge = roundedRect(badgeRect, radius: size * 0.032)
-    NSGradient(colorsAndLocations:
-        (color(37, 55, 79), 0.0),
-        (color(28, 43, 64), 1.0)
-    )?.draw(in: badge, angle: 90)
-    color(255, 255, 255, 0.14).setStroke()
-    badge.lineWidth = max(1, size * 0.0035)
-    badge.stroke()
-
-    color(198, 221, 242, 0.92).setStroke()
-    let door = NSBezierPath()
-    door.lineCapStyle = .round
-    door.lineWidth = max(1.4, size * 0.010)
-    for xOffset in [0.28, 0.5, 0.72] as [CGFloat] {
-        door.move(to: NSPoint(x: badgeRect.minX + badgeRect.width * xOffset, y: badgeRect.minY + badgeRect.height * 0.20))
-        door.line(to: NSPoint(x: badgeRect.minX + badgeRect.width * xOffset, y: badgeRect.maxY - badgeRect.height * 0.20))
-    }
-    door.move(to: NSPoint(x: badgeRect.minX + badgeRect.width * 0.18, y: badgeRect.midY))
-    door.line(to: NSPoint(x: badgeRect.maxX - badgeRect.width * 0.18, y: badgeRect.midY))
-    door.stroke()
-
-    let topRim = NSBezierPath(ovalIn: NSRect(x: kegRect.minX + size * 0.035, y: kegRect.maxY - size * 0.044, width: kegRect.width - size * 0.07, height: size * 0.058))
-    color(255, 255, 255, 0.42).setFill()
-    topRim.fill()
-
-    let bottomRim = NSBezierPath(ovalIn: NSRect(x: kegRect.minX + size * 0.035, y: kegRect.minY - size * 0.018, width: kegRect.width - size * 0.07, height: size * 0.060))
-    color(80, 95, 116, 0.16).setFill()
-    bottomRim.fill()
-
+    color(255, 255, 255, 0.09).setStroke()
+    tile.lineWidth = max(1, size * 0.006)
+    tile.stroke()
     NSGraphicsContext.restoreGraphicsState()
 
     try writePNG(rep, to: path)
@@ -220,28 +204,31 @@ func drawMenuBarTemplate(size: CGFloat, to path: String) throws {
     NSColor.clear.setFill()
     canvas.fill()
 
-    let kegRect = NSRect(x: size * 0.24, y: size * 0.12, width: size * 0.52, height: size * 0.76)
-    let keg = barrelPath(in: kegRect)
+    // Template images are pure alpha — macOS tints them for light/dark menus,
+    // so we fill black on clear and let the system handle appearance.
     NSColor.black.setFill()
-    keg.fill()
 
-    for bandY in [0.30, 0.70] as [CGFloat] {
-        let band = roundedRect(
-            NSRect(
-                x: kegRect.minX - size * 0.008,
-                y: kegRect.minY + kegRect.height * bandY - size * 0.030,
-                width: kegRect.width + size * 0.016,
-                height: size * 0.060
-            ),
-            radius: size * 0.02
-        )
-        NSGraphicsContext.saveGraphicsState()
-        band.addClip()
-        NSGraphicsContext.current?.compositingOperation = .clear
-        NSColor.clear.setFill()
-        canvas.fill()
-        NSGraphicsContext.restoreGraphicsState()
-    }
+    // Blades scaled to fill the menu-bar canvas. Slightly heftier widths
+    // than the app-icon version so strokes survive at 16–18px menu heights.
+    let left = bladePath(
+        baseX: size * 0.30, baseY: size * 0.14,
+        tipX:  size * 0.20, tipY:  size * 0.58,
+        baseWidth: size * 0.11
+    )
+    let mid = bladePath(
+        baseX: size * 0.50, baseY: size * 0.12,
+        tipX:  size * 0.505, tipY: size * 0.84,
+        baseWidth: size * 0.12
+    )
+    let right = bladePath(
+        baseX: size * 0.70, baseY: size * 0.14,
+        tipX:  size * 0.80, tipY:  size * 0.64,
+        baseWidth: size * 0.11
+    )
+
+    left.fill()
+    mid.fill()
+    right.fill()
 
     NSGraphicsContext.restoreGraphicsState()
     try writePNG(rep, to: path)

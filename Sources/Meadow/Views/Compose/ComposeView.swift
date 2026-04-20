@@ -339,7 +339,6 @@ struct ComposeView: View {
                 .accessibilityLabel("Refresh services")
             }
         }
-        .toolbarRole(.editor)
         .task {
             if !vm.composeFilePath.isEmpty {
                 await vm.refreshPS()

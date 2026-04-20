@@ -38,7 +38,6 @@ struct HealthDashboardView: View {
                 .accessibilityLabel("Refresh health data")
             }
         }
-        .toolbarRole(.editor)
         .task {
             await vm.refresh()
         }

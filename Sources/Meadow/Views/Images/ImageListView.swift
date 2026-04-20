@@ -103,7 +103,6 @@ struct ImageListView: View {
                 .accessibilityHint("Reload the images list")
             }
         }
-        .toolbarRole(.editor)
         .task {
             await vm.refresh()
         }

@@ -395,7 +395,6 @@ struct KubernetesView: View {
                 .disabled(vm.clusterStatus.isBusy || vm.isDeleting)
             }
         }
-        .toolbarRole(.editor)
         .task {
             await vm.checkClusterStatus()
         }

@@ -16,13 +16,25 @@ CODESIGN_IDENTITY ?= $(shell security find-identity -v -p codesigning 2>/dev/nul
 DMG_NAME   := $(RELEASE_DIR)/Meadow-$(VERSION).dmg
 DMG_TEMP   := .build/dmg-temp
 DMG_RW     := .build/Meadow-rw.dmg
+BUILD_STAMP := .build/.last-build
+
+# Pass FORCE=1 (or f=1) to skip change detection and always rebuild.
+FORCE ?= 0
+f     ?= 0
 
 .PHONY: all build sign app open run test qa qa-live qa-agents dmg install clean
 
 all: app
 
 build:
-	swift build -c release
+	@mkdir -p .build
+	@if [ "$(FORCE)" = "1" ] || [ "$(f)" = "1" ] || \
+	   [ ! -f "$(BUILD_STAMP)" ] || \
+	   find Sources Package.swift Package.resolved -newer "$(BUILD_STAMP)" 2>/dev/null | grep -q .; then \
+		swift build -c release && touch "$(BUILD_STAMP)"; \
+	else \
+		echo "⏭️  No source changes detected, skipping build (pass FORCE=1 to rebuild)"; \
+	fi
 
 app: build sign
 	@echo "✅ Built $(APP_NAME)"

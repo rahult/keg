@@ -225,7 +225,6 @@ struct QuickTerminalView: View {
                     }
                 }
             }
-            .toolbarRole(.editor)
     }
 }
 

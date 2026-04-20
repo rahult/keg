@@ -92,7 +92,7 @@ actor WebhookManager {
     }
 
     private func triggerWebhook(_ webhook: Webhook, event: WebhookEvent, container: DockerContainer?, image: DockerImage?) async {
-        var payload = WebhookPayload(
+        let payload = WebhookPayload(
             webhook: WebhookInfo(name: webhook.name, uuid: webhook.id),
             event: event.rawValue,
             timestamp: Date(),

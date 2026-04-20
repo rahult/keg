@@ -15,6 +15,7 @@ struct ContainerListView: View {
     }
 
     var body: some View {
+        VSplitView {
         Group {
             if vm.isLoading && vm.containers.isEmpty {
                 ProgressView("Loading containers...")
@@ -162,7 +163,6 @@ struct ContainerListView: View {
                 .accessibilityHint("Reload the containers list")
             }
         }
-        .toolbarRole(.editor)
         .task {
             await vm.refresh()
         }
@@ -199,14 +199,12 @@ struct ContainerListView: View {
         } message: {
             Text(deleteConfirmationMessage)
         }
-        .inspector(isPresented: .init(
-            get: { selectedContainerIDs.count == 1 },
-            set: { if !$0 { selectedContainerIDs = [] } }
-        )) {
-            if let id = selectedContainerIDs.first {
-                ContainerDetailView(containerID: id)
-            }
+        .frame(minHeight: 100, idealHeight: 260)
+        if selectedContainerIDs.count == 1, let id = selectedContainerIDs.first {
+            ContainerDetailView(containerID: id)
+                .frame(minHeight: 250)
         }
+        } // end VSplitView
     }
 
     private func containerName(_ snapshot: ContainerSnapshot) -> String {

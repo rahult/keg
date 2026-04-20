@@ -219,7 +219,6 @@ struct MultiContainerLogsView: View {
                 .keyboardShortcut("r", modifiers: .command)
             }
         }
-        .toolbarRole(.editor)
         .searchable(text: $search, prompt: "Filter logs")
     }
 
