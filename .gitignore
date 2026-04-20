@@ -3,11 +3,12 @@
 *.xcodeproj/
 DerivedData/
 .DS_Store
-Keg.app/
+Meadow.app/
 release/
 *.dmg
 *.dSYM/
 .pi/
 outputs/qa/
 .omc/state/
+**/.omc/
 .claude/worktrees/

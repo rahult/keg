@@ -1,8 +1,8 @@
-# Keg + Agents Architecture Specification
+# Meadow + Agents Architecture Specification
 
 ## Overview
 
-Keg evolves from container management tool → **local AI infrastructure platform**. Two top-level areas: **Keg** (infrastructure) and **Agents** (personal AI).
+Meadow evolves from container management tool → **local AI infrastructure platform**. Two top-level areas: **Meadow** (infrastructure) and **Agents** (personal AI).
 
 **Key principle:** Agents abstraction allows future extraction into standalone app.
 
@@ -14,7 +14,7 @@ Keg evolves from container management tool → **local AI infrastructure platfor
 
 ```swift
 enum AppArea: String, CaseIterable {
-    case keg = "Keg"
+    case meadow = "Meadow"
     case agents = "Agents"
 }
 ```
@@ -23,7 +23,7 @@ enum AppArea: String, CaseIterable {
 
 ```
 ┌─────────────────────────────────────────────┐
-│  Keg                           [•] [⚙️]    │  ← Area header
+│  Meadow                           [•] [⚙️]    │  ← Area header
 ├─────────────────────────────────────────────┤
 │  ┌─────────────────────────────────────┐    │
 │  │ Workloads                           │    │
@@ -47,7 +47,7 @@ enum AppArea: String, CaseIterable {
 
 ### Area-Specific Sidebar
 
-**Keg area** sections:
+**Meadow area** sections:
 - `NavigationSectionGroup.workloads`: containers, compose, kubernetes
 - `NavigationSectionGroup.content`: images, builds
 - `NavigationSectionGroup.system`: networks, volumes, registries
@@ -62,7 +62,7 @@ enum AppArea: String, CaseIterable {
 
 ```swift
 enum AppArea: String, CaseIterable {
-    case keg
+    case meadow
     case agents
 }
 
@@ -70,10 +70,10 @@ enum AppArea: String, CaseIterable {
 @MainActor
 final class AppState {
     // Navigation state
-    var currentArea: AppArea = .keg
+    var currentArea: AppArea = .meadow
     
-    // Keg navigation
-    var selectedKegSection: KegSection = .containers
+    // Meadow navigation
+    var selectedMeadowSection: MeadowSection = .containers
     var selectedContainerID: String?
     var selectedImageReference: String?
     
@@ -85,7 +85,7 @@ final class AppState {
     // ... existing fields
 }
 
-enum KegSection: String, CaseIterable, Identifiable {
+enum MeadowSection: String, CaseIterable, Identifiable {
     case containers = "Containers"
     case compose = "Compose"
     case kubernetes = "Kubernetes"
@@ -122,8 +122,8 @@ struct DetailView: View {
     var body: some View {
         Group {
             switch appState.currentArea {
-            case .keg:
-                KegDetailView()
+            case .meadow:
+                MeadowDetailView()
             case .agents:
                 AgentDetailView()
             }
@@ -131,11 +131,11 @@ struct DetailView: View {
     }
 }
 
-struct KegDetailView: View {
+struct MeadowDetailView: View {
     @Environment(AppState.self) private var appState
 
     var body: some View {
-        switch appState.selectedKegSection {
+        switch appState.selectedMeadowSection {
         case .containers: ContainerListView()
         case .compose: ComposeView()
         case .kubernetes: KubernetesView()
@@ -274,13 +274,13 @@ struct AgentDetailView: View {
 ## 5. File Structure
 
 ```
-Sources/Keg/
+Sources/Meadow/
 ├── App/
 │   ├── AppState.swift          # Updated with area navigation
-│   ├── KegApp.swift            # Updated routing
+│   ├── MeadowApp.swift            # Updated routing
 │   └── Components/
 │       ├── SidebarView.swift   # Area-aware sidebar
-│       └── AreaHeader.swift    # Keg/Agents toggle
+│       └── AreaHeader.swift    # Meadow/Agents toggle
 ├── Agents/                     # Agents module (extraction-ready)
 │   ├── Views/
 │   │   ├── AgentDashboardView.swift
@@ -306,7 +306,7 @@ Sources/Keg/
 │       ├── ManagedAgentsClient.swift
 │       ├── SSEClient.swift
 │       └── AgentAuth.swift
-├── Keg/                        # Keg infrastructure module
+├── Meadow/                        # Meadow infrastructure module
 │   ├── Views/
 │   │   ├── ContainerListView.swift
 │   │   ├── ComposeView.swift
@@ -328,7 +328,7 @@ Sources/Keg/
 
 ### Managed Agents Client
 
-Already implemented in `Sources/Keg/Agent/`:
+Already implemented in `Sources/Meadow/Agent/`:
 
 ```swift
 // Base URL configurable in settings
@@ -360,7 +360,7 @@ POST   /v1/sessions/{id}/events/stream     → SSE for events
 
 ## 7. Design Tokens
 
-Shared across Keg and Agents areas:
+Shared across Meadow and Agents areas:
 
 ```swift
 enum Design {
@@ -470,7 +470,7 @@ agents/
 1. Create new `Package.swift` with `Agents` library target
 2. Create `AgentApp.swift` entry point
 3. Extract shared components to `Shared/` submodule
-4. Update imports from `Keg.Agent` → `Agents`
+4. Update imports from `Meadow.Agent` → `Agents`
 
 **Unchanged:**
 - All Agent types (`Types.swift`, etc.)
@@ -492,7 +492,7 @@ agents/
 - SSE streaming
 
 ### UI Tests
-- Navigation flows (Keg ↔ Agents)
+- Navigation flows (Meadow ↔ Agents)
 - Agent CRUD operations
 - Session viewing
 - Error state handling
@@ -508,8 +508,8 @@ agents/
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| apple/container | 0.11.0 | Container management (Keg) |
-| hummingbird | 2.22+ | HTTP server (Keg Docker API) |
+| apple/container | 0.11.0 | Container management (Meadow) |
+| hummingbird | 2.22+ | HTTP server (Meadow Docker API) |
 | Yams | 5.4+ | YAML parsing (Compose, Skills) |
 | swift-collections | 1.1+ | OrderedDictionary for agents |
 | swift-algorithms | 1.2+ | Sequence utilities |

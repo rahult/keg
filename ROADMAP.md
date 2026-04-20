@@ -1,4 +1,4 @@
-# Implementation Roadmap: Keg + Agents
+# Implementation Roadmap: Meadow + Agents
 
 ## Overview
 
@@ -10,25 +10,25 @@ Pattern: Incremental delivery, test at each phase
 
 ## Phase 1: Navigation Foundation ⚙️
 
-**Goal:** Area-based navigation without breaking existing Keg functionality  
+**Goal:** Area-based navigation without breaking existing Meadow functionality  
 **Time:** ~4-6 hours  
-**Deliverable:** Working sidebar with Keg/Agents toggle
+**Deliverable:** Working sidebar with Meadow/Agents toggle
 
 ### Tasks
 
 #### 1.1 AppState Redesign
 ```swift
-// File: Sources/Keg/App/AppState.swift
+// File: Sources/Meadow/App/AppState.swift
 
 // New enums
 enum AppArea: String, CaseIterable, Identifiable {
-    case keg = "Keg"
+    case meadow = "Meadow"
     case agents = "Agents"
     
     var id: String { rawValue }
 }
 
-enum KegSection: String, CaseIterable, Identifiable {
+enum MeadowSection: String, CaseIterable, Identifiable {
     case containers = "Containers"
     case compose = "Compose"
     case kubernetes = "Kubernetes"
@@ -76,14 +76,14 @@ enum AgentSection: String, CaseIterable, Identifiable {
 **Changes to AppState:**
 - Replace `selectedSection: NavigationSection` with:
   - `currentArea: AppArea`
-  - `selectedKegSection: KegSection`
+  - `selectedMeadowSection: MeadowSection`
   - `selectedAgentSection: AgentSection`
 - Keep `selectedContainerID`, `selectedAgentID`, `selectedSessionID`
 - Add computed properties for current section/title
 
 #### 1.2 SidebarView Refactor
 ```swift
-// File: Sources/Keg/App/Components/SidebarView.swift
+// File: Sources/Meadow/App/Components/SidebarView.swift
 
 struct SidebarView: View {
     @Environment(AppState.self) private var appState
@@ -97,8 +97,8 @@ struct SidebarView: View {
             
             // Area-specific sections
             switch appState.currentArea {
-            case .keg:
-                KegSidebarContent()
+            case .meadow:
+                MeadowSidebarContent()
             case .agents:
                 AgentSidebarContent()
             }
@@ -107,13 +107,13 @@ struct SidebarView: View {
     
     private var binding: Binding<String> {
         Binding(
-            get: { appState.currentArea == .keg 
-                     ? appState.selectedKegSection.rawValue 
+            get: { appState.currentArea == .meadow 
+                     ? appState.selectedMeadowSection.rawValue 
                      : appState.selectedAgentSection.rawValue },
             set: { newValue in
-                if let keg = KegSection(rawValue: newValue) {
-                    appState.currentArea = .keg
-                    appState.selectedKegSection = keg
+                if let meadow = MeadowSection(rawValue: newValue) {
+                    appState.currentArea = .meadow
+                    appState.selectedMeadowSection = meadow
                 } else if let agent = AgentSection(rawValue: newValue) {
                     appState.currentArea = .agents
                     appState.selectedAgentSection = agent
@@ -138,26 +138,26 @@ struct AreaPicker: View {
     }
 }
 
-struct KegSidebarContent: View {
+struct MeadowSidebarContent: View {
     @Environment(AppState.self) private var appState
     
     var body: some View {
         Section("Workloads") {
-            ForEach([KegSection.containers, .compose, .kubernetes]) { section in
+            ForEach([MeadowSection.containers, .compose, .kubernetes]) { section in
                 Label(section.rawValue, systemImage: section.iconName)
                     .tag(section.rawValue)
             }
         }
         
         Section("Content") {
-            ForEach([KegSection.images, .builds]) { section in
+            ForEach([MeadowSection.images, .builds]) { section in
                 Label(section.rawValue, systemImage: section.iconName)
                     .tag(section.rawValue)
             }
         }
         
         Section("System") {
-            ForEach([KegSection.networks, .volumes, .registries]) { section in
+            ForEach([MeadowSection.networks, .volumes, .registries]) { section in
                 Label(section.rawValue, systemImage: section.iconName)
                     .tag(section.rawValue)
             }
@@ -186,26 +186,26 @@ struct AgentSidebarContent: View {
 
 #### 1.3 DetailView Routing Update
 ```swift
-// File: Sources/Keg/App/KegApp.swift (DetailView section)
+// File: Sources/Meadow/App/MeadowApp.swift (DetailView section)
 
 struct DetailView: View {
     @Environment(AppState.self) private var appState
 
     var body: some View {
         switch appState.currentArea {
-        case .keg:
-            KegDetailView()
+        case .meadow:
+            MeadowDetailView()
         case .agents:
             AgentDetailView()
         }
     }
 }
 
-struct KegDetailView: View {
+struct MeadowDetailView: View {
     @Environment(AppState.self) private var appState
 
     var body: some View {
-        switch appState.selectedKegSection {
+        switch appState.selectedMeadowSection {
         case .containers: ContainerListView()
         case .compose: ComposeView()
         case .kubernetes: KubernetesView()
@@ -234,11 +234,11 @@ struct AgentDetailView: View {
 ```
 
 ### Verification
-- [x] Sidebar shows Keg/Agents picker
+- [x] Sidebar shows Meadow/Agents picker
 - [x] Switching areas changes sidebar content
 - [x] Switching areas changes detail view
-- [x] Existing Keg navigation still works
-- [x] Keyboard shortcuts (Cmd+1 for Keg, Cmd+2 for Agents?)
+- [x] Existing Meadow navigation still works
+- [x] Keyboard shortcuts (Cmd+1 for Meadow, Cmd+2 for Agents?)
 
 ---
 
@@ -252,7 +252,7 @@ struct AgentDetailView: View {
 
 #### 2.1 Directory Structure
 ```
-Sources/Keg/Agents/
+Sources/Meadow/Agents/
 ├── Views/
 │   ├── AgentDashboardView.swift      # Placeholder
 │   ├── AgentListView.swift           # Placeholder
@@ -274,7 +274,7 @@ Sources/Keg/Agents/
 #### 2.2 ViewModels (Stubs)
 
 ```swift
-// Sources/Keg/Agents/ViewModels/AgentDashboardVM.swift
+// Sources/Meadow/Agents/ViewModels/AgentDashboardVM.swift
 import Foundation
 
 @Observable
@@ -308,7 +308,7 @@ struct SessionSummary: Identifiable {
 ```
 
 ```swift
-// Sources/Keg/Agents/ViewModels/AgentListVM.swift
+// Sources/Meadow/Agents/ViewModels/AgentListVM.swift
 import Foundation
 
 @Observable
@@ -363,7 +363,7 @@ final class AgentListVM {
 #### 2.3 Views (Stubs)
 
 ```swift
-// Sources/Keg/Agents/Views/AgentDashboardView.swift
+// Sources/Meadow/Agents/Views/AgentDashboardView.swift
 import SwiftUI
 
 struct AgentDashboardView: View {
@@ -380,11 +380,11 @@ struct AgentDashboardView: View {
 ```
 
 #### 2.4 Navigation Commands
-Add to KegApp commands:
+Add to MeadowApp commands:
 ```swift
 CommandMenu("Agent") {
     Button("New Agent") {
-        NotificationCenter.default.post(name: .kegNewAgent, object: nil)
+        NotificationCenter.default.post(name: .meadowNewAgent, object: nil)
     }
     .keyboardShortcut("N", modifiers: [.command, .option])
 }
@@ -408,7 +408,7 @@ CommandMenu("Agent") {
 
 #### 3.1 AgentAuth Enhancement
 ```swift
-// Sources/Keg/Agent/AgentAuth.swift (existing - enhance)
+// Sources/Meadow/Agent/AgentAuth.swift (existing - enhance)
 
 extension AgentAuth {
     static func testConnection() async throws -> Bool {

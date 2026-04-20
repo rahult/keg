@@ -1,8 +1,8 @@
-# Keg Integration Platform Design
+# Meadow Integration Platform Design
 
 ## Context
 
-Keg runs containers natively on Apple Silicon. Integration platform patterns (like Nango/Supaglue) can leverage this infrastructure for lightweight, scalable integrations.
+Meadow runs containers natively on Apple Silicon. Integration platform patterns (like Nango/Supaglue) can leverage this infrastructure for lightweight, scalable integrations.
 
 ## Architecture
 
@@ -10,7 +10,7 @@ Keg runs containers natively on Apple Silicon. Integration platform patterns (li
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Keg Integration Hub                   │
+│                    Meadow Integration Hub                   │
 ├─────────────────────────────────────────────────────────┤
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐ │
 │  │ Auth Manager │  │ Sync Engine │  │ Connector Pool   │ │
@@ -41,7 +41,7 @@ Keg runs containers natively on Apple Silicon. Integration platform patterns (li
       └──────────┘  └──────────┘  └──────────┘
 ```
 
-### Integration with Existing Keg Components
+### Integration with Existing Meadow Components
 
 | Component | Role | Status |
 |-----------|------|--------|
@@ -62,7 +62,7 @@ Keg runs containers natively on Apple Silicon. Integration platform patterns (li
 
 ### Phase 1: Auth & Connector Foundation
 ```
-Sources/Keg/Integrations/
+Sources/Meadow/Integrations/
 ├── Auth/
 │   ├── CredentialStore.swift      # Keychain-backed
 │   ├── OAuthHandler.swift          # OAuth 1/2 flows
@@ -78,7 +78,7 @@ Sources/Keg/Integrations/
 
 ### Phase 2: Sync Engine
 ```
-Sources/Keg/Integrations/
+Sources/Meadow/Integrations/
 ├── Sync/
 │   ├── Scheduler.swift             # Cron-based
 │   ├── IncrementalSync.swift       # Cursor-based
@@ -88,7 +88,7 @@ Sources/Keg/Integrations/
 
 ### Phase 3: UI Integration
 ```
-Sources/Keg/Views/Integrations/
+Sources/Meadow/Views/Integrations/
 ├── IntegrationListView.swift
 ├── ConnectorDetailView.swift
 ├── CredentialEditor.swift
@@ -149,7 +149,7 @@ GET  /integrations/:id/logs // Sync history
 
 ## Comparison with Nango
 
-| Feature | Nango | Keg Integration |
+| Feature | Nango | Meadow Integration |
 |---------|-------|----------------|
 | Self-hosted | Enterprise only | ✅ Built-in |
 | Infrastructure | 5 services + Postgres + Redis + ES | ✅ Single app |

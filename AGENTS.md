@@ -1,8 +1,8 @@
-# Keg — Agent Instructions
+# Meadow — Agent Instructions
 
 ## Project Overview
 
-Keg is a native macOS SwiftUI app that wraps Apple's `container` framework (github.com/apple/container v0.11.0) to provide a Docker Desktop–class experience. Target: macOS 26+ (Tahoe), Apple Silicon only.
+Meadow is a native macOS SwiftUI app that wraps Apple's `container` framework (github.com/apple/container v0.11.0) to provide a Docker Desktop–class experience. Target: macOS 26+ (Tahoe), Apple Silicon only.
 
 ## Tech Stack
 
@@ -18,7 +18,7 @@ Keg is a native macOS SwiftUI app that wraps Apple's `container` framework (gith
 - **One VM per container** via Virtualization.framework — not a shared Linux VM like Docker Desktop
 - `ContainerAPIClient` talks to `container-apiserver` (launchd XPC service)
 - Most container operations go through `Process()` calling the `container` CLI
-- Docker API server runs on `~/.keg/docker.sock` (Hummingbird)
+- Docker API server runs on `~/.meadow/docker.sock` (Hummingbird)
 - K8s uses kindest/node image with kubeadm inside a single Apple Container
 
 ## Code Conventions
@@ -34,18 +34,18 @@ Keg is a native macOS SwiftUI app that wraps Apple's `container` framework (gith
 
 | File | Purpose |
 |------|---------|
-| `Package.swift` | Dependencies + targets (single `Keg` executable target) |
-| `Sources/Keg/App/AppState.swift` | Global state, system lifecycle, Docker API control, NavigationSection enum |
-| `Sources/Keg/App/KegApp.swift` | App entry, WindowGroup, MenuBarExtra, DetailView routing |
-| `Sources/Keg/DockerAPI/DockerAPIServer.swift` | Hummingbird HTTP server with Docker Engine API routes |
-| `Sources/Keg/DockerAPI/ContainerBridge.swift` | CLI bridge: Docker API → `container` CLI translation |
-| `Sources/Keg/Compose/ComposeOrchestrator.swift` | YAML parsing, topological sort, compose lifecycle |
-| `Sources/Keg/Views/Kubernetes/KubernetesView.swift` | K8s cluster bootstrap (kindest/node + kubeadm) |
+| `Package.swift` | Dependencies + targets (single `Meadow` executable target) |
+| `Sources/Meadow/App/AppState.swift` | Global state, system lifecycle, Docker API control, NavigationSection enum |
+| `Sources/Meadow/App/MeadowApp.swift` | App entry, WindowGroup, MenuBarExtra, DetailView routing |
+| `Sources/Meadow/DockerAPI/DockerAPIServer.swift` | Hummingbird HTTP server with Docker Engine API routes |
+| `Sources/Meadow/DockerAPI/ContainerBridge.swift` | CLI bridge: Docker API → `container` CLI translation |
+| `Sources/Meadow/Compose/ComposeOrchestrator.swift` | YAML parsing, topological sort, compose lifecycle |
+| `Sources/Meadow/Views/Kubernetes/KubernetesView.swift` | K8s cluster bootstrap (kindest/node + kubeadm) |
 
 ## Build & Run
 
 ```bash
-make app          # Build Keg.app
+make app          # Build Meadow.app
 make open         # Build and launch
 make test         # Run tests
 swift build -c release  # Build binary only

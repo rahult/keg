@@ -1,4 +1,4 @@
-# Keg Architecture
+# Meadow Architecture
 
 ## Integration Patterns
 

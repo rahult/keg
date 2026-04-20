@@ -58,6 +58,6 @@ await runner.execute("rm -rf /")         // Container mode
 
 ## Files Created
 
-- `Sources/Keg/Agent/HybridAgentRunner.swift` - Hybrid execution engine
+- `Sources/Meadow/Agent/HybridAgentRunner.swift` - Hybrid execution engine
 - `footprint_benchmark.sh` - Footprint benchmarking script
 - `autoresearch.sh` - Startup latency benchmarking

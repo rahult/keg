@@ -2,10 +2,10 @@
 import PackageDescription
 
 let package = Package(
-    name: "Keg",
+    name: "Meadow",
     platforms: [.macOS(.v26)],
     products: [
-        .executable(name: "Keg", targets: ["Keg"]),
+        .executable(name: "Meadow", targets: ["Meadow"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/container.git", exact: "0.11.0"),
@@ -14,26 +14,26 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "Keg",
+            name: "Meadow",
             dependencies: [
                 .product(name: "ContainerAPIClient", package: "container"),
                 .product(name: "ContainerResource", package: "container"),
                 .product(name: "Hummingbird", package: "hummingbird"),
                 .product(name: "Yams", package: "Yams"),
             ],
-            path: "Sources/Keg",
+            path: "Sources/Meadow",
             swiftSettings: [
                 .swiftLanguageMode(.v6),
             ]
         ),
         .testTarget(
-            name: "KegTests",
+            name: "MeadowTests",
             dependencies: [
-                .target(name: "Keg"),
+                .target(name: "Meadow"),
                 .product(name: "ContainerAPIClient", package: "container"),
                 .product(name: "ContainerResource", package: "container"),
             ],
-            path: "Tests/KegTests"
+            path: "Tests/MeadowTests"
         ),
     ]
 )

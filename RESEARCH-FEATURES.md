@@ -1,4 +1,4 @@
-# Keg Feature Research — What Developers Actually Want
+# Meadow Feature Research — What Developers Actually Want
 
 Source: Reddit (r/docker, r/apple, r/selfhosted), X/Twitter, HackerNews, benchmark blogs (Paolo Mainardi 2025), developer forums.
 
@@ -15,7 +15,7 @@ Source: Reddit (r/docker, r/apple, r/selfhosted), X/Twitter, HackerNews, benchma
 - OrbStack wins on bind mount benchmarks (4.22s vs Docker Desktop's slower times)
 - "webpack hot reload, nodemon, and similar tools are painfully slow through bind mounts"
 
-**Keg opportunity:** Apple Containerization uses VirtioFS through Virtualization.framework — same baseline as everyone else. But since Keg runs **one VM per container** (no shared VM), there's an opportunity for smarter per-container file sync strategies instead of one-size-fits-all.
+**Meadow opportunity:** Apple Containerization uses VirtioFS through Virtualization.framework — same baseline as everyone else. But since Meadow runs **one VM per container** (no shared VM), there's an opportunity for smarter per-container file sync strategies instead of one-size-fits-all.
 
 ### 2. Memory Bloat — Docker Desktop eats RAM
 
@@ -25,7 +25,7 @@ Source: Reddit (r/docker, r/apple, r/selfhosted), X/Twitter, HackerNews, benchma
 - "I need to fully quit Docker Desktop to recover memory"
 - Apple Containerization has partial ballooning — "memory pages not returned to macOS"
 
-**Keg opportunity:** Per-VM memory isolation means one leaky container doesn't bloat everything. Could add:
+**Meadow opportunity:** Per-VM memory isolation means one leaky container doesn't bloat everything. Could add:
 - Memory pressure dashboard per container
 - Auto-restart policy when memory exceeds threshold
 - Visual memory timeline graph (not just a snapshot)
@@ -38,7 +38,7 @@ Source: Reddit (r/docker, r/apple, r/selfhosted), X/Twitter, HackerNews, benchma
 - "Everything after [firing up a server] is secondary, but Docker is designed as though everything else is primary"
 - "Docker is so easy — but it's almost more complicated than the older 'hard' way"
 
-**Keg opportunity (already partially addressed):**
+**Meadow opportunity (already partially addressed):**
 - Clickable port links that open in browser
 - One-click log streaming per container
 - "What's running" dashboard showing ports, URLs, health
@@ -52,7 +52,7 @@ Source: Reddit (r/docker, r/apple, r/selfhosted), X/Twitter, HackerNews, benchma
 - "OrbStack launches in under a second"
 - Apple Containerization: lightweight but unmeasured
 
-**Keg opportunity:** Apple Containerization should boot fast (one VM per container, minimal overhead). Benchmark and market this.
+**Meadow opportunity:** Apple Containerization should boot fast (one VM per container, minimal overhead). Benchmark and market this.
 
 ### 5. Kubernetes Local Dev — Resource Heavy
 
@@ -62,7 +62,7 @@ Source: Reddit (r/docker, r/apple, r/selfhosted), X/Twitter, HackerNews, benchma
 - "No one uses Docker Desktop's built-in K8s in production"
 - Developers want: `kubectl get pods` to just work
 
-**Keg opportunity:** Keg already has K8s via kindest/node. Could make it:
+**Meadow opportunity:** Meadow already has K8s via kindest/node. Could make it:
 - One-click cluster create (already done)
 - Auto-configures kubeconfig (already done)
 - Show pod/deployment/service status in UI (not done)
@@ -171,7 +171,7 @@ Source: Reddit (r/docker, r/apple, r/selfhosted), X/Twitter, HackerNews, benchma
 
 ## Competitive Positioning Matrix
 
-| Feature | Docker Desktop | OrbStack | Keg (current) | Keg (proposed) |
+| Feature | Docker Desktop | OrbStack | Meadow (current) | Meadow (proposed) |
 |---------|---------------|----------|---------------|----------------|
 | **Cost** | Free <250 emp | Paid | Free | Free |
 | **Open source** | No | No | Yes | Yes |
