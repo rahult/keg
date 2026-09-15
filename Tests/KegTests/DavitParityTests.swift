@@ -114,6 +114,91 @@ final class DavitParityTests: XCTestCase {
         XCTAssertEqual(entries[3].permissions, "-rwxr-xr-x")
     }
 
+    // MARK: - Platform settings TOML
+
+    func testParsePlatformTOML() {
+        let toml = """
+        [build]
+        cpus = 2
+        image = "ghcr.io/apple/container-builder-shim/builder:0.13.1"
+        memory = "2048mb"
+        rosetta = true
+
+        [container]
+        cpus = 4
+        memory = "1gb"
+
+        [dns]
+
+        [kernel]
+        binaryPath = "opt/kata/share/kata-containers/vmlinux"
+
+        [machine]
+        cpus = 5
+        homeMount = "rw"
+        memory = "8gb"
+        virtualization = false
+
+        [network]
+
+        [registry]
+        domain = "docker.io"
+
+        [vminit]
+        image = "ghcr.io/apple/containerization/vminit:0.42.0"
+        """
+
+        let settings = PlatformSettingsVM.parseTOML(toml)
+        XCTAssertEqual(settings.containerCPUs, 4)
+        XCTAssertEqual(settings.containerMemory, "1gb")
+        XCTAssertEqual(settings.buildCPUs, 2)
+        XCTAssertEqual(settings.buildMemory, "2048mb")
+        XCTAssertTrue(settings.buildRosetta)
+        XCTAssertEqual(settings.registryDomain, "docker.io")
+    }
+
+    func testParseDiskUsage() {
+        let output = """
+        TYPE           TOTAL  ACTIVE  SIZE     RECLAIMABLE
+        Images         7      0       4.08 GB  4.08 GB (100%)
+        Containers     0      0       0 B      0 B (0%)
+        Local Volumes  0      0       0 B      0 B (0%)
+        """
+        let rows = DiskUsageVM.parse(output)
+        XCTAssertEqual(rows.count, 3)
+        XCTAssertEqual(rows[0].type, "Images")
+        XCTAssertEqual(rows[0].total, "7")
+        XCTAssertEqual(rows[0].size, "4.08 GB")
+        XCTAssertEqual(rows[0].reclaimable, "4.08 GB (100%)")
+        XCTAssertEqual(rows[2].type, "Local Volumes")
+    }
+
+    // MARK: - Platform installer
+
+    func testSelectInstallerAsset() throws {
+        let json = """
+        {
+          "tag_name": "1.4.1",
+          "assets": [
+            { "name": "container-1.4.1-installer-signed.pkg", "browser_download_url": "https://example.com/signed.pkg" },
+            { "name": "container-installer-unsigned.pkg", "browser_download_url": "https://example.com/unsigned.pkg" },
+            { "name": "container-dSYM.zip", "browser_download_url": "https://example.com/dsym.zip" }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let asset = try XCTUnwrap(PlatformInstaller.selectInstallerAsset(releaseJSON: json))
+        XCTAssertEqual(asset.version, "1.4.1")
+        XCTAssertEqual(asset.downloadURL.absoluteString, "https://example.com/signed.pkg")
+    }
+
+    func testSelectInstallerAssetRejectsPayloadWithoutSignedPkg() {
+        let json = """
+        { "tag_name": "1.0.0", "assets": [ { "name": "container-dSYM.zip", "browser_download_url": "https://example.com/d.zip" } ] }
+        """.data(using: .utf8)!
+        XCTAssertNil(PlatformInstaller.selectInstallerAsset(releaseJSON: json))
+    }
+
     // MARK: - Run arguments
 
     func testFormatMemoryUnits() {

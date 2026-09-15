@@ -17,8 +17,17 @@ struct SystemDashboardDetailView: View {
                 // Header
                 headerSection
 
+                if !ContainerCLI.isInstalled {
+                    PlatformSetupCard()
+                }
+
                 // Key metrics grid
                 metricsGridSection
+
+                // Live services and disk usage
+                RunningServicesSection()
+                    .environment(appState)
+                DiskUsageSection()
 
                 // System status section
                 systemStatusSection

@@ -23,6 +23,9 @@ struct SettingsView: View {
         Form {
             Section("Container CLI") {
                 ContainerCLIStatusRow()
+                if !ContainerCLI.isInstalled {
+                    PlatformSetupCard()
+                }
             }
 
             Section("Container System") {
@@ -79,6 +82,14 @@ struct SettingsView: View {
                         .controlSize(.small)
                     }
                 }
+            }
+
+            Section("Platform") {
+                PlatformSettingsSection()
+            }
+
+            Section("Terminal") {
+                TerminalPreferenceSection()
             }
 
             Section("Docker API") {

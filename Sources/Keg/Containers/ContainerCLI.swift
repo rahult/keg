@@ -4,10 +4,12 @@ import Foundation
 /// launched with a stripped PATH (Finder/Dock apps don't inherit `$PATH` from the
 /// user's shell). Also reports installation status for the Settings UI.
 enum ContainerCLI {
-    /// Known install locations, highest priority first.
+    /// Known install locations, highest priority first. The user-level path
+    /// is where Keg's built-in installer (PlatformInstaller) places the CLI.
     static let candidatePaths: [String] = [
         "/opt/homebrew/bin/container",    // Apple Silicon Homebrew
         "/usr/local/bin/container",       // Intel Homebrew / official .pkg
+        NSHomeDirectory() + "/.keg/platform/bin/container", // Keg-managed user install
         "/opt/container/bin/container",   // Apple .pkg install target
         "/usr/bin/container"              // system (unlikely but covered)
     ]

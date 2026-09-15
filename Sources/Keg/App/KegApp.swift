@@ -204,6 +204,9 @@ struct MainView: View {
         .onReceive(NotificationCenter.default.publisher(for: .kegToggleSidebar)) { _ in
             toggleSidebar()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .kegPlatformInstalled)) { _ in
+            Task { await appState.ensureReady() }
+        }
         .onDisappear {
             appState.stopRefreshing()
         }
