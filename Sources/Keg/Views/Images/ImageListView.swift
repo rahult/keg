@@ -7,6 +7,9 @@ struct ImageListView: View {
     @State private var selectedImageRefs: Set<String> = []
     @State private var showPullSheet = false
     @State private var showingDeleteConfirmation = false
+    @State private var runImageReference: String?
+    @State private var tagSourceReference: String?
+    @State private var showingPruneConfirmation = false
     @State private var searchText = ""
     @FocusState private var isSearchFocused: Bool
 
@@ -62,10 +65,19 @@ struct ImageListView: View {
                             showingDeleteConfirmation = true
                         }
                     } else if let ref = refs.first {
-                        ImageContextMenu(ref: ref) {
-                            selectedImageRefs = [ref]
-                            showingDeleteConfirmation = true
-                        }
+                        ImageContextMenu(
+                            ref: ref,
+                            onRun: {
+                                runImageReference = ref
+                            },
+                            onTag: {
+                                tagSourceReference = ref
+                            },
+                            onDelete: {
+                                selectedImageRefs = [ref]
+                                showingDeleteConfirmation = true
+                            }
+                        )
                     }
                 }
             }
@@ -91,6 +103,15 @@ struct ImageListView: View {
                     Label("Pull...", systemImage: "arrow.down.circle")
                 }
                 .accessibilityHint("Open the pull image sheet")
+            }
+
+            ToolbarItem(id: "prune", placement: .automatic) {
+                Button {
+                    showingPruneConfirmation = true
+                } label: {
+                    Label("Prune…", systemImage: "scissors")
+                }
+                .accessibilityHint("Remove unused images")
             }
 
             ToolbarItem(id: "refresh", placement: .automatic) {
@@ -123,6 +144,33 @@ struct ImageListView: View {
         }
         .sheet(isPresented: $showPullSheet) {
             PullImageView(vm: vm)
+        }
+        .sheet(isPresented: Binding(
+            get: { runImageReference != nil },
+            set: { if !$0 { runImageReference = nil } }
+        )) {
+            if let ref = runImageReference {
+                RunContainerView(initialImage: ref)
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { tagSourceReference != nil },
+            set: { if !$0 { tagSourceReference = nil } }
+        )) {
+            if let ref = tagSourceReference {
+                TagImageView(vm: vm, sourceReference: ref)
+            }
+        }
+        .alert("Prune Images?", isPresented: $showingPruneConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Prune Unused") {
+                Task { try? await vm.prune(all: false) }
+            }
+            Button("Prune All", role: .destructive) {
+                Task { try? await vm.prune(all: true) }
+            }
+        } message: {
+            Text("Prune Unused removes images not referenced by any container. Prune All removes every image. This cannot be undone.")
         }
         .alert(deleteConfirmationTitle, isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
@@ -178,9 +226,14 @@ struct ImageListView: View {
 
 struct ImageContextMenu: View {
     let ref: String
+    let onRun: () -> Void
+    let onTag: () -> Void
     let onDelete: () -> Void
 
     var body: some View {
+        Button("Run…", action: onRun)
+        Button("Tag…", action: onTag)
+        Divider()
         Button("Copy Reference") {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(ref, forType: .string)
@@ -190,6 +243,68 @@ struct ImageContextMenu: View {
             onDelete()
         }
         .accessibilityHint("Delete the selected image")
+    }
+}
+
+/// Adds an additional name:tag reference to an existing image.
+struct TagImageView: View {
+    @Environment(\.dismiss) private var dismiss
+    let vm: ImagesVM
+    let sourceReference: String
+
+    @State private var targetReference = ""
+    @State private var isTagging = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Tag Image")
+                .font(.headline)
+
+            LabeledContent("Source") {
+                Text(sourceReference)
+                    .font(.system(.body, design: .monospaced))
+                    .textSelection(.enabled)
+            }
+
+            TextField("New reference", text: $targetReference, prompt: Text("registry.example.com/name:tag"))
+                .textFieldStyle(.roundedBorder)
+                .accessibilityLabel("New image reference")
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .foregroundStyle(.red)
+                    .font(.caption)
+            }
+
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("Tag") {
+                    tag()
+                }
+                .disabled(targetReference.isEmpty || isTagging)
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(width: 440)
+    }
+
+    private func tag() {
+        isTagging = true
+        errorMessage = nil
+        Task {
+            do {
+                try await vm.tag(source: sourceReference, target: targetReference.trimmingCharacters(in: .whitespaces))
+                dismiss()
+            } catch {
+                errorMessage = error.localizedDescription
+                isTagging = false
+            }
+        }
     }
 }
 

@@ -60,4 +60,29 @@ final class ImagesVM {
         try await ClientImage.delete(reference: reference)
         await refresh()
     }
+
+    /// Create an additional reference for an existing image.
+    func tag(source: String, target: String) async throws {
+        let (code, output) = try await ContainerCLI.run(["container", "image", "tag", source, target])
+        guard code == 0 else {
+            throw ContainerCLIFailure(message: output.isEmpty ? "Tag failed" : output)
+        }
+        await refresh()
+    }
+
+    /// Remove unused images, or all images when `all` is true.
+    func prune(all: Bool) async throws {
+        var args = ["container", "image", "prune"]
+        if all { args.append("--all") }
+        let (code, output) = try await ContainerCLI.run(args)
+        guard code == 0 else {
+            throw ContainerCLIFailure(message: output.isEmpty ? "Prune failed" : output)
+        }
+        await refresh()
+    }
+}
+
+struct ContainerCLIFailure: LocalizedError {
+    let message: String
+    var errorDescription: String? { message }
 }

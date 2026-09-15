@@ -46,8 +46,11 @@ struct ComposeService: Codable {
 
     enum CodingKeys: String, CodingKey {
         case image, build, command, entrypoint, environment, ports, volumes
-        case dependsOn, networks, labels, restart, workingDir, containerName, hostname
+        case networks, labels, restart, hostname
         case privileged, tty, healthcheck, deploy
+        case dependsOn = "depends_on"
+        case workingDir = "working_dir"
+        case containerName = "container_name"
         case envFile = "env_file"
         case stdinOpen = "stdin_open"
     }
@@ -233,6 +236,98 @@ actor ComposeOrchestrator {
         }
     }
 
+    // MARK: - Plan (Import Preview)
+
+    struct ComposePlan: Sendable {
+        struct PlannedService: Sendable {
+            let name: String
+            let command: String
+            let warnings: [String]
+        }
+        let services: [PlannedService]
+        let networks: [String]
+        let volumes: [String]
+        var warnings: [String] {
+            services.flatMap(\.warnings)
+        }
+    }
+
+    /// Parses the compose file and returns exactly what Up would do, in
+    /// dependency order, with the equivalent `container run` command per
+    /// service and an honest warning list for anything unsupported.
+    func plan(filePath: String, projectName: String?) throws -> ComposePlan {
+        let file = try parse(filePath: filePath)
+        let name = projectName ?? URL(fileURLWithPath: filePath).deletingPathExtension().lastPathComponent
+        let composeDir = URL(fileURLWithPath: filePath).deletingLastPathComponent().path
+        let declaredVolumes = Set(file.volumes?.map { $0.key } ?? [])
+        let ordered = try topologicalSort(services: file.services)
+
+        let planned = ordered.compactMap { serviceName -> ComposePlan.PlannedService? in
+            guard let service = file.services[serviceName] else { return nil }
+            let resolvedImage: String
+            var extraWarnings: [String] = []
+            if let image = service.image, !image.isEmpty {
+                resolvedImage = image
+            } else if let build = service.build {
+                // Mirror buildServiceImage's tag so the preview matches Up.
+                resolvedImage = "\(name)-\(serviceName):local"
+                if build.context == nil || build.context == "." {
+                    extraWarnings.append("image will be built from \(composeDir) before the container runs")
+                } else {
+                    extraWarnings.append("image will be built from \(build.context!) before the container runs")
+                }
+            } else {
+                resolvedImage = "<no image>"
+                extraWarnings.append("service has no image or build section")
+            }
+
+            let args = serviceRunArgs(
+                serviceName: serviceName,
+                service: service,
+                projectName: name,
+                composeDir: composeDir,
+                declaredVolumes: declaredVolumes,
+                detached: true,
+                resolvedImage: resolvedImage
+            )
+
+            return ComposePlan.PlannedService(
+                name: serviceName,
+                command: formatCommand(args),
+                warnings: serviceWarnings(service) + extraWarnings
+            )
+        }
+
+        return ComposePlan(
+            services: planned,
+            networks: (file.networks ?? [:]).map { "\(name)-\($0.key)" }.sorted(),
+            volumes: (file.volumes ?? [:]).map { "\(name)-\($0.key)" }.sorted()
+        )
+    }
+
+    /// Warnings for compose keys the orchestrator cannot honor, so the user
+    /// sees them up front instead of discovering silent drops later.
+    private func serviceWarnings(_ service: ComposeService?) -> [String] {
+        guard let service else { return [] }
+        var warnings: [String] = []
+        if service.restart != nil {
+            warnings.append("restart: ignored — containers do not auto-restart")
+        }
+        if service.healthcheck != nil {
+            warnings.append("healthcheck: ignored")
+        }
+        if service.envFile != nil {
+            warnings.append("env_file: ignored — inline variables with environment:")
+        }
+        if service.privileged == true {
+            warnings.append("privileged: ignored — containers are already isolated VMs")
+        }
+        if service.entrypoint != nil {
+            warnings.append("entrypoint: ignored — use command: instead")
+        }
+        return warnings
+    }
+
     // MARK: - Up
 
     func up(filePath: String, projectName: String?, detached: Bool, progress: ProgressHandler? = nil) async throws {
@@ -369,6 +464,33 @@ actor ComposeOrchestrator {
             throw ComposeError.missingImage(serviceName)
         }
 
+        let args = serviceRunArgs(
+            serviceName: serviceName,
+            service: service,
+            projectName: projectName,
+            composeDir: composeDir,
+            declaredVolumes: declaredVolumes,
+            detached: detached,
+            resolvedImage: resolvedImage
+        )
+
+        let (code, output) = try await runLogged(args, progress: progress)
+        if code != 0 {
+            throw ComposeError.runFailed(serviceName, output)
+        }
+    }
+
+    /// Builds the `container run` argument vector for one service. Shared by
+    /// `up`, `restart`, and `plan` so the preview always matches reality.
+    private func serviceRunArgs(
+        serviceName: String,
+        service: ComposeService,
+        projectName: String,
+        composeDir: String,
+        declaredVolumes: Set<String>,
+        detached: Bool,
+        resolvedImage: String
+    ) -> [String] {
         let containerName = service.containerName ?? "\(projectName)-\(serviceName)-1"
         var args = ["container", "run"]
         args += dnsArguments()
@@ -425,10 +547,7 @@ actor ComposeOrchestrator {
             args += ["sh", "-lc", cmd]
         }
 
-        let (code, output) = try await runLogged(args, progress: progress)
-        if code != 0 {
-            throw ComposeError.runFailed(serviceName, output)
-        }
+        return args
     }
 
     // MARK: - Down

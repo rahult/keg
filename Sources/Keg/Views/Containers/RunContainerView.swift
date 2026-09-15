@@ -4,6 +4,10 @@ import ContainerResource
 
 struct RunContainerView: View {
     @Environment(\.dismiss) private var dismiss
+
+    /// Optional prefilled image (e.g. "Run" from the Images list).
+    var initialImage: String? = nil
+
     @State private var imageName = ""
     @State private var containerName = ""
     @State private var command = ""
@@ -15,6 +19,11 @@ struct RunContainerView: View {
     @State private var detached = true
     @State private var isRunning = false
     @State private var errorMessage: String?
+
+    init(initialImage: String? = nil) {
+        self.initialImage = initialImage
+        _imageName = State(initialValue: initialImage ?? "")
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -87,29 +96,17 @@ struct RunContainerView: View {
 
         Task {
             do {
-                var args = ["container", "run"]
-
-                if detached { args.append("-d") }
-                if !containerName.isEmpty {
-                    args += ["--name", containerName]
-                }
-                for env in envVars.split(separator: ",").map(String.init).map({ $0.trimmingCharacters(in: .whitespaces) }) where !env.isEmpty {
-                    args += ["-e", env]
-                }
-                for port in ports.split(separator: ",").map(String.init).map({ $0.trimmingCharacters(in: .whitespaces) }) where !port.isEmpty {
-                    args += ["-p", port]
-                }
-                for vol in volumes.split(separator: ",").map(String.init).map({ $0.trimmingCharacters(in: .whitespaces) }) where !vol.isEmpty {
-                    args += ["-v", vol]
-                }
-                args += ["--cpus", "\(cpus)"]
-                args += ["--memory", memory]
-
-                args.append(imageName)
-
-                if !command.isEmpty {
-                    args += command.split(separator: " ").map(String.init)
-                }
+                let args = ContainerRunArguments.build(
+                    name: containerName,
+                    env: ContainerRunArguments.splitList(envVars),
+                    ports: ContainerRunArguments.splitList(ports),
+                    volumes: ContainerRunArguments.splitList(volumes),
+                    cpus: cpus,
+                    memory: memory,
+                    detached: detached,
+                    image: imageName,
+                    command: command
+                )
 
                 let process = Process()
                 let pipe = Pipe()

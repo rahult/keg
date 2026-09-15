@@ -67,6 +67,19 @@ final class ContainerDetailVM {
         }
     }
 
+    func restart() async {
+        do {
+            try await client.stop(id: id)
+            let (code, out) = try await ContainerCLI.run(["container", "start", id])
+            if code != 0 {
+                errorMessage = out.isEmpty ? "Failed to restart container" : out
+            }
+            await load()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func stop() async {
         do { try await client.stop(id: id); await load() }
         catch { errorMessage = error.localizedDescription }
@@ -84,6 +97,7 @@ enum ContainerDetailTab: String, CaseIterable, Identifiable {
     case overview = "Overview"
     case environment = "Environment"
     case mounts = "Mounts"
+    case files = "Files"
     case logs = "Logs"
     case stats = "Stats"
     var id: String { rawValue }
@@ -92,6 +106,7 @@ enum ContainerDetailTab: String, CaseIterable, Identifiable {
         case .overview:    return "info.circle"
         case .environment: return "text.word.spacing"
         case .mounts:      return "externaldrive"
+        case .files:       return "folder"
         case .logs:        return "terminal"
         case .stats:       return "waveform.path.ecg"
         }
@@ -105,6 +120,7 @@ struct ContainerDetailView: View {
     @State private var vm: ContainerDetailVM
     @State private var metricsVM = MetricsHistoryVM()
     @State private var selectedTab: ContainerDetailTab = .overview
+    @State private var showRecreate = false
 
     init(containerID: String) {
         self.containerID = containerID
@@ -143,6 +159,13 @@ struct ContainerDetailView: View {
                     }
                 }
                 .onDisappear { vm.stopStatsPolling() }
+                .sheet(isPresented: $showRecreate) {
+                    if let container = vm.container {
+                        RecreateContainerView(container: container) {
+                            Task { await vm.load() }
+                        }
+                    }
+                }
             } else {
                 ProgressView("Loading...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -157,6 +180,16 @@ struct ContainerDetailView: View {
         case .overview:    OverviewTab(container: container, stats: vm.stats)
         case .environment: EnvironmentTab(container: container)
         case .mounts:      MountsTab(container: container)
+        case .files:
+            if container.status == .running {
+                ContainerFilesView(containerID: container.id)
+            } else {
+                EmptyState(
+                    "Container Not Running",
+                    description: "Start the container to browse its filesystem.",
+                    systemImage: "folder"
+                )
+            }
         case .logs:        LogsTab(containerID: container.id)
         case .stats:       StatsTab(metrics: metricsVM)
         }
@@ -166,20 +199,23 @@ struct ContainerDetailView: View {
     private func headerActions(_ container: ContainerSnapshot) -> some View {
         if container.status == .running {
             Button("Stop") { Task { await vm.stop() } }
+            Button("Restart") { Task { await vm.restart() } }
             Button {
-                openTerminal(shell: "sh", in: container.id)
+                TerminalLauncher.openShell(containerID: container.id)
             } label: {
-                Label("sh", systemImage: "terminal")
-            }
-            Button {
-                openTerminal(shell: "bash", in: container.id)
-            } label: {
-                Label("bash", systemImage: "terminal")
+                Label("Terminal", systemImage: "terminal")
             }
         } else {
             Button("Start") { Task { await vm.start() } }
                 .buttonStyle(.borderedProminent)
         }
+        Menu {
+            Button("Edit & Recreate…") { showRecreate = true }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
         Button(role: .destructive) {
             Task { await vm.delete() }
         } label: {
@@ -193,15 +229,6 @@ struct ContainerDetailView: View {
             return name
         }
         return String(container.id.prefix(12))
-    }
-
-    /// Open a new Terminal tab and exec into the container with the chosen shell.
-    /// We use AppleScript so the command is visible and cancellable by the user.
-    private func openTerminal(shell: String, in id: String) {
-        let cmd = "container exec -it \(id) \(shell)"
-        let script = "tell application \"Terminal\" to do script \"\(cmd)\""
-        var error: NSDictionary?
-        NSAppleScript(source: script)?.executeAndReturnError(&error)
     }
 }
 

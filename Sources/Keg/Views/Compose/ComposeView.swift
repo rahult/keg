@@ -20,6 +20,7 @@ final class ComposeVM {
     var output = ""
     var errorMessage: String?
     var services: [(name: String, service: String, state: String)] = []
+    var plan: ComposeOrchestrator.ComposePlan?
 
     private let orchestrator = ComposeOrchestrator()
 
@@ -92,6 +93,26 @@ final class ComposeVM {
     func selectComposeFile(_ path: String) async {
         composeFilePath = path
         await refreshPS()
+        await refreshPlan()
+    }
+
+    /// Recompute the import preview (dependency order, equivalent commands,
+    /// warnings) whenever the file or project name changes.
+    func refreshPlan() async {
+        guard !composeFilePath.isEmpty else {
+            plan = nil
+            return
+        }
+        do {
+            plan = try await orchestrator.plan(
+                filePath: composeFilePath,
+                projectName: projectName.isEmpty ? nil : projectName
+            )
+            errorMessage = nil
+        } catch {
+            plan = nil
+            errorMessage = describe(error)
+        }
     }
 
     func showLogs(for service: String) async {
@@ -214,6 +235,71 @@ struct ComposeView: View {
                         }
                     }
                     .padding(.top, 4)
+                }
+
+                if let plan = vm.plan {
+                    GroupBox("Import Preview") {
+                        VStack(alignment: .leading, spacing: 12) {
+                            if !plan.warnings.isEmpty {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Label("Warnings", systemImage: "exclamationmark.triangle.fill")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(.orange)
+                                    ForEach(Array(plan.warnings.enumerated()), id: \.offset) { _, warning in
+                                        Text("• \(warning)")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Services in dependency order")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                ForEach(Array(plan.services.enumerated()), id: \.offset) { index, service in
+                                    DisclosureGroup {
+                                        Text(service.command)
+                                            .font(.system(.caption, design: .monospaced))
+                                            .textSelection(.enabled)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .padding(6)
+                                            .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 4))
+                                    } label: {
+                                        HStack(spacing: 8) {
+                                            Text("\(index + 1).")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                                .frame(width: 20, alignment: .trailing)
+                                            Text(service.name)
+                                                .font(.system(.body, design: .monospaced))
+                                            if !service.warnings.isEmpty {
+                                                Image(systemName: "exclamationmark.triangle.fill")
+                                                    .foregroundStyle(.orange)
+                                                    .help(service.warnings.joined(separator: "\n"))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            HStack(spacing: 16) {
+                                if !plan.networks.isEmpty {
+                                    Label("\(plan.networks.count) networks", systemImage: "network")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                if !plan.volumes.isEmpty {
+                                    Label("\(plan.volumes.count) volumes", systemImage: "externaldrive")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                            }
+                        }
+                        .padding(.top, 4)
+                    }
                 }
 
                 GroupBox("Services") {
@@ -343,7 +429,14 @@ struct ComposeView: View {
         .task {
             if !vm.composeFilePath.isEmpty {
                 await vm.refreshPS()
+                await vm.refreshPlan()
             }
+        }
+        .onChange(of: vm.composeFilePath) {
+            Task { await vm.refreshPlan() }
+        }
+        .onChange(of: vm.projectName) {
+            Task { await vm.refreshPlan() }
         }
         .fileImporter(isPresented: $showFilePicker, allowedContentTypes: [.yaml, .item], allowsMultipleSelection: false) { result in
             if case .success(let urls) = result, let url = urls.first {

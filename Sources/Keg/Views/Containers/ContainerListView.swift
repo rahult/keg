@@ -8,6 +8,7 @@ struct ContainerListView: View {
     @State private var showRunSheet = false
     @State private var showingDeleteConfirmation = false
     @State private var searchText = ""
+    @State private var recreateContainer: IdentifiableContainer?
     @FocusState private var isSearchFocused: Bool
 
     private var wrappedContainers: [IdentifiableContainer] {
@@ -72,12 +73,35 @@ struct ContainerListView: View {
                     }
                     .width(min: 80)
 
-                    TableColumn("CPU / Mem") { item in
-                        Text("\(item.snapshot.configuration.resources.cpus) × \(ByteCountFormatter.string(fromByteCount: Int64(item.snapshot.configuration.resources.memoryInBytes), countStyle: .memory))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    TableColumn("CPU") { item in
+                        if let metrics = vm.liveMetrics[item.snapshot.id] {
+                            Text(String(format: "%.0f%%", metrics.cpuPercent))
+                                .font(.system(.body, design: .monospaced))
+                                .foregroundStyle(metrics.cpuPercent >= 80 ? .red : (metrics.cpuPercent >= 50 ? .orange : .secondary))
+                        } else {
+                            Text(item.snapshot.status == .running ? "…" : "—")
+                                .font(.system(.body, design: .monospaced))
+                                .foregroundStyle(.tertiary)
+                        }
                     }
-                    .width(min: 80, max: 120)
+                    .width(min: 56, max: 80)
+
+                    TableColumn("Memory") { item in
+                        if let metrics = vm.liveMetrics[item.snapshot.id] {
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(ByteCountFormatter.string(fromByteCount: Int64(metrics.memoryUsedBytes), countStyle: .memory))
+                                    .font(.system(.body, design: .monospaced))
+                                Text(String(format: "%.0f%% of %@", metrics.memoryPercent, ByteCountFormatter.string(fromByteCount: Int64(metrics.memoryLimitBytes), countStyle: .memory)))
+                                    .font(.caption2)
+                                    .foregroundStyle(metrics.memoryPercent >= 80 ? .red : .secondary)
+                            }
+                        } else {
+                            Text(item.snapshot.status == .running ? "…" : "—")
+                                .font(.system(.body, design: .monospaced))
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .width(min: 110, max: 170)
 
                     TableColumn("Started") { item in
                         if let date = item.snapshot.startedDate {
@@ -106,6 +130,9 @@ struct ContainerListView: View {
                         ContainerContextMenu(
                             id: id,
                             container: container,
+                            onRecreate: {
+                                recreateContainer = IdentifiableContainer(container)
+                            },
                             onDelete: {
                                 selectedContainerIDs = [id]
                                 showingDeleteConfirmation = true
@@ -165,6 +192,7 @@ struct ContainerListView: View {
         .toolbarRole(.editor)
         .task {
             await vm.refresh()
+            vm.startLiveStats()
         }
         .onReceive(NotificationCenter.default.publisher(for: .kegRunContainer)) { _ in
             showRunSheet = true
@@ -187,9 +215,15 @@ struct ContainerListView: View {
         }
         .onDisappear {
             appState.selectedContainerID = nil
+            vm.stopLiveStats()
         }
         .sheet(isPresented: $showRunSheet) {
             RunContainerView()
+        }
+        .sheet(item: $recreateContainer) { wrapped in
+            RecreateContainerView(container: wrapped.snapshot) {
+                Task { await vm.refresh() }
+            }
         }
         .alert(deleteConfirmationTitle, isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
@@ -263,6 +297,7 @@ struct ContainerListView: View {
 struct ContainerContextMenu: View {
     let id: String
     let container: ContainerSnapshot
+    let onRecreate: () -> Void
     let onDelete: () -> Void
     let vm: ContainersVM
 
@@ -273,7 +308,17 @@ struct ContainerContextMenu: View {
     var body: some View {
         if isRunning {
             Button("Stop") { Task { await vm.stop(id: id) } }
+            Button("Restart") { Task { await vm.restart(id: id) } }
+            Button("Open Terminal") {
+                TerminalLauncher.openShell(containerID: id)
+            }
+        } else {
+            Button("Start") { Task { await vm.start(id: id) } }
         }
+
+        Divider()
+
+        Button("Edit & Recreate…", action: onRecreate)
 
         Divider()
 
