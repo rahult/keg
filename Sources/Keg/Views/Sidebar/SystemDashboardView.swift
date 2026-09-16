@@ -4,12 +4,32 @@ import SwiftUI
 /// dashboard lives in the Dashboard section; the sidebar only needs enough
 /// context to answer "is anything running?" at a glance.
 struct SystemDashboardView: View {
+    var compact: Bool = false
+
     @State private var metrics: SystemMetrics.Metrics?
 
     private let metricsService = SystemMetrics.shared
 
     var body: some View {
-        HStack(spacing: 12) {
+        if compact {
+            // Icon rail: just the two status glyphs, centered.
+            HStack(spacing: 14) {
+                Image(systemName: "cube.box")
+                    .foregroundStyle(.secondary)
+                    .help("Containers: \(containersLabel)")
+                Image(systemName: "photo.stack")
+                    .foregroundStyle(.secondary)
+                    .help("Images: \(imagesLabel)")
+            }
+            .font(.caption)
+            .frame(maxWidth: .infinity)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Keg system summary: \(containersLabel) containers running, \(imagesLabel) images")
+            .task {
+                metrics = await metricsService.getMetrics(forceRefresh: true)
+            }
+        } else {
+            HStack(spacing: 12) {
             Label(containersLabel, systemImage: "cube.box")
                 .font(.caption)
                 .foregroundStyle(.secondary)

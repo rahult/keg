@@ -379,8 +379,10 @@ struct ComposeView: View {
         .navigationTitle("Compose")
         .toolbar {
             ToolbarItem(id: "up", placement: .primaryAction) {
-                Button("Up") {
+                Button {
                     Task { await vm.up() }
+                } label: {
+                    Label("Up", systemImage: "arrow.up")
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(vm.composeFilePath.isEmpty || vm.isRunning)
@@ -389,8 +391,10 @@ struct ComposeView: View {
             }
 
             ToolbarItem(id: "down", placement: .automatic) {
-                Button("Down") {
+                Button {
                     Task { await vm.down() }
+                } label: {
+                    Label("Down", systemImage: "arrow.down")
                 }
                 .disabled(vm.composeFilePath.isEmpty || vm.isRunning)
                 .accessibilityLabel("Compose Down")

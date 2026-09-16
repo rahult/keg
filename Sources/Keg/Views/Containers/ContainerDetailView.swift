@@ -223,16 +223,19 @@ struct ContainerDetailView: View {
     @ViewBuilder
     private func headerActions(_ container: ContainerSnapshot) -> some View {
         if container.status == .running {
-            Button("Stop") { Task { await vm.stop() } }
-            Button("Restart") { Task { await vm.restart() } }
-            Button {
+            AdaptiveActionButton(title: "Stop", systemImage: "stop.fill") {
+                Task { await vm.stop() }
+            }
+            AdaptiveActionButton(title: "Restart", systemImage: "arrow.clockwise") {
+                Task { await vm.restart() }
+            }
+            AdaptiveActionButton(title: "Terminal", systemImage: "terminal") {
                 TerminalLauncher.openShell(containerID: container.id)
-            } label: {
-                Label("Terminal", systemImage: "terminal")
             }
         } else {
-            Button("Start") { Task { await vm.start() } }
-                .buttonStyle(.borderedProminent)
+            AdaptiveActionButton(title: "Start", systemImage: "play.fill", prominent: true) {
+                Task { await vm.start() }
+            }
         }
         Button {
             showRecreate = true

@@ -33,8 +33,10 @@ struct AgentDetailView: View {
         .navigationTitle(agent.name)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                Button("Edit…") {
+                Button {
                     showEditor = true
+                } label: {
+                    Label("Edit", systemImage: "square.and.pencil")
                 }
                 .keyboardShortcut("e", modifiers: .command)
                 .accessibilityLabel("Edit agent")

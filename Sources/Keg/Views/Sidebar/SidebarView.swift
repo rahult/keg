@@ -3,22 +3,28 @@ import SwiftUI
 struct SidebarView: View {
 
     @Environment(AppState.self) private var appState
+    @State private var isCompact = false
 
     var body: some View {
         VStack(spacing: 0) {
-            SystemDashboardView()
-                .padding(.horizontal, 12)
+            SystemDashboardView(compact: isCompact)
+                .padding(.horizontal, isCompact ? 0 : 12)
                 .padding(.top, 12)
                 .padding(.bottom, 8)
 
             Divider()
-                .padding(.horizontal, 12)
+                .padding(.horizontal, isCompact ? 0 : 12)
 
-            KegSidebarContent()
+            KegSidebarContent(compact: isCompact)
         }
         .listStyle(.sidebar)
         .navigationTitle("Keg")
-        .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 340)
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.width
+        } action: { width in
+            isCompact = width < 180
+        }
+        .navigationSplitViewColumnWidth(min: 76, ideal: 260, max: 340)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Sidebar")
         .accessibilityHint("Choose a section")
@@ -140,6 +146,7 @@ struct AgentAccountStatusCard: View {
 
 struct KegSidebarContent: View {
     @Environment(AppState.self) private var appState
+    var compact: Bool = false
 
     private struct SidebarSection {
         let name: String
@@ -160,19 +167,31 @@ struct KegSidebarContent: View {
             set: { if let section = $0 { appState.selectedKegSection = section } }
         )) {
             ForEach(sections, id: \.name) { section in
-                Section(section.name) {
-                    ForEach(section.items) { item in
-                        sidebarLabel(for: item)
-                            .tag(item)
+                if compact {
+                    Section {
+                        sectionRows(section.items)
+                    }
+                } else {
+                    Section(section.name) {
+                        sectionRows(section.items)
                     }
                 }
             }
 
-            Section("App") {
-                SettingsLink {
-                    Label("Settings", systemImage: "gearshape")
+            if compact {
+                Section {
+                    SettingsLink {
+                        sidebarRowLabel("Settings", systemImage: "gearshape")
+                    }
+                    .accessibilityHint("Open app settings")
                 }
-                .accessibilityHint("Open app settings")
+            } else {
+                Section("App") {
+                    SettingsLink {
+                        sidebarRowLabel("Settings", systemImage: "gearshape")
+                    }
+                    .accessibilityHint("Open app settings")
+                }
             }
         }
         .listStyle(.sidebar)
@@ -181,16 +200,36 @@ struct KegSidebarContent: View {
     }
 
     @ViewBuilder
+    private func sectionRows(_ items: [KegSection]) -> some View {
+        ForEach(items) { item in
+            sidebarLabel(for: item)
+                .tag(item)
+        }
+    }
+
+    @ViewBuilder
+    private func sidebarRowLabel(_ title: String, systemImage: String) -> some View {
+        if compact {
+            Label(title, systemImage: systemImage)
+                .labelStyle(.iconOnly)
+                .frame(maxWidth: .infinity)
+                .help(title)
+        } else {
+            Label(title, systemImage: systemImage)
+        }
+    }
+
+    @ViewBuilder
     private func sidebarLabel(for item: KegSection) -> some View {
         switch item {
-        case .containers:
-            Label(item.rawValue, systemImage: item.iconName)
+        case .containers where !compact:
+            sidebarRowLabel(item.rawValue, systemImage: item.iconName)
                 .badge(appState.runningContainerCount)
-        case .health:
-            Label(item.rawValue, systemImage: item.iconName)
+        case .health where !compact:
+            sidebarRowLabel(item.rawValue, systemImage: item.iconName)
                 .badge(appState.unhealthyContainerCount)
         default:
-            Label(item.rawValue, systemImage: item.iconName)
+            sidebarRowLabel(item.rawValue, systemImage: item.iconName)
         }
     }
 }

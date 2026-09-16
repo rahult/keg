@@ -20,8 +20,10 @@ struct DevContainerView: View {
         .navigationTitle("Dev Containers")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button("Browse Project…") {
+                Button {
                     showFilePicker = true
+                } label: {
+                    Label("Browse Project…", systemImage: "folder")
                 }
             }
         }

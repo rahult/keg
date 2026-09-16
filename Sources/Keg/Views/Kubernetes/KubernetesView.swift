@@ -392,19 +392,25 @@ struct KubernetesView: View {
                 HStack(spacing: 8) {
                     switch vm.clusterStatus {
                     case .notCreated:
-                        Button("Create Cluster") {
+                        Button {
                             Task { await vm.createCluster() }
+                        } label: {
+                            Label("Create Cluster", systemImage: "plus")
                         }
                         .buttonStyle(.borderedProminent)
 
                     case .running:
-                        Button("Stop") {
+                        Button {
                             Task { await vm.stopCluster() }
+                        } label: {
+                            Label("Stop", systemImage: "stop.fill")
                         }
 
                     case .stopped:
-                        Button("Start") {
+                        Button {
                             Task { await vm.startCluster() }
+                        } label: {
+                            Label("Start", systemImage: "play.fill")
                         }
                         .buttonStyle(.borderedProminent)
 
@@ -412,8 +418,10 @@ struct KubernetesView: View {
                         ProgressView().controlSize(.small)
 
                     case .error:
-                        Button("Retry") {
+                        Button {
                             Task { await vm.checkClusterStatus() }
+                        } label: {
+                            Label("Retry", systemImage: "arrow.clockwise")
                         }
                     }
                 }

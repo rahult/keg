@@ -42,8 +42,10 @@ struct RegistryListView: View {
         .navigationTitle("Registries")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button("Login…") {
+                Button {
                     showLoginSheet = true
+                } label: {
+                    Label("Login…", systemImage: "person.badge.key")
                 }
                 .accessibilityLabel("Login to registry")
                 .accessibilityHint("Opens a form to log in to a container registry")
