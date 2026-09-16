@@ -5,7 +5,7 @@ import ContainerResource
 @Observable
 @MainActor
 final class VolumesVM {
-    var volumes: [Volume] = []
+    var volumes: [VolumeConfiguration] = []
     var isLoading = false
     var errorMessage: String?
 
@@ -59,7 +59,7 @@ struct VolumeListView: View {
                     .width(min: 80)
 
                     TableColumn("Created") { volume in
-                        Text(volume.createdAt, format: .dateTime.month(.abbreviated).day().year())
+                        Text(volume.creationDate, format: .dateTime.month(.abbreviated).day().year())
                             .foregroundStyle(.secondary)
                     }
                     .width(min: 100)

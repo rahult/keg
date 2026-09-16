@@ -86,7 +86,7 @@ final class ContainersVM {
 
     func kill(id: String) async {
         do {
-            try await client.kill(id: id, signal: SIGKILL)
+            try await client.kill(id: id, signal: "SIGKILL")
             await refresh()
         } catch {
             errorMessage = error.localizedDescription

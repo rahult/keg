@@ -51,8 +51,9 @@ final class ImagesVM {
 
     func pull(reference: String) async throws {
         guard !reference.isEmpty else { return }
-        let normalized = try ClientImage.normalizeReference(reference)
-        _ = try await ClientImage.pull(reference: normalized)
+        let config = await SystemConfigProvider.current()
+        let normalized = try ClientImage.normalizeReference(reference, containerSystemConfig: config)
+        _ = try await ClientImage.pull(reference: normalized, containerSystemConfig: config)
         await refresh()
     }
 

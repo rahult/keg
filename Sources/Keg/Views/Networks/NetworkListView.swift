@@ -5,7 +5,7 @@ import ContainerResource
 @Observable
 @MainActor
 final class NetworksVM {
-    var networks: [NetworkState] = []
+    var networks: [NetworkResource] = []
     var isLoading = false
     var errorMessage: String?
 
@@ -13,7 +13,7 @@ final class NetworksVM {
         isLoading = true
         defer { isLoading = false }
         do {
-            networks = try await ClientNetwork.list()
+            networks = try await NetworkClient().list()
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
@@ -22,7 +22,7 @@ final class NetworksVM {
 
     func delete(id: String) async {
         do {
-            try await ClientNetwork.delete(id: id)
+            try await NetworkClient().delete(id: id)
             await refresh()
         } catch {
             errorMessage = error.localizedDescription
@@ -32,10 +32,10 @@ final class NetworksVM {
 
 struct IdentifiableNetwork: Identifiable {
     let id: String
-    let network: NetworkState
+    let network: NetworkResource
     let isBuiltin: Bool
 
-    init(_ network: NetworkState) {
+    init(_ network: NetworkResource) {
         self.id = network.id
         self.network = network
         self.isBuiltin = network.isBuiltin
@@ -66,10 +66,11 @@ struct NetworkListView: View {
                     }
                     .width(min: 150)
 
-                    TableColumn("State") { item in
-                        StatusBadge(status: item.network.state)
+                    TableColumn("Subnet") { item in
+                        Text(item.network.status.ipv4Subnet.description)
+                            .foregroundStyle(.secondary)
                     }
-                    .width(min: 80, max: 120)
+                    .width(min: 120, max: 160)
 
                     TableColumn("Type") { item in
                         Text(item.isBuiltin ? "Built-in" : "Custom")

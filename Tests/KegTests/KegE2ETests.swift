@@ -1,8 +1,13 @@
 import XCTest
 import ContainerAPIClient
+import ContainerPersistence
 import ContainerResource
 
 final class KegE2ETests: XCTestCase {
+
+    private func systemConfig() async -> ContainerSystemConfig {
+        (try? await ConfigurationLoader.load()) ?? ContainerSystemConfig()
+    }
 
     override func setUp() async throws {
         guard ProcessInfo.processInfo.environment["KEG_RUN_CONTAINER_E2E"] == "1" else {
@@ -58,14 +63,15 @@ final class KegE2ETests: XCTestCase {
     }
 
     func testPullImage() async throws {
-        let ref = try ClientImage.normalizeReference("alpine:latest")
-        let img = try await ClientImage.pull(reference: ref)
+        let config = await systemConfig()
+        let ref = try ClientImage.normalizeReference("alpine:latest", containerSystemConfig: config)
+        let img = try await ClientImage.pull(reference: ref, containerSystemConfig: config)
         print("✅ Pulled: \(img.reference)")
         XCTAssertFalse(img.reference.isEmpty)
     }
 
     func testListNetworks() async throws {
-        let networks = try await ClientNetwork.list()
+        let networks = try await NetworkClient().list()
         print("✅ List networks: \(networks.count)")
         XCTAssertFalse(networks.isEmpty)
         let defaultNet = networks.first { $0.id == "default" }

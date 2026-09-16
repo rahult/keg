@@ -1,5 +1,6 @@
 import XCTest
 import ContainerAPIClient
+import ContainerPersistence
 import ContainerResource
 
 /// Shadow tests for Docker-compatible container operations.
@@ -249,10 +250,11 @@ final class DockerShadowTests: XCTestCase {
     /// Test: Pull, inspect, and delete an image
     func testImageLifecycle() async throws {
         let ref = "busybox:latest"
+        let config = (try? await ConfigurationLoader.load()) ?? ContainerSystemConfig()
 
         // Pull
-        let normalized = try ClientImage.normalizeReference(ref)
-        let image = try await ClientImage.pull(reference: normalized)
+        let normalized = try ClientImage.normalizeReference(ref, containerSystemConfig: config)
+        let image = try await ClientImage.pull(reference: normalized, containerSystemConfig: config)
         XCTAssertFalse(image.reference.isEmpty)
         print("✅ Pulled image: \(image.reference)")
 
@@ -271,10 +273,11 @@ final class DockerShadowTests: XCTestCase {
     /// Test: Pull multiple images and verify counts
     func testMultipleImagePull() async throws {
         let refs = ["alpine:3.19", "alpine:3.20"]
+        let config = (try? await ConfigurationLoader.load()) ?? ContainerSystemConfig()
 
         for ref in refs {
-            let normalized = try ClientImage.normalizeReference(ref)
-            let image = try await ClientImage.pull(reference: normalized)
+            let normalized = try ClientImage.normalizeReference(ref, containerSystemConfig: config)
+            let image = try await ClientImage.pull(reference: normalized, containerSystemConfig: config)
             XCTAssertFalse(image.reference.isEmpty)
             print("✅ Pulled \(ref)")
         }
@@ -304,7 +307,7 @@ final class DockerShadowTests: XCTestCase {
         print("✅ Created network: \(name)")
 
         // List and verify
-        let networks = try await ClientNetwork.list()
+        let networks = try await NetworkClient().list()
         let found = networks.contains { $0.id == name }
         XCTAssertTrue(found, "network should appear in list")
         print("✅ Network visible in list")

@@ -215,7 +215,7 @@ final class ReliabilityTests: XCTestCase {
 
     /// A container with a very long name (100 chars) should either work or fail clearly.
     func testContainerWithLongName() async throws {
-        let longSuffix = String(repeating: "a", count: 80)
+        let longSuffix = String(repeating: "a", count: 90)
         let name = "\(testPrefix)-longname-\(longSuffix)"
         XCTAssertGreaterThanOrEqual(name.count, 100, "Name should be at least 100 characters")
 
