@@ -155,7 +155,7 @@ struct BuildView: View {
 
             focusedField = nil
         }
-        .toolbar(id: "build-toolbar") {
+        .toolbar {
             ToolbarItem(id: "build", placement: .primaryAction) {
                 if isBuilding {
                     Button("Cancel Build") {

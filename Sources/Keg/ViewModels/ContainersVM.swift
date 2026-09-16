@@ -60,9 +60,15 @@ final class ContainersVM {
         }
     }
 
+    /// `ContainerClient.stop(id:)` fails against container CLI ≥1.3
+    /// (request encoding mismatch: "Expected value of type Path; signal"),
+    /// so stop via the CLI like start does.
     func stop(id: String) async {
         do {
-            try await client.stop(id: id)
+            let (code, out) = try await ContainerCLI.run(["container", "stop", id])
+            if code != 0 {
+                errorMessage = out.isEmpty ? "Failed to stop container" : out
+            }
             await refresh()
         } catch {
             errorMessage = error.localizedDescription
@@ -100,10 +106,15 @@ final class ContainersVM {
     }
 
     /// Apple containers are immutable; "restart" is stop + start via the CLI
-    /// (`ContainerClient` has no `start`).
+    /// (`ContainerClient` has no `start`, and its `stop` fails against CLI ≥1.3).
     func restart(id: String) async {
         do {
-            try await client.stop(id: id)
+            let (stopCode, stopOut) = try await ContainerCLI.run(["container", "stop", id])
+            if stopCode != 0 {
+                errorMessage = stopOut.isEmpty ? "Failed to stop container" : stopOut
+                await refresh()
+                return
+            }
             let (code, out) = try await ContainerCLI.run(["container", "start", id])
             if code != 0 {
                 errorMessage = out.isEmpty ? "Failed to restart container" : out

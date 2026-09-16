@@ -27,7 +27,7 @@ struct HealthDashboardView: View {
         .accessibilityLabel("Health Dashboard")
         .accessibilityHint("Overview of container health scores and resource usage")
         .navigationTitle("Health")
-        .toolbar(id: "health-toolbar") {
+        .toolbar {
             ToolbarItem(id: "refresh", placement: .automatic) {
                 Button {
                     Task { await vm.refresh() }

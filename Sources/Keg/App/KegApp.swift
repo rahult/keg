@@ -6,9 +6,11 @@ struct KegApp: App {
     @State private var appState = AppState()
 
     init() {
+        LaunchDiagnostics.install()
         if let icon = KegIcon.image {
             NSApplication.shared.applicationIconImage = icon
         }
+        LaunchDiagnostics.mark("KegApp.init done")
     }
 
     private func presentRunContainer() {
@@ -179,7 +181,8 @@ struct MainView: View {
     }
 
     var body: some View {
-        NavigationSplitView(columnVisibility: columnVisibility) {
+        LaunchDiagnostics.mark("MainView.body")
+        return NavigationSplitView(columnVisibility: columnVisibility) {
             SidebarView()
                 .environment(appState)
         } detail: {

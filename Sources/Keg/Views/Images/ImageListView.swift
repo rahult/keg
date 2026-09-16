@@ -95,7 +95,7 @@ struct ImageListView: View {
         .onExitCommand {
             handleEscape()
         }
-        .toolbar(id: "images-toolbar") {
+        .toolbar {
             ToolbarItem(id: "pull", placement: .primaryAction) {
                 Button {
                     showPullSheet = true

@@ -69,7 +69,12 @@ final class ContainerDetailVM {
 
     func restart() async {
         do {
-            try await client.stop(id: id)
+            let (stopCode, stopOut) = try await ContainerCLI.run(["container", "stop", id])
+            if stopCode != 0 {
+                errorMessage = stopOut.isEmpty ? "Failed to stop container" : stopOut
+                await load()
+                return
+            }
             let (code, out) = try await ContainerCLI.run(["container", "start", id])
             if code != 0 {
                 errorMessage = out.isEmpty ? "Failed to restart container" : out
@@ -81,7 +86,13 @@ final class ContainerDetailVM {
     }
 
     func stop() async {
-        do { try await client.stop(id: id); await load() }
+        do {
+            let (code, out) = try await ContainerCLI.run(["container", "stop", id])
+            if code != 0 {
+                errorMessage = out.isEmpty ? "Failed to stop container" : out
+            }
+            await load()
+        }
         catch { errorMessage = error.localizedDescription }
     }
 

@@ -393,7 +393,7 @@ struct ComposeView: View {
         .accessibilityLabel("Compose")
         .accessibilityHint("Manage Docker Compose services")
         .navigationTitle("Compose")
-        .toolbar(id: "compose-toolbar") {
+        .toolbar {
             ToolbarItem(id: "up", placement: .primaryAction) {
                 Button("Up") {
                     Task { await vm.up() }

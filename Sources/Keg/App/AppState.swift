@@ -64,6 +64,7 @@ final class AppState {
     private var refreshTimer: Timer?
 
     init() {
+        LaunchDiagnostics.mark("AppState.init start")
         // Ship with Docker API auto-start on by default. First-run users should get
         // a working `docker` CLI without hunting through Settings. Existing users who
         // explicitly set the key keep their choice.
@@ -79,15 +80,15 @@ final class AppState {
         // Remove it eagerly so clients get ECONNREFUSED (which they retry cleanly)
         // until the real server binds.
         try? FileManager.default.removeItem(atPath: DockerAPIServer.socketPath())
+        LaunchDiagnostics.mark("AppState.init middle (defaults+socket)")
 
-        Task { @MainActor [weak self] in
-            do {
-                try AgentAuth.migrateAPIKeyIfNeeded()
-            } catch {
-            }
-            self?.refreshAgentAuthentication()
-            await self?.refreshAgentAutomation()
-        }
+        // DISABLED (launch-stall + repeated keychain prompts): the eager
+        // keychain migration/read below runs on the main actor and its
+        // synchronous SecItemCopyMatching blocks the main thread — including
+        // window creation — until the user answers the keychain prompt.
+        // Re-signing between builds changes the cdhash, so "Always Allow"
+        // never sticks and the prompt returns every launch. Re-enable once
+        // the agents feature needs launch-time auth state again.
     }
 
     /// Bring the container backend and Docker API up without user intervention.
@@ -111,7 +112,10 @@ final class AppState {
         return false
     }
 
-    var isAgentAuthenticated = AgentAuth.hasAPIKey()
+    // DISABLED: reading keychain state at launch triggers repeated prompts
+    // (see note in init). Treat the agents feature as signed out until the
+    // user connects explicitly from Settings.
+    var isAgentAuthenticated = false
 
     /// Lazy-initialized Agent API client
     var agentClient: ManagedAgentsClient? {
@@ -122,7 +126,9 @@ final class AppState {
     }
 
     func refreshAgentAuthentication() {
-        isAgentAuthenticated = AgentAuth.hasAPIKey()
+        // DISABLED alongside isAgentAuthentication (see init note): keychain
+        // reads at launch cause blocking prompts. Keep call sites compiling.
+        isAgentAuthenticated = false
     }
 
     var pendingAgentApprovals: [AgentApprovalItem] {

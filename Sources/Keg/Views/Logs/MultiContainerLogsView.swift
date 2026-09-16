@@ -192,7 +192,7 @@ struct MultiContainerLogsView: View {
         .errorBanner($vm.errorMessage)
         .task { await vm.refreshContainers() }
         .onDisappear { Task { await vm.stopAll() } }
-        .toolbar(id: "logs-toolbar") {
+        .toolbar {
             ToolbarItem(id: "pause", placement: .automatic) {
                 Button {
                     vm.isPaused.toggle()

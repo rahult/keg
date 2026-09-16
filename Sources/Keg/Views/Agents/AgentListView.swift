@@ -16,7 +16,7 @@ struct AgentListView: View {
             .searchFocused($isSearchFocused)
             .onChange(of: searchText) { vm.searchText = searchText }
             .onChange(of: selectedAgentID) { appState.selectedAgentID = selectedAgentID }
-            .toolbar(id: "agents-toolbar") {
+            .toolbar {
                 ToolbarItem(id: "use-cases", placement: .primaryAction) {
                     Button {
                         appState.selectedAgentSection = .useCases

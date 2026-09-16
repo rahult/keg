@@ -352,7 +352,7 @@ struct KubernetesView: View {
         }
         .errorBanner($vm.errorMessage)
         .navigationTitle("Kubernetes")
-        .toolbar(id: "kubernetes-toolbar") {
+        .toolbar {
             ToolbarItem(id: "cluster-action", placement: .primaryAction) {
                 HStack(spacing: 8) {
                     switch vm.clusterStatus {

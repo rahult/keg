@@ -156,7 +156,7 @@ struct ContainerListView: View {
         .onExitCommand {
             handleEscape()
         }
-        .toolbar(id: "containers-toolbar") {
+        .toolbar {
             ToolbarItem(id: "run", placement: .primaryAction) {
                 Button {
                     showRunSheet = true
