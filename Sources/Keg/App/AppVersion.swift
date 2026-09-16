@@ -13,11 +13,11 @@ enum AppVersion {
 
     /// `0.2.0 (417)` for a published build, or bare `0.2.0` for a local one.
     ///
-    /// A local `make app` always stamps build 1, so showing it would be noise
-    /// that looks like a real build number. Only CI produces a number worth
-    /// putting in front of someone filing a bug report.
+    /// A local `make app` stamps build 0, which is noise in front of someone
+    /// filing a bug report. Every number CI produces is worth showing —
+    /// including 1, which is what the first release of a workflow gets.
     static func displayString(short: String, build: String) -> String {
-        guard build != "0", build != "1" else { return short }
+        guard build != "0" else { return short }
         return "\(short) (\(build))"
     }
 

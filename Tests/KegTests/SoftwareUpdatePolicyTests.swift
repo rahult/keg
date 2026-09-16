@@ -35,7 +35,12 @@ final class SoftwareUpdatePolicyTests: XCTestCase {
     }
 
     func testLocalBuildOmitsThePlaceholderBuildNumber() {
-        XCTAssertEqual(AppVersion.displayString(short: "0.2.0", build: "1"), "0.2.0")
         XCTAssertEqual(AppVersion.displayString(short: "0.0.0-dev", build: "0"), "0.0.0-dev")
+    }
+
+    /// The first run of a workflow is run number 1, so 1 is a real published
+    /// build and must not be mistaken for the local placeholder.
+    func testFirstCIBuildIsNotTreatedAsLocal() {
+        XCTAssertEqual(AppVersion.displayString(short: "0.2.0", build: "1"), "0.2.0 (1)")
     }
 }

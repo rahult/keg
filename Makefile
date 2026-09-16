@@ -13,7 +13,9 @@ endif
 
 # Sparkle compares CFBundleVersion, not the marketing version, so it has to
 # increase with every published build. CI passes the workflow run number.
-BUILD      ?= 1
+# A local build stays at 0, which is both lower than any published build and
+# distinguishable from one — run number 1 is a real release.
+BUILD      ?= 0
 
 BUILD_DIR  := .build/release
 MACOS_DIR  := $(APP_NAME)/Contents/MacOS
