@@ -161,9 +161,19 @@ final class KubernetesShadowTests: XCTestCase {
         ])
         XCTAssertEqual(kcCode, 0, "should extract kubeconfig")
 
+        // kubeadm's admin.conf points at the node's vmnet IP; rewrite the
+        // server line to the published host port (same approach as
+        // KubernetesView.rewriteKubeconfigServer).
         var kubeconfig = kcOut
-        kubeconfig = kubeconfig.replacingOccurrences(of: "kubernetes.default.svc", with: "127.0.0.1")
-        kubeconfig = kubeconfig.replacingOccurrences(of: ":6443", with: ":16443")
+        let serverPattern = #"server:\s*https://[^\s]+"#
+        if let regex = try? NSRegularExpression(pattern: serverPattern) {
+            let range = NSRange(kubeconfig.startIndex..., in: kubeconfig)
+            kubeconfig = regex.stringByReplacingMatches(
+                in: kubeconfig,
+                range: range,
+                withTemplate: "server: https://127.0.0.1:16443"
+            )
+        }
         try kubeconfig.write(toFile: kubeconfigPath, atomically: true, encoding: .utf8)
         print("✅ Kubeconfig saved to \(kubeconfigPath)")
 

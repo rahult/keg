@@ -258,7 +258,7 @@ final class KubernetesVM {
                 if kcCode == 0 {
                     let dir = (kcPath as NSString).deletingLastPathComponent
                     try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-                    let content = kcOut.replacingOccurrences(of: "kubernetes.default.svc", with: "127.0.0.1")
+                    let content = Self.rewriteKubeconfigServer(kcOut, host: "127.0.0.1", port: 6443)
                     try? content.write(toFile: kcPath, atomically: true, encoding: .utf8)
                 }
             }

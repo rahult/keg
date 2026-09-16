@@ -13,3 +13,5 @@ outputs/qa/
 .claude/worktrees/
 .env.release
 .env
+outputs/k8s-e2e*.log
+outputs/tools/
