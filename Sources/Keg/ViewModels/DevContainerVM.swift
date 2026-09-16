@@ -29,7 +29,9 @@ struct DevContainerSpec: Codable {
 
         var portNumber: UInt16? {
             switch self {
-            case .int(let i): return UInt16(i)
+            // UInt16(_:) traps on out-of-range ints — devcontainer.json is
+            // hand-edited, so a bogus port must not crash the app.
+            case .int(let i): return UInt16(exactly: i)
             case .string(let s): return UInt16(s)
             }
         }
@@ -150,13 +152,13 @@ final class DevContainerVM {
         // Mounts
         if let mounts = spec.mounts {
             for mount in mounts {
-                args += ["-v", mount]
+                args += Self.mountArgs(mount)
             }
         }
 
         // Workspace mount
         if let workspaceMount = spec.workspaceMount, !workspaceMount.isEmpty {
-            args += ["-v", workspaceMount]
+            args += Self.mountArgs(workspaceMount)
         }
 
         // Extra run args
@@ -186,5 +188,52 @@ final class DevContainerVM {
         }
 
         isLaunching = false
+    }
+
+    /// Translates a devcontainer.json mount entry to container CLI args.
+    /// Long-form specs (`src=…,dst=…,type=bind,readonly`) become `--mount`,
+    /// which Apple's CLI parses natively — passing them to `-v` silently
+    /// creates a *volume* literally named after the spec, so the workspace
+    /// folder mounts empty. Short-form `host:container[:opts]` stays `-v`.
+    nonisolated static func mountArgs(_ spec: String) -> [String] {
+        guard spec.contains("=") else {
+            return ["-v", spec]
+        }
+
+        var source: String?
+        var target: String?
+        var type: String?
+        var readonly = false
+
+        for pair in spec.split(separator: ",") {
+            let kv = pair.split(separator: "=", maxSplits: 1)
+            guard kv.count == 2 else {
+                // Bare flags like `readonly` (no `=`) are valid in the spec.
+                if pair == "readonly" { readonly = true }
+                continue
+            }
+            let key = kv[0].lowercased()
+            let value = String(kv[1])
+            switch key {
+            case "src", "source": source = value
+            case "dst", "target", "destination": target = value
+            case "type": type = value
+            case "readonly": readonly = value == "true" || value == "1"
+            default: break
+            }
+        }
+
+        guard let target, !target.isEmpty else {
+            return ["-v", spec]
+        }
+
+        var mount = "type=\(type ?? (source != nil ? "bind" : "volume")),target=\(target)"
+        if let source, !source.isEmpty {
+            mount += ",source=\(source)"
+        }
+        if readonly {
+            mount += ",readonly"
+        }
+        return ["--mount", mount]
     }
 }

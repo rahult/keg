@@ -1,0 +1,1703 @@
+Building for debugging...
+[Computing dependencies]
+[Using on-disk description]
+[1 / 403] _NumericsShims
+[106 / 431] Keg
+[114 / 468] CVersion
+[123 / 483] CNIOOpenBSD
+[136 / 480] Logging
+[139 / 475] Logging
+[149 / 470] Atomics
+[167 / 436] CNIOOpenBSD
+[175 / 438] CNIOLLHTTP
+[190 / 434] ContainerizationError
+[201 / 437] NIOConcurrencyHelpers
+[207 / 429] NIOConcurrencyHelpers
+[228 / 489] CNIOLinux
+[249 / 503] CGRPCNIOTransportZlib
+[264 / 503] CNIOExtrasZlib
+[276 / 508] Instrumentation
+[277 / 508] CTomlPlusPlus
+[285 / 493] ContainersPreview
+[294 / 488] _RopeModule
+[302 / 485] _RopeModule
+[322 / 506] InternalCollectionsUtilities
+[329 / 504] ContainerizationOS
+[333 / 498] ContainerizationOS
+[340 / 489] X509
+[347 / 483] DequeModule
+[350 / 483] ContainerizationOS
+[358 / 483] TerminalProgress
+[363 / 495] TerminalProgress
+[366 / 519] HashTreeCollections
+[373 / 525] ContainerPlugin
+[376 / 525] TerminalProgress
+[381 / 525] AsyncAlgorithms
+[381 / 521] ContainerPlugin
+[382 / 521] Collections
+[387 / 516] Configuration
+[393 / 519] AsyncAlgorithms
+[398 / 516] GRPCProtobuf
+[407 / 522] ConfigurationTOML
+[409 / 518] ConfigurationTOML
+[411 / 518] NIOCore
+[413 / 518] NIOCore
+[414 / 518] ConfigurationTOML
+[414 / 515] ContainerizationOS
+[418 / 513] NIOCore
+[424 / 529] NIOEmbedded
+[430 / 535] NIOHTTPTypes
+[437 / 545] NIOEmbedded
+[449 / 541] NIOPosix
+[450 / 541] NIOPosix
+[451 / 541] NIOEmbedded
+[451 / 540] NIOPosix
+[455 / 550] NIO
+[469 / 587] _NIOFileSystem
+[470 / 587] NIOTLS
+[477 / 621] NIOTLS
+[484 / 613]
+[492 / 621] NIOSOCKS
+[498 / 617] NIOSOCKS
+[503 / 617] NIOSOCKS
+[510 / 617] NIOHTTP1
+[515 / 637] NIOHTTP1
+[520 / 643] NIOFoundationCompat
+[524 / 651] NIOHTTPTypesHTTP1
+[528 / 651] NIOExtras
+[529 / 651] NIOPosix
+[532 / 645] NIOHTTPCompression
+[539 / 668] NIOSSL
+[540 / 691] NIOExtras
+[553 / 703]
+[563 / 699] ContainerizationIO
+[568 / 695] NIOTransportServices
+[577 / 687] NIOSSL
+[579 / 687] NIOSSL
+[584 / 683] NIOSSL
+[589 / 695] NIOHTTPCompression
+[592 / 695] NIOHTTPCompression
+[597 / 695] NIOHPACK
+[603 / 701] NIOHPACK
+[609 / 707] NIOExtras
+[616 / 707] NIOHPACK
+[623 / 706] NIOExtras
+[625 / 704] NIOExtras
+[626 / 703] NIOCertificateReloading
+[637 / 739] HummingbirdCore
+[644 / 735] NIOHTTP2
+[645 / 735] NIOHTTP2
+[652 / 731] NIOCertificateReloading
+[655 / 727] HummingbirdCore
+[658 / 727] HummingbirdCore
+[663 / 729] NIOHTTP2
+[667 / 741] ContainerizationExtras
+[670 / 759] ContainerizationExtras
+[673 / 765] GRPCNIOTransportCore
+[678 / 765] AsyncHTTPClient
+[680 / 764] ContainerizationExtras
+[681 / 763] ContainerXPC
+[687 / 769] ContainerXPC
+[689 / 769] ContainerXPC
+[697 / 776] Hummingbird
+[701 / 787] Hummingbird
+[706 / 783] DNSServer
+[710 / 807] GRPCNIOTransportCore
+[712 / 807] ContainerizationArchive
+[715 / 819] Hummingbird
+[717 / 819] Hummingbird
+[721 / 815] ContainerizationArchive
+[722 / 815] Hummingbird
+[729 / 807] GRPCNIOTransportCore
+[734 / 813] DNSServer
+[736 / 814] TerminalProgress
+[743 / 810] DNSServer
+[746 / 810] ContainerizationNetlink
+[749 / 810] ContainerizationArchive
+[754 / 810] AsyncHTTPClient
+[758 / 822] AsyncHTTPClient
+[762 / 822] ContainerizationNetlink
+[763 / 822] GRPCNIOTransportCore
+[767 / 823]
+[769 / 823] GRPCNIOTransportHTTP2Posix
+[771 / 823] AsyncHTTPClient
+[777 / 828] GRPCNIOTransportHTTP2TransportServices
+[777 / 828] AsyncHTTPClient
+[780 / 827] GRPCNIOTransportHTTP2Posix
+[788 / 837] ContainerizationEXT4
+[792 / 861]
+[806 / 869] CloudHypervisor
+[809 / 875] ContainerizationOCI
+[811 / 875] ContainerizationOCI
+[814 / 871] CloudHypervisor
+[818 / 871] ContainerizationOCI
+[819 / 871] ContainerizationOCI
+[828 / 868] CloudHypervisor
+[835 / 869] CloudHypervisor
+[836 / 869] CloudHypervisor
+[840 / 869] ContainerizationEXT4
+[842 / 869] GRPCNIOTransportHTTP2
+[848 / 873] Containerization
+[860 / 885] Containerization
+[865 / 896] Containerization
+[865 / 896] ContainerPersistence
+[874 / 911] ContainerImagesServiceClient
+[879 / 911] ContainerImagesServiceClient
+[883 / 912] ContainerPersistence
+[896 / 919] ContainerResource
+[898 / 917] ContainerResource
+[901 / 920] ContainerResource
+[902 / 919] ContainerAPIClient
+[913 / 930] ContainerAPIClient
+[917 / 929] ContainerAPIClient
+[918 / 928] Keg-product
+[932 / 964]
+[943 / 964] Keg-product
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Containers/SupaglueContainer.swift:39:9: warning: result of 'try?' is unused [#NoUsage]
+ 37 |     func run() async throws -> (code: Int32, stdout: String, stderr: String) {
+ 38 |         // Remove any stale container first
+ 39 |         try? await runCLI(["container", "rm", "-f", Self.containerName])
+    |         `- warning: result of 'try?' is unused [#NoUsage]
+ 40 | 
+ 41 |         let stateDir = NSHomeDirectory() + "/.keg/supaglue"
+
+[#NoUsage]: <https://docs.swift.org/compiler/documentation/diagnostics/no-usage>
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:43:44: warning: no 'async' operations occur within 'await' expression [#UnnecessaryEffectMarker]
+ 41 |             Task { @MainActor in
+ 42 |                 do {
+ 43 |                     for try await event in await self.streamEventsAsync() {
+    |                                            `- warning: no 'async' operations occur within 'await' expression [#UnnecessaryEffectMarker]
+ 44 |                         continuation.yield(event)
+ 45 |                     }
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:66:44: warning: no 'async' operations occur within 'await' expression [#UnnecessaryEffectMarker]
+ 64 |             Task { @MainActor in
+ 65 |                 do {
+ 66 |                     for try await event in await self.streamEventsAsync() {
+    |                                            `- warning: no 'async' operations occur within 'await' expression [#UnnecessaryEffectMarker]
+ 67 |                         if !event.data.isEmpty, event.data != "[DONE]" {
+ 68 |                             if let data = event.data.data(using: .utf8),
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:142:25: warning: mutation of captured var 'buffer' in concurrently-executing code [#SendableClosureCaptures]
+140 | 
+141 |                     if let data = data {
+142 |                         buffer.append(data)
+    |                         `- warning: mutation of captured var 'buffer' in concurrently-executing code [#SendableClosureCaptures]
+143 |                         self.processSSEBuffer(
+144 |                             &buffer,
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:144:30: warning: mutation of captured var 'buffer' in concurrently-executing code [#SendableClosureCaptures]
+142 |                         buffer.append(data)
+143 |                         self.processSSEBuffer(
+144 |                             &buffer,
+    |                              `- warning: mutation of captured var 'buffer' in concurrently-executing code [#SendableClosureCaptures]
+145 |                             &lastEventId,
+146 |                             &eventType,
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:145:30: warning: mutation of captured var 'lastEventId' in concurrently-executing code [#SendableClosureCaptures]
+143 |                         self.processSSEBuffer(
+144 |                             &buffer,
+145 |                             &lastEventId,
+    |                              `- warning: mutation of captured var 'lastEventId' in concurrently-executing code [#SendableClosureCaptures]
+146 |                             &eventType,
+147 |                             &eventData,
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:146:30: warning: mutation of captured var 'eventType' in concurrently-executing code [#SendableClosureCaptures]
+144 |                             &buffer,
+145 |                             &lastEventId,
+146 |                             &eventType,
+    |                              `- warning: mutation of captured var 'eventType' in concurrently-executing code [#SendableClosureCaptures]
+147 |                             &eventData,
+148 |                             &hasData,
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:147:30: warning: mutation of captured var 'eventData' in concurrently-executing code [#SendableClosureCaptures]
+145 |                             &lastEventId,
+146 |                             &eventType,
+147 |                             &eventData,
+    |                              `- warning: mutation of captured var 'eventData' in concurrently-executing code [#SendableClosureCaptures]
+148 |                             &hasData,
+149 |                             continuation: continuation
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:148:30: warning: mutation of captured var 'hasData' in concurrently-executing code [#SendableClosureCaptures]
+146 |                             &eventType,
+147 |                             &eventData,
+148 |                             &hasData,
+    |                              `- warning: mutation of captured var 'hasData' in concurrently-executing code [#SendableClosureCaptures]
+149 |                             continuation: continuation
+150 |                         )
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:153:24: warning: reference to captured var 'hasData' in concurrently-executing code [#SendableClosureCaptures]
+151 |                     }
+152 | 
+153 |                     if hasData {
+    |                        `- warning: reference to captured var 'hasData' in concurrently-executing code [#SendableClosureCaptures]
+154 |                         let event = SSEEvent(id: lastEventId, event: eventType, data: eventData, retry: nil)
+155 |                         continuation.yield(event)
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:154:50: warning: reference to captured var 'lastEventId' in concurrently-executing code [#SendableClosureCaptures]
+152 | 
+153 |                     if hasData {
+154 |                         let event = SSEEvent(id: lastEventId, event: eventType, data: eventData, retry: nil)
+    |                                                  `- warning: reference to captured var 'lastEventId' in concurrently-executing code [#SendableClosureCaptures]
+155 |                         continuation.yield(event)
+156 |                     }
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:154:70: warning: reference to captured var 'eventType' in concurrently-executing code [#SendableClosureCaptures]
+152 | 
+153 |                     if hasData {
+154 |                         let event = SSEEvent(id: lastEventId, event: eventType, data: eventData, retry: nil)
+    |                                                                      `- warning: reference to captured var 'eventType' in concurrently-executing code [#SendableClosureCaptures]
+155 |                         continuation.yield(event)
+156 |                     }
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:154:87: warning: reference to captured var 'eventData' in concurrently-executing code [#SendableClosureCaptures]
+152 | 
+153 |                     if hasData {
+154 |                         let event = SSEEvent(id: lastEventId, event: eventType, data: eventData, retry: nil)
+    |                                                                                       `- warning: reference to captured var 'eventData' in concurrently-executing code [#SendableClosureCaptures]
+155 |                         continuation.yield(event)
+156 |                     }
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SessionManager.swift:112:13: warning: variable 'eventLine' was never mutated; consider changing to 'let' constant [#VariableNeverMutated]
+110 |         let eventsFile = sessionDir.appendingPathComponent("events.jsonl")
+111 |         let eventData = try encoder.encode(event)
+112 |         var eventLine = String(data: eventData, encoding: .utf8)! + "\n"
+    |             `- warning: variable 'eventLine' was never mutated; consider changing to 'let' constant [#VariableNeverMutated]
+113 | 
+114 |         // Append to file
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#UnnecessaryEffectMarker]: <https://docs.swift.org/compiler/documentation/diagnostics/unnecessary-effect-marker>
+[#VariableNeverMutated]: <https://docs.swift.org/compiler/documentation/diagnostics/variable-never-mutated>
+[944 / 964] Keg-product
+[945 / 964] Keg-product
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/DockerAPI/DockerAPIServer.swift:108:13: warning: variable 'payload' was never mutated; consider changing to 'let' constant [#VariableNeverMutated]
+106 | 
+107 |     private func triggerWebhook(_ webhook: Webhook, event: WebhookEvent, container: DockerContainer?, image: DockerImage?) async {
+108 |         var payload = WebhookPayload(
+    |             `- warning: variable 'payload' was never mutated; consider changing to 'let' constant [#VariableNeverMutated]
+109 |             webhook: WebhookInfo(name: webhook.name, uuid: webhook.id),
+110 |             event: event.rawValue,
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/DockerAPI/DockerAPIServer.swift:216:41: warning: conditional cast from 'any Error' to 'any CustomStringConvertible' always succeeds
+214 |                     return response
+215 |                 } catch {
+216 |                     let detail = (error as? CustomStringConvertible).map { "\($0)" } ?? error.localizedDescription
+    |                                         `- warning: conditional cast from 'any Error' to 'any CustomStringConvertible' always succeeds
+217 |                     Self.appendLog("\(request.method.rawValue) \(request.uri.path) !! \(detail)")
+218 |                     throw error
+
+[#VariableNeverMutated]: <https://docs.swift.org/compiler/documentation/diagnostics/variable-never-mutated>
+[947 / 964] Keg-product
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:43:44: warning: no 'async' operations occur within 'await' expression [#UnnecessaryEffectMarker]
+ 41 |             Task { @MainActor in
+ 42 |                 do {
+ 43 |                     for try await event in await self.streamEventsAsync() {
+    |                                            `- warning: no 'async' operations occur within 'await' expression [#UnnecessaryEffectMarker]
+ 44 |                         continuation.yield(event)
+ 45 |                     }
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:66:44: warning: no 'async' operations occur within 'await' expression [#UnnecessaryEffectMarker]
+ 64 |             Task { @MainActor in
+ 65 |                 do {
+ 66 |                     for try await event in await self.streamEventsAsync() {
+    |                                            `- warning: no 'async' operations occur within 'await' expression [#UnnecessaryEffectMarker]
+ 67 |                         if !event.data.isEmpty, event.data != "[DONE]" {
+ 68 |                             if let data = event.data.data(using: .utf8),
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:142:25: warning: mutation of captured var 'buffer' in concurrently-executing code [#SendableClosureCaptures]
+140 | 
+141 |                     if let data = data {
+142 |                         buffer.append(data)
+    |                         `- warning: mutation of captured var 'buffer' in concurrently-executing code [#SendableClosureCaptures]
+143 |                         self.processSSEBuffer(
+144 |                             &buffer,
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:144:30: warning: mutation of captured var 'buffer' in concurrently-executing code [#SendableClosureCaptures]
+142 |                         buffer.append(data)
+143 |                         self.processSSEBuffer(
+144 |                             &buffer,
+    |                              `- warning: mutation of captured var 'buffer' in concurrently-executing code [#SendableClosureCaptures]
+145 |                             &lastEventId,
+146 |                             &eventType,
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:145:30: warning: mutation of captured var 'lastEventId' in concurrently-executing code [#SendableClosureCaptures]
+143 |                         self.processSSEBuffer(
+144 |                             &buffer,
+145 |                             &lastEventId,
+    |                              `- warning: mutation of captured var 'lastEventId' in concurrently-executing code [#SendableClosureCaptures]
+146 |                             &eventType,
+147 |                             &eventData,
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:146:30: warning: mutation of captured var 'eventType' in concurrently-executing code [#SendableClosureCaptures]
+144 |                             &buffer,
+145 |                             &lastEventId,
+146 |                             &eventType,
+    |                              `- warning: mutation of captured var 'eventType' in concurrently-executing code [#SendableClosureCaptures]
+147 |                             &eventData,
+148 |                             &hasData,
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:147:30: warning: mutation of captured var 'eventData' in concurrently-executing code [#SendableClosureCaptures]
+145 |                             &lastEventId,
+146 |                             &eventType,
+147 |                             &eventData,
+    |                              `- warning: mutation of captured var 'eventData' in concurrently-executing code [#SendableClosureCaptures]
+148 |                             &hasData,
+149 |                             continuation: continuation
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:148:30: warning: mutation of captured var 'hasData' in concurrently-executing code [#SendableClosureCaptures]
+146 |                             &eventType,
+147 |                             &eventData,
+148 |                             &hasData,
+    |                              `- warning: mutation of captured var 'hasData' in concurrently-executing code [#SendableClosureCaptures]
+149 |                             continuation: continuation
+150 |                         )
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:153:24: warning: reference to captured var 'hasData' in concurrently-executing code [#SendableClosureCaptures]
+151 |                     }
+152 | 
+153 |                     if hasData {
+    |                        `- warning: reference to captured var 'hasData' in concurrently-executing code [#SendableClosureCaptures]
+154 |                         let event = SSEEvent(id: lastEventId, event: eventType, data: eventData, retry: nil)
+155 |                         continuation.yield(event)
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:154:50: warning: reference to captured var 'lastEventId' in concurrently-executing code [#SendableClosureCaptures]
+152 | 
+153 |                     if hasData {
+154 |                         let event = SSEEvent(id: lastEventId, event: eventType, data: eventData, retry: nil)
+    |                                                  `- warning: reference to captured var 'lastEventId' in concurrently-executing code [#SendableClosureCaptures]
+155 |                         continuation.yield(event)
+156 |                     }
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:154:70: warning: reference to captured var 'eventType' in concurrently-executing code [#SendableClosureCaptures]
+152 | 
+153 |                     if hasData {
+154 |                         let event = SSEEvent(id: lastEventId, event: eventType, data: eventData, retry: nil)
+    |                                                                      `- warning: reference to captured var 'eventType' in concurrently-executing code [#SendableClosureCaptures]
+155 |                         continuation.yield(event)
+156 |                     }
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SSEClient.swift:154:87: warning: reference to captured var 'eventData' in concurrently-executing code [#SendableClosureCaptures]
+152 | 
+153 |                     if hasData {
+154 |                         let event = SSEEvent(id: lastEventId, event: eventType, data: eventData, retry: nil)
+    |                                                                                       `- warning: reference to captured var 'eventData' in concurrently-executing code [#SendableClosureCaptures]
+155 |                         continuation.yield(event)
+156 |                     }
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/SessionManager.swift:112:13: warning: variable 'eventLine' was never mutated; consider changing to 'let' constant [#VariableNeverMutated]
+110 |         let eventsFile = sessionDir.appendingPathComponent("events.jsonl")
+111 |         let eventData = try encoder.encode(event)
+112 |         var eventLine = String(data: eventData, encoding: .utf8)! + "\n"
+    |             `- warning: variable 'eventLine' was never mutated; consider changing to 'let' constant [#VariableNeverMutated]
+113 | 
+114 |         // Append to file
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[#UnnecessaryEffectMarker]: <https://docs.swift.org/compiler/documentation/diagnostics/unnecessary-effect-marker>
+[#VariableNeverMutated]: <https://docs.swift.org/compiler/documentation/diagnostics/variable-never-mutated>
+[948 / 964] Keg-product
+[949 / 964] Keg-product
+[950 / 964] Keg-product
+[951 / 964] Keg-product
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Views/Dashboard/SystemDashboardDetailView.swift:12:17: warning: cannot use generic class 'Autoconnect' in a property declaration member of a type not marked '@_implementationOnly'; 'Combine' was not imported by this file
+ 10 | 
+ 11 |     private let metricsService = SystemMetrics.shared
+ 12 |     private let timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+    |                 `- warning: cannot use generic class 'Autoconnect' in a property declaration member of a type not marked '@_implementationOnly'; 'Combine' was not imported by this file
+ 13 | 
+ 14 |     var body: some View {
+
+Combine.Publishers.Autoconnect:2:14: note: generic class declared here
+ 1 | enum Publishers {
+ 2 | public class Autoconnect<Upstream> : Publisher where Upstream : ConnectablePublisher {
+   |              `- note: generic class declared here
+ 3 |     public typealias Output = Upstream.Output
+ 4 |     public typealias Failure = Upstream.Failure
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Views/Dashboard/SystemDashboardDetailView.swift:12:17: warning: cannot use enum 'Publishers' in a property declaration member of a type not marked '@_implementationOnly'; 'Combine' was not imported by this file
+ 10 | 
+ 11 |     private let metricsService = SystemMetrics.shared
+ 12 |     private let timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+    |                 `- warning: cannot use enum 'Publishers' in a property declaration member of a type not marked '@_implementationOnly'; 'Combine' was not imported by this file
+ 13 | 
+ 14 |     var body: some View {
+
+Combine.Publishers:2:13: note: enum declared here
+1 | @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+2 | public enum Publishers {
+  |             `- note: enum declared here
+3 | }
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Views/Dashboard/SystemDashboardDetailView.swift:12:17: warning: cannot use generic class 'Autoconnect' in a property declaration member of a type not marked '@_implementationOnly'; 'Combine' was not imported by this file
+ 10 | 
+ 11 |     private let metricsService = SystemMetrics.shared
+ 12 |     private let timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+    |                 `- warning: cannot use generic class 'Autoconnect' in a property declaration member of a type not marked '@_implementationOnly'; 'Combine' was not imported by this file
+ 13 | 
+ 14 |     var body: some View {
+
+Combine.Publishers.Autoconnect:2:14: note: generic class declared here
+ 1 | enum Publishers {
+ 2 | public class Autoconnect<Upstream> : Publisher where Upstream : ConnectablePublisher {
+   |              `- note: generic class declared here
+ 3 |     public typealias Output = Upstream.Output
+ 4 |     public typealias Failure = Upstream.Failure
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Views/Dashboard/SystemDashboardDetailView.swift:12:17: warning: cannot use enum 'Publishers' in a property declaration member of a type not marked '@_implementationOnly'; 'Combine' was not imported by this file
+ 10 | 
+ 11 |     private let metricsService = SystemMetrics.shared
+ 12 |     private let timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+    |                 `- warning: cannot use enum 'Publishers' in a property declaration member of a type not marked '@_implementationOnly'; 'Combine' was not imported by this file
+ 13 | 
+ 14 |     var body: some View {
+
+Combine.Publishers:2:13: note: enum declared here
+1 | @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+2 | public enum Publishers {
+  |             `- note: enum declared here
+3 | }
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Views/Dashboard/SystemDashboardDetailView.swift:12:17: warning: cannot use generic class 'Autoconnect' in a property declaration member of a type not marked '@_implementationOnly'; 'Combine' was not imported by this file
+ 10 | 
+ 11 |     private let metricsService = SystemMetrics.shared
+ 12 |     private let timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+    |                 `- warning: cannot use generic class 'Autoconnect' in a property declaration member of a type not marked '@_implementationOnly'; 'Combine' was not imported by this file
+ 13 | 
+ 14 |     var body: some View {
+
+Combine.Publishers.Autoconnect:2:14: note: generic class declared here
+ 1 | enum Publishers {
+ 2 | public class Autoconnect<Upstream> : Publisher where Upstream : ConnectablePublisher {
+   |              `- note: generic class declared here
+ 3 |     public typealias Output = Upstream.Output
+ 4 |     public typealias Failure = Upstream.Failure
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Views/Dashboard/SystemDashboardDetailView.swift:12:17: warning: cannot use enum 'Publishers' in a property declaration member of a type not marked '@_implementationOnly'; 'Combine' was not imported by this file
+ 10 | 
+ 11 |     private let metricsService = SystemMetrics.shared
+ 12 |     private let timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+    |                 `- warning: cannot use enum 'Publishers' in a property declaration member of a type not marked '@_implementationOnly'; 'Combine' was not imported by this file
+ 13 | 
+ 14 |     var body: some View {
+
+Combine.Publishers:2:13: note: enum declared here
+1 | @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+2 | public enum Publishers {
+  |             `- note: enum declared here
+3 | }
+[953 / 964] Keg-product
+[954 / 964] Keg-product
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/DockerAPI/DockerAPIServer.swift:108:13: warning: variable 'payload' was never mutated; consider changing to 'let' constant [#VariableNeverMutated]
+106 | 
+107 |     private func triggerWebhook(_ webhook: Webhook, event: WebhookEvent, container: DockerContainer?, image: DockerImage?) async {
+108 |         var payload = WebhookPayload(
+    |             `- warning: variable 'payload' was never mutated; consider changing to 'let' constant [#VariableNeverMutated]
+109 |             webhook: WebhookInfo(name: webhook.name, uuid: webhook.id),
+110 |             event: event.rawValue,
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/DockerAPI/DockerAPIServer.swift:216:41: warning: conditional cast from 'any Error' to 'any CustomStringConvertible' always succeeds
+214 |                     return response
+215 |                 } catch {
+216 |                     let detail = (error as? CustomStringConvertible).map { "\($0)" } ?? error.localizedDescription
+    |                                         `- warning: conditional cast from 'any Error' to 'any CustomStringConvertible' always succeeds
+217 |                     Self.appendLog("\(request.method.rawValue) \(request.uri.path) !! \(detail)")
+218 |                     throw error
+
+[#VariableNeverMutated]: <https://docs.swift.org/compiler/documentation/diagnostics/variable-never-mutated>
+[956 / 966] Keg
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/ContainerPool.swift:120:19: warning: result of call to 'runCommand(_:args:)' is unused [#NoUsage]
+118 |         
+119 |         // Create container
+120 |         try await runCommand("/usr/bin/env", args: ["container", "create", "--name", name, config.image, "sh"])
+    |                   `- warning: result of call to 'runCommand(_:args:)' is unused [#NoUsage]
+121 |         
+122 |         // Start container
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/ContainerPool.swift:123:19: warning: result of call to 'runCommand(_:args:)' is unused [#NoUsage]
+121 |         
+122 |         // Start container
+123 |         try await runCommand("/usr/bin/env", args: ["container", "start", name])
+    |                   `- warning: result of call to 'runCommand(_:args:)' is unused [#NoUsage]
+124 |         
+125 |         // Small delay for stability
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/ContainerPool.swift:150:9: warning: result of 'try?' is unused [#NoUsage]
+148 |     
+149 |     private func deleteContainer(name: String) async {
+150 |         try? await runCommand("/usr/bin/env", args: ["container", "rm", "-f", name])
+    |         `- warning: result of 'try?' is unused [#NoUsage]
+151 |     }
+152 |     
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/MCPClient.swift:548:40: warning: no calls to throwing functions occur within 'try' expression [#UnnecessaryEffectMarker]
+ 546 |             guard let self = self else { return }
+ 547 |             do {
+ 548 |                 for try await event in try await conn.httpClient!.stream(path: "/mcp/stream") {
+     |                                        `- warning: no calls to throwing functions occur within 'try' expression [#UnnecessaryEffectMarker]
+ 549 |                     await self.handleServerEvent(serverName: serverName, event: event)
+ 550 |                 }
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/MCPClient.swift:691:9: warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+ 689 | /// JSON-RPC response
+ 690 | private struct MCPResponse<T: Decodable>: Decodable {
+ 691 |     let jsonrpc = "2.0"
+     |         |- warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+     |         |- note: set the initial value via the initializer or remove the 'jsonrpc' case from the CodingKeys enum to silence this warning
+     |         `- note: make the property mutable instead
+ 692 |     let id: String?
+ 693 |     let result: T?
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/MCPClient.swift:965:37: warning: call to actor-isolated instance method 'parseSSEvent(from:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 963 | 
+ 964 |                 // Parse SSE events
+ 965 |                 if let event = self.parseSSEvent(from: data) {
+     |                                     `- warning: call to actor-isolated instance method 'parseSSEvent(from:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 966 |                     continuation.yield(event)
+ 967 |                 }
+     :
+ 978 |     }
+ 979 | 
+ 980 |     private func parseSSEvent(from data: Data) -> ServerEvent? {
+     |                  `- note: calls to instance method 'parseSSEvent(from:)' from outside of its actor context are implicitly asynchronous
+ 981 |         guard let text = String(data: data, encoding: .utf8) else { return nil }
+ 982 | 
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/MCPClient.swift:986:13: warning: variable 'eventData' was written to, but never read
+ 984 |         let lines = text.components(separatedBy: "\n")
+ 985 |         var eventType: String?
+ 986 |         var eventData: String?
+     |             `- warning: variable 'eventData' was written to, but never read
+ 987 | 
+ 988 |         for line in lines {
+
+[#ActorIsolatedCall]: <https://docs.swift.org/compiler/documentation/diagnostics/actor-isolated-call>
+[#NoUsage]: <https://docs.swift.org/compiler/documentation/diagnostics/no-usage>
+[#UnnecessaryEffectMarker]: <https://docs.swift.org/compiler/documentation/diagnostics/unnecessary-effect-marker>
+[960 / 971] Keg-product
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/ContainerPool.swift:120:19: warning: result of call to 'runCommand(_:args:)' is unused [#NoUsage]
+118 |         
+119 |         // Create container
+120 |         try await runCommand("/usr/bin/env", args: ["container", "create", "--name", name, config.image, "sh"])
+    |                   `- warning: result of call to 'runCommand(_:args:)' is unused [#NoUsage]
+121 |         
+122 |         // Start container
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/ContainerPool.swift:123:19: warning: result of call to 'runCommand(_:args:)' is unused [#NoUsage]
+121 |         
+122 |         // Start container
+123 |         try await runCommand("/usr/bin/env", args: ["container", "start", name])
+    |                   `- warning: result of call to 'runCommand(_:args:)' is unused [#NoUsage]
+124 |         
+125 |         // Small delay for stability
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/ContainerPool.swift:150:9: warning: result of 'try?' is unused [#NoUsage]
+148 |     
+149 |     private func deleteContainer(name: String) async {
+150 |         try? await runCommand("/usr/bin/env", args: ["container", "rm", "-f", name])
+    |         `- warning: result of 'try?' is unused [#NoUsage]
+151 |     }
+152 |     
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/MCPClient.swift:548:40: warning: no calls to throwing functions occur within 'try' expression [#UnnecessaryEffectMarker]
+ 546 |             guard let self = self else { return }
+ 547 |             do {
+ 548 |                 for try await event in try await conn.httpClient!.stream(path: "/mcp/stream") {
+     |                                        `- warning: no calls to throwing functions occur within 'try' expression [#UnnecessaryEffectMarker]
+ 549 |                     await self.handleServerEvent(serverName: serverName, event: event)
+ 550 |                 }
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/MCPClient.swift:691:9: warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+ 689 | /// JSON-RPC response
+ 690 | private struct MCPResponse<T: Decodable>: Decodable {
+ 691 |     let jsonrpc = "2.0"
+     |         |- warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+     |         |- note: set the initial value via the initializer or remove the 'jsonrpc' case from the CodingKeys enum to silence this warning
+     |         `- note: make the property mutable instead
+ 692 |     let id: String?
+ 693 |     let result: T?
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/MCPClient.swift:965:37: warning: call to actor-isolated instance method 'parseSSEvent(from:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 963 | 
+ 964 |                 // Parse SSE events
+ 965 |                 if let event = self.parseSSEvent(from: data) {
+     |                                     `- warning: call to actor-isolated instance method 'parseSSEvent(from:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 966 |                     continuation.yield(event)
+ 967 |                 }
+     :
+ 978 |     }
+ 979 | 
+ 980 |     private func parseSSEvent(from data: Data) -> ServerEvent? {
+     |                  `- note: calls to instance method 'parseSSEvent(from:)' from outside of its actor context are implicitly asynchronous
+ 981 |         guard let text = String(data: data, encoding: .utf8) else { return nil }
+ 982 | 
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Agent/MCPClient.swift:986:13: warning: variable 'eventData' was written to, but never read
+ 984 |         let lines = text.components(separatedBy: "\n")
+ 985 |         var eventType: String?
+ 986 |         var eventData: String?
+     |             `- warning: variable 'eventData' was written to, but never read
+ 987 | 
+ 988 |         for line in lines {
+
+[#ActorIsolatedCall]: <https://docs.swift.org/compiler/documentation/diagnostics/actor-isolated-call>
+[#NoUsage]: <https://docs.swift.org/compiler/documentation/diagnostics/no-usage>
+[#UnnecessaryEffectMarker]: <https://docs.swift.org/compiler/documentation/diagnostics/unnecessary-effect-marker>
+[960 / 971] Keg
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Containers/SupaglueContainer.swift:39:9: warning: result of 'try?' is unused [#NoUsage]
+ 37 |     func run() async throws -> (code: Int32, stdout: String, stderr: String) {
+ 38 |         // Remove any stale container first
+ 39 |         try? await runCLI(["container", "rm", "-f", Self.containerName])
+    |         `- warning: result of 'try?' is unused [#NoUsage]
+ 40 | 
+ 41 |         let stateDir = NSHomeDirectory() + "/.keg/supaglue"
+
+[#NoUsage]: <https://docs.swift.org/compiler/documentation/diagnostics/no-usage>
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Views/Dashboard/SystemDashboardDetailView.swift:12:17: warning: cannot use generic class 'Autoconnect' in a property declaration member of a type not marked '@_implementationOnly'; 'Combine' was not imported by this file
+ 10 | 
+ 11 |     private let metricsService = SystemMetrics.shared
+ 12 |     private let timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+    |                 `- warning: cannot use generic class 'Autoconnect' in a property declaration member of a type not marked '@_implementationOnly'; 'Combine' was not imported by this file
+ 13 | 
+ 14 |     var body: some View {
+
+Combine.Publishers.Autoconnect:2:14: note: generic class declared here
+ 1 | enum Publishers {
+ 2 | public class Autoconnect<Upstream> : Publisher where Upstream : ConnectablePublisher {
+   |              `- note: generic class declared here
+ 3 |     public typealias Output = Upstream.Output
+ 4 |     public typealias Failure = Upstream.Failure
+
+/Volumes/Atlas/Code/projects/meadow/Sources/Keg/Views/Dashboard/SystemDashboardDetailView.swift:12:17: warning: cannot use enum 'Publishers' in a property declaration member of a type not marked '@_implementationOnly'; 'Combine' was not imported by this file
+ 10 | 
+ 11 |     private let metricsService = SystemMetrics.shared
+ 12 |     private let timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+    |                 `- warning: cannot use enum 'Publishers' in a property declaration member of a type not marked '@_implementationOnly'; 'Combine' was not imported by this file
+ 13 | 
+ 14 |     var body: some View {
+
+Combine.Publishers:2:13: note: enum declared here
+1 | @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+2 | public enum Publishers {
+  |             `- note: enum declared here
+3 | }
+[960 / 971] Keg-product
+[962 / 973] Keg
+[964 / 973] Keg
+[964 / 973] Keg-product
+[965 / 973] Keg-product
+[967 / 972] KegTests-product
+[978 / 983] KegTests-product
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/ReliabilityTests.swift:51:19: warning: parameter 'file' with default argument '#file' passed to parameter 'file', whose default argument is '#filePath'
+ 33 |     /// Run a process and return (exitCode, combinedOutput).
+ 34 |     /// Also asserts the process did not terminate due to a signal (crash).
+ 35 |     private func runProcess(_ args: [String], file: StaticString = #file, line: UInt = #line) throws -> (Int32, String) {
+    |                                                                    `- note: did you mean for parameter 'file' to default to '#filePath'?
+ 36 |         let process = Process()
+ 37 |         let pipe = Pipe()
+    :
+ 49 |             process.terminationReason, .uncaughtSignal,
+ 50 |             "Process crashed with signal \(process.terminationStatus) — args: \(args). Output: \(output)",
+ 51 |             file: file, line: line
+    |                   |- warning: parameter 'file' with default argument '#file' passed to parameter 'file', whose default argument is '#filePath'
+    |                   `- note: add parentheses to silence this warning
+ 52 |         )
+ 53 | 
+
+XCTest.XCTAssertNotEqual.file:1:1: note: 'file' declared here
+1 | file: StaticString
+  | `- note: 'file' declared here
+[980 / 983] KegTests-product
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/DockerCLIBenchmarkTests.swift:102:58: warning: parameter 'file' with default argument '#file' passed to parameter 'file', whose default argument is '#filePath'
+ 98 | 
+ 99 |     /// Parse a JSON response body, failing the test if it is not valid JSON.
+100 |     private func parseJSON(_ body: String, file: StaticString = #file, line: UInt = #line) -> Any? {
+    |                                                                 `- note: did you mean for parameter 'file' to default to '#filePath'?
+101 |         guard let data = body.data(using: .utf8) else {
+102 |             XCTFail("Response is not valid UTF-8", file: file, line: line)
+    |                                                          |- warning: parameter 'file' with default argument '#file' passed to parameter 'file', whose default argument is '#filePath'
+    |                                                          `- note: add parentheses to silence this warning
+103 |             return nil
+104 |         }
+
+XCTest.XCTFail.file:1:1: note: 'file' declared here
+1 | file: StaticString
+  | `- note: 'file' declared here
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/DockerCLIBenchmarkTests.swift:108:97: warning: parameter 'file' with default argument '#file' passed to parameter 'file', whose default argument is '#filePath'
+ 98 | 
+ 99 |     /// Parse a JSON response body, failing the test if it is not valid JSON.
+100 |     private func parseJSON(_ body: String, file: StaticString = #file, line: UInt = #line) -> Any? {
+    |                                                                 `- note: did you mean for parameter 'file' to default to '#filePath'?
+101 |         guard let data = body.data(using: .utf8) else {
+102 |             XCTFail("Response is not valid UTF-8", file: file, line: line)
+    :
+106 |             return try JSONSerialization.jsonObject(with: data)
+107 |         } catch {
+108 |             XCTFail("Response is not valid JSON: \(error) — body: \(body.prefix(500))", file: file, line: line)
+    |                                                                                               |- warning: parameter 'file' with default argument '#file' passed to parameter 'file', whose default argument is '#filePath'
+    |                                                                                               `- note: add parentheses to silence this warning
+109 |             return nil
+110 |         }
+
+XCTest.XCTFail.file:1:1: note: 'file' declared here
+1 | file: StaticString
+  | `- note: 'file' declared here
+[982 / 986] KegTests-product
+[984 / 986] KegTests-product
+Build complete! (42.12 sec)
+Test Suite 'Selected tests' started at 2026-09-17 00:13:26.617.
+Test Suite 'KegTests.xctest' started at 2026-09-17 00:13:26.622.
+Test Suite 'KubernetesShadowTests' started at 2026-09-17 00:13:26.622.
+Test Case '-[KegTests.KubernetesShadowTests testClusterHealth]' started.
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:108: error: -[KegTests.KubernetesShadowTests testClusterHealth] : XCTAssertEqual failed: ("1") is not equal to ("0") - IP forwarding should enable
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:117: error: -[KegTests.KubernetesShadowTests testClusterHealth] : XCTAssertEqual failed: ("1") is not equal to ("0") - kubeadm init should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:125: error: -[KegTests.KubernetesShadowTests testClusterHealth] : XCTAssertEqual failed: ("1") is not equal to ("0") - CNI install should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:78: error: -[KegTests.KubernetesShadowTests testClusterHealth] : failed - Timed out waiting for node Ready after 90s
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:156: error: -[KegTests.KubernetesShadowTests testClusterHealth] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:157: error: -[KegTests.KubernetesShadowTests testClusterHealth] : XCTAssertTrue failed - Node should be Ready
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:330: error: -[KegTests.KubernetesShadowTests testClusterHealth] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:331: error: -[KegTests.KubernetesShadowTests testClusterHealth] : XCTAssertTrue failed - Should show cluster info
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:336: error: -[KegTests.KubernetesShadowTests testClusterHealth] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:337: error: -[KegTests.KubernetesShadowTests testClusterHealth] : XCTAssertTrue failed
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:338: error: -[KegTests.KubernetesShadowTests testClusterHealth] : XCTAssertTrue failed
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:343: error: -[KegTests.KubernetesShadowTests testClusterHealth] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:344: error: -[KegTests.KubernetesShadowTests testClusterHealth] : XCTAssertTrue failed - API server pod should exist
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:345: error: -[KegTests.KubernetesShadowTests testClusterHealth] : XCTAssertTrue failed - Scheduler pod should exist
+Test Case '-[KegTests.KubernetesShadowTests testClusterHealth]' failed (126.529 seconds).
+Test Case '-[KegTests.KubernetesShadowTests testConfigMapMount]' started.
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:108: error: -[KegTests.KubernetesShadowTests testConfigMapMount] : XCTAssertEqual failed: ("1") is not equal to ("0") - IP forwarding should enable
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:117: error: -[KegTests.KubernetesShadowTests testConfigMapMount] : XCTAssertEqual failed: ("1") is not equal to ("0") - kubeadm init should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:125: error: -[KegTests.KubernetesShadowTests testConfigMapMount] : XCTAssertEqual failed: ("1") is not equal to ("0") - CNI install should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:141: error: -[KegTests.KubernetesShadowTests testConfigMapMount] : XCTAssertEqual failed: ("1") is not equal to ("0") - should extract kubeconfig
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:78: error: -[KegTests.KubernetesShadowTests testConfigMapMount] : failed - Timed out waiting for node Ready after 90s
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:156: error: -[KegTests.KubernetesShadowTests testConfigMapMount] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:157: error: -[KegTests.KubernetesShadowTests testConfigMapMount] : XCTAssertTrue failed - Node should be Ready
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:314: error: -[KegTests.KubernetesShadowTests testConfigMapMount] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:315: error: -[KegTests.KubernetesShadowTests testConfigMapMount] : XCTAssertTrue failed
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:316: error: -[KegTests.KubernetesShadowTests testConfigMapMount] : XCTAssertTrue failed
+Test Case '-[KegTests.KubernetesShadowTests testConfigMapMount]' failed (98.636 seconds).
+Test Case '-[KegTests.KubernetesShadowTests testCreateCluster]' started.
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:108: error: -[KegTests.KubernetesShadowTests testCreateCluster] : XCTAssertEqual failed: ("1") is not equal to ("0") - IP forwarding should enable
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:117: error: -[KegTests.KubernetesShadowTests testCreateCluster] : XCTAssertEqual failed: ("1") is not equal to ("0") - kubeadm init should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:125: error: -[KegTests.KubernetesShadowTests testCreateCluster] : XCTAssertEqual failed: ("1") is not equal to ("0") - CNI install should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:141: error: -[KegTests.KubernetesShadowTests testCreateCluster] : XCTAssertEqual failed: ("1") is not equal to ("0") - should extract kubeconfig
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:78: error: -[KegTests.KubernetesShadowTests testCreateCluster] : failed - Timed out waiting for node Ready after 90s
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:156: error: -[KegTests.KubernetesShadowTests testCreateCluster] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:157: error: -[KegTests.KubernetesShadowTests testCreateCluster] : XCTAssertTrue failed - Node should be Ready
+Test Case '-[KegTests.KubernetesShadowTests testCreateCluster]' failed (98.479 seconds).
+Test Case '-[KegTests.KubernetesShadowTests testCreateSecret]' started.
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:108: error: -[KegTests.KubernetesShadowTests testCreateSecret] : XCTAssertEqual failed: ("1") is not equal to ("0") - IP forwarding should enable
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:117: error: -[KegTests.KubernetesShadowTests testCreateSecret] : XCTAssertEqual failed: ("1") is not equal to ("0") - kubeadm init should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:125: error: -[KegTests.KubernetesShadowTests testCreateSecret] : XCTAssertEqual failed: ("1") is not equal to ("0") - CNI install should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:141: error: -[KegTests.KubernetesShadowTests testCreateSecret] : XCTAssertEqual failed: ("1") is not equal to ("0") - should extract kubeconfig
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:78: error: -[KegTests.KubernetesShadowTests testCreateSecret] : failed - Timed out waiting for node Ready after 90s
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:156: error: -[KegTests.KubernetesShadowTests testCreateSecret] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:157: error: -[KegTests.KubernetesShadowTests testCreateSecret] : XCTAssertTrue failed - Node should be Ready
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:551: error: -[KegTests.KubernetesShadowTests testCreateSecret] : XCTAssertEqual failed: ("1") is not equal to ("0") - should get secret
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:552: error: -[KegTests.KubernetesShadowTests testCreateSecret] : XCTAssertTrue failed - Secret should exist in output
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:557: error: -[KegTests.KubernetesShadowTests testCreateSecret] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:558: error: -[KegTests.KubernetesShadowTests testCreateSecret] : XCTAssertTrue failed - Secret should contain password key
+Test Case '-[KegTests.KubernetesShadowTests testCreateSecret]' failed (98.629 seconds).
+Test Case '-[KegTests.KubernetesShadowTests testCreateService]' started.
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:108: error: -[KegTests.KubernetesShadowTests testCreateService] : XCTAssertEqual failed: ("1") is not equal to ("0") - IP forwarding should enable
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:117: error: -[KegTests.KubernetesShadowTests testCreateService] : XCTAssertEqual failed: ("1") is not equal to ("0") - kubeadm init should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:125: error: -[KegTests.KubernetesShadowTests testCreateService] : XCTAssertEqual failed: ("1") is not equal to ("0") - CNI install should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:78: error: -[KegTests.KubernetesShadowTests testCreateService] : failed - Timed out waiting for node Ready after 90s
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:156: error: -[KegTests.KubernetesShadowTests testCreateService] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:157: error: -[KegTests.KubernetesShadowTests testCreateService] : XCTAssertTrue failed - Node should be Ready
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:237: error: -[KegTests.KubernetesShadowTests testCreateService] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:245: error: -[KegTests.KubernetesShadowTests testCreateService] : XCTAssertEqual failed: ("1") is not equal to ("0") - service expose should succeed: E0917 00:22:07.272566   32880 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:22:07.274638   32880 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:22:07.275924   32880 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:22:07.277412   32880 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:22:07.278448   32880 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:250: error: -[KegTests.KubernetesShadowTests testCreateService] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:251: error: -[KegTests.KubernetesShadowTests testCreateService] : XCTAssertTrue failed - Service should exist
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:252: error: -[KegTests.KubernetesShadowTests testCreateService] : XCTAssertTrue failed - Service should expose port 80
+Test Case '-[KegTests.KubernetesShadowTests testCreateService]' failed (98.577 seconds).
+Test Case '-[KegTests.KubernetesShadowTests testDeleteCluster]' started.
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:108: error: -[KegTests.KubernetesShadowTests testDeleteCluster] : XCTAssertEqual failed: ("1") is not equal to ("0") - IP forwarding should enable
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:117: error: -[KegTests.KubernetesShadowTests testDeleteCluster] : XCTAssertEqual failed: ("1") is not equal to ("0") - kubeadm init should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:125: error: -[KegTests.KubernetesShadowTests testDeleteCluster] : XCTAssertEqual failed: ("1") is not equal to ("0") - CNI install should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:141: error: -[KegTests.KubernetesShadowTests testDeleteCluster] : XCTAssertEqual failed: ("1") is not equal to ("0") - should extract kubeconfig
+🔄 Creating K8s cluster 'keg-k8s-shadow'...
+✅ K8s node container started
+✅ IP forwarding enabled
+🔄 Running kubeadm init (this takes ~60s)...
+✅ kubeadm initialized
+✅ CNI installed
+✅ Control-plane taint removed (code: 1)
+✅ Kubeconfig saved to /Users/rahult/.keg/kubeconfig-shadow
+  ⏳ Waiting for node Ready... (5s)
+  ⏳ Waiting for node Ready... (10s)
+  ⏳ Waiting for node Ready... (15s)
+  ⏳ Waiting for node Ready... (20s)
+  ⏳ Waiting for node Ready... (25s)
+  ⏳ Waiting for node Ready... (30s)
+  ⏳ Waiting for node Ready... (36s)
+  ⏳ Waiting for node Ready... (41s)
+  ⏳ Waiting for node Ready... (46s)
+  ⏳ Waiting for node Ready... (51s)
+  ⏳ Waiting for node Ready... (56s)
+  ⏳ Waiting for node Ready... (61s)
+  ⏳ Waiting for node Ready... (66s)
+  ⏳ Waiting for node Ready... (71s)
+  ⏳ Waiting for node Ready... (76s)
+  ⏳ Waiting for node Ready... (82s)
+  ⏳ Waiting for node Ready... (87s)
+  ⏳ Waiting for node Ready... (92s)
+✅ K8s cluster ready:
+E0917 00:15:32.560172   32278 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:15:32.561721   32278 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:15:32.563509   32278 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:15:32.565132   32278 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:15:32.566737   32278 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+✅ Cluster info:
+E0917 00:15:32.596223   32279 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:15:32.597751   32279 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:15:32.599212   32279 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:15:32.601004   32279 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:15:32.602647   32279 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+
+To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
+Error from server (NotFound): the server could not find the requested resource
+
+✅ Namespaces:
+E0917 00:15:32.632647   32280 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:15:32.634572   32280 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:15:32.636378   32280 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:15:32.638534   32280 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:15:32.640187   32280 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+✅ System pods:
+E0917 00:15:32.669133   32281 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:15:32.670810   32281 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:15:32.672510   32281 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:15:32.674164   32281 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:15:32.675694   32281 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+🔄 Creating K8s cluster 'keg-k8s-shadow'...
+✅ K8s node container started
+✅ IP forwarding enabled
+🔄 Running kubeadm init (this takes ~60s)...
+✅ kubeadm initialized
+✅ CNI installed
+✅ Control-plane taint removed (code: 1)
+✅ Kubeconfig saved to /Users/rahult/.keg/kubeconfig-shadow
+  ⏳ Waiting for node Ready... (5s)
+  ⏳ Waiting for node Ready... (10s)
+  ⏳ Waiting for node Ready... (15s)
+  ⏳ Waiting for node Ready... (20s)
+  ⏳ Waiting for node Ready... (25s)
+  ⏳ Waiting for node Ready... (30s)
+  ⏳ Waiting for node Ready... (35s)
+  ⏳ Waiting for node Ready... (41s)
+  ⏳ Waiting for node Ready... (46s)
+  ⏳ Waiting for node Ready... (51s)
+  ⏳ Waiting for node Ready... (56s)
+  ⏳ Waiting for node Ready... (61s)
+  ⏳ Waiting for node Ready... (66s)
+  ⏳ Waiting for node Ready... (71s)
+  ⏳ Waiting for node Ready... (76s)
+  ⏳ Waiting for node Ready... (81s)
+  ⏳ Waiting for node Ready... (87s)
+  ⏳ Waiting for node Ready... (92s)
+✅ K8s cluster ready:
+E0917 00:17:11.576450   32441 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:17:11.578469   32441 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:17:11.580480   32441 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:17:11.582219   32441 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:17:11.583992   32441 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+🔄 Testing ConfigMap...
+✅ ConfigMap created
+✅ ConfigMap data verified
+✅ ConfigMap cleaned up
+🔄 Creating K8s cluster 'keg-k8s-shadow'...
+✅ K8s node container started
+✅ IP forwarding enabled
+🔄 Running kubeadm init (this takes ~60s)...
+✅ kubeadm initialized
+✅ CNI installed
+✅ Control-plane taint removed (code: 1)
+✅ Kubeconfig saved to /Users/rahult/.keg/kubeconfig-shadow
+  ⏳ Waiting for node Ready... (5s)
+  ⏳ Waiting for node Ready... (10s)
+  ⏳ Waiting for node Ready... (15s)
+  ⏳ Waiting for node Ready... (20s)
+  ⏳ Waiting for node Ready... (25s)
+  ⏳ Waiting for node Ready... (30s)
+  ⏳ Waiting for node Ready... (35s)
+  ⏳ Waiting for node Ready... (40s)
+  ⏳ Waiting for node Ready... (46s)
+  ⏳ Waiting for node Ready... (51s)
+  ⏳ Waiting for node Ready... (56s)
+  ⏳ Waiting for node Ready... (61s)
+  ⏳ Waiting for node Ready... (66s)
+  ⏳ Waiting for node Ready... (71s)
+  ⏳ Waiting for node Ready... (76s)
+  ⏳ Waiting for node Ready... (81s)
+  ⏳ Waiting for node Ready... (87s)
+  ⏳ Waiting for node Ready... (92s)
+✅ K8s cluster ready:
+E0917 00:18:50.160174   32586 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:18:50.162904   32586 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:18:50.164952   32586 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:18:50.167194   32586 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:18:50.169436   32586 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+🔄 Creating K8s cluster 'keg-k8s-shadow'...
+✅ K8s node container started
+✅ IP forwarding enabled
+🔄 Running kubeadm init (this takes ~60s)...
+✅ kubeadm initialized
+✅ CNI installed
+✅ Control-plane taint removed (code: 1)
+✅ Kubeconfig saved to /Users/rahult/.keg/kubeconfig-shadow
+  ⏳ Waiting for node Ready... (5s)
+  ⏳ Waiting for node Ready... (10s)
+  ⏳ Waiting for node Ready... (15s)
+  ⏳ Waiting for node Ready... (20s)
+  ⏳ Waiting for node Ready... (25s)
+  ⏳ Waiting for node Ready... (30s)
+  ⏳ Waiting for node Ready... (35s)
+  ⏳ Waiting for node Ready... (40s)
+  ⏳ Waiting for node Ready... (46s)
+  ⏳ Waiting for node Ready... (51s)
+  ⏳ Waiting for node Ready... (56s)
+  ⏳ Waiting for node Ready... (61s)
+  ⏳ Waiting for node Ready... (66s)
+  ⏳ Waiting for node Ready... (71s)
+  ⏳ Waiting for node Ready... (76s)
+  ⏳ Waiting for node Ready... (81s)
+  ⏳ Waiting for node Ready... (87s)
+  ⏳ Waiting for node Ready... (92s)
+✅ K8s cluster ready:
+E0917 00:20:28.657176   32707 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:20:28.659109   32707 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:20:28.660798   32707 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:20:28.662590   32707 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:20:28.664353   32707 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+🔄 Creating secret...
+✅ Secret created
+✅ Secret verified:
+E0917 00:20:28.728524   32709 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:20:28.730138   32709 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:20:28.731902   32709 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:20:28.733898   32709 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:20:28.735810   32709 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+✅ Secret data verified
+✅ Secret cleaned up
+🔄 Creating K8s cluster 'keg-k8s-shadow'...
+✅ K8s node container started
+✅ IP forwarding enabled
+🔄 Running kubeadm init (this takes ~60s)...
+✅ kubeadm initialized
+✅ CNI installed
+✅ Control-plane taint removed (code: 1)
+✅ Kubeconfig saved to /Users/rahult/.keg/kubeconfig-shadow
+  ⏳ Waiting for node Ready... (5s)
+  ⏳ Waiting for node Ready... (10s)
+  ⏳ Waiting for node Ready... (15s)
+  ⏳ Waiting for node Ready... (20s)
+  ⏳ Waiting for node Ready... (25s)
+  ⏳ Waiting for node Ready... (30s)
+  ⏳ Waiting for node Ready... (35s)
+  ⏳ Waiting for node Ready... (40s)
+  ⏳ Waiting for node Ready... (46s)
+  ⏳ Waiting for node Ready... (51s)
+  ⏳ Waiting for node Ready... (56s)
+  ⏳ Waiting for node Ready... (61s)
+  ⏳ Waiting for node Ready... (66s)
+  ⏳ Waiting for node Ready... (71s)
+  ⏳ Waiting for node Ready... (76s)
+  ⏳ Waiting for node Ready... (81s)
+  ⏳ Waiting for node Ready... (86s)
+  ⏳ Waiting for node Ready... (91s)
+✅ K8s cluster ready:
+E0917 00:22:07.204915   32878 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:22:07.207304   32878 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:22:07.209175   32878 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:22:07.210903   32878 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:22:07.212656   32878 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+🔄 Creating nginx + service...
+✅ Service created
+✅ Service verified:
+E0917 00:22:07.305531   32881 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:22:07.307521   32881 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:22:07.309748   32881 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:22:07.311348   32881 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:22:07.312829   32881 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+✅ Service and deployment cleaned up
+🔄 Creating K8s cluster 'keg-k8s-shadow'...
+✅ K8s node container started
+✅ IP forwarding enabled
+🔄 Running kubeadm init (this takes ~60s)...
+✅ kubeadm initialized
+✅ CNI installed
+✅ Control-plane taint removed (code: 1)
+✅ Kubeconfig saved to /Users/rahult/.keg/kubeconfig-shadow
+  ⏳ Waiting for node Ready... (5s)
+  ⏳ Waiting for node Ready... (10s)
+  ⏳ Waiting for node Ready... (15s)
+  ⏳ Waiting for node Ready... (20s)
+  ⏳ Waiting for node Ready... (25s)
+  ⏳ Waiting for node Ready... (30s)
+  ⏳ Waiting for node Ready... (35s)
+  ⏳ Waiting for node Ready... (40s)
+  ⏳ Waiting for node Ready... (46s)
+  ⏳ Waiting for node Ready... (51s)
+  ⏳ Waiting for node Ready... (56s)
+  ⏳ Waiting for node Ready... (61s)
+  ⏳ Waiting for node Ready... (66s)
+  ⏳ Waiting for node Ready... (71s)
+  ⏳ Waiting for node Ready... (76s)
+  ⏳ Waiting for node Ready... (81s)
+  ⏳ Waiting for node Ready... (87s)
+  ⏳ Waiting for node Ready... (92s)
+✅ K8s cluster ready:
+E0917 00:23:45.829181   33029 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:23:45.831259   33029 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:23:45.833141   33029 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:23:45.834777   33029 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:23:45.836567   33029 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+🔄 Deleting cluste/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:78: error: -[KegTests.KubernetesShadowTests testDeleteCluster] : failed - Timed out waiting for node Ready after 90s
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:156: error: -[KegTests.KubernetesShadowTests testDeleteCluster] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:157: error: -[KegTests.KubernetesShadowTests testDeleteCluster] : XCTAssertTrue failed - Node should be Ready
+Test Case '-[KegTests.KubernetesShadowTests testDeleteCluster]' failed (98.499 seconds).
+Test Case '-[KegTests.KubernetesShadowTests testDeployNginx]' started.
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:108: error: -[KegTests.KubernetesShadowTests testDeployNginx] : XCTAssertEqual failed: ("1") is not equal to ("0") - IP forwarding should enable
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:117: error: -[KegTests.KubernetesShadowTests testDeployNginx] : XCTAssertEqual failed: ("1") is not equal to ("0") - kubeadm init should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:125: error: -[KegTests.KubernetesShadowTests testDeployNginx] : XCTAssertEqual failed: ("1") is not equal to ("0") - CNI install should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:141: error: -[KegTests.KubernetesShadowTests testDeployNginx] : XCTAssertEqual failed: ("1") is not equal to ("0") - should extract kubeconfig
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:78: error: -[KegTests.KubernetesShadowTests testDeployNginx] : failed - Timed out waiting for node Ready after 90s
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:156: error: -[KegTests.KubernetesShadowTests testDeployNginx] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:157: error: -[KegTests.KubernetesShadowTests testDeployNginx] : XCTAssertTrue failed - Node should be Ready
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:198: error: -[KegTests.KubernetesShadowTests testDeployNginx] : XCTAssertEqual failed: ("1") is not equal to ("0") - nginx deployment should apply: error: error validating "/var/folders/07/9f19dc0n0gndfg5yqnd4hn3c0000gn/T/nginx-shadow-test.yaml": error validating data: failed to download openapi: the server could not find the requested resource; if you choose to ignore these errors, turn validation off with --validate=false
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:78: error: -[KegTests.KubernetesShadowTests testDeployNginx] : failed - Timed out waiting for nginx pod Running after 90s
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:208: error: -[KegTests.KubernetesShadowTests testDeployNginx] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:209: error: -[KegTests.KubernetesShadowTests testDeployNginx] : XCTAssertTrue failed - nginx pod should be Running
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:214: error: -[KegTests.KubernetesShadowTests testDeployNginx] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:215: error: -[KegTests.KubernetesShadowTests testDeployNginx] : XCTAssertTrue failed - deployment should have 1/1 ready
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:220: error: -[KegTests.KubernetesShadowTests testDeployNginx] : XCTAssertEqual failed: ("1") is not equal to ("0")
+Test Case '-[KegTests.KubernetesShadowTests testDeployNginx]' failed (190.536 seconds).
+Test Case '-[KegTests.KubernetesShadowTests testKubectlExec]' started.
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:108: error: -[KegTests.KubernetesShadowTests testKubectlExec] : XCTAssertEqual failed: ("1") is not equal to ("0") - IP forwarding should enable
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:117: error: -[KegTests.KubernetesShadowTests testKubectlExec] : XCTAssertEqual failed: ("1") is not equal to ("0") - kubeadm init should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:125: error: -[KegTests.KubernetesShadowTests testKubectlExec] : XCTAssertEqual failed: ("1") is not equal to ("0") - CNI install should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:141: error: -[KegTests.KubernetesShadowTests testKubectlExec] : XCTAssertEqual failed: ("1") is not equal to ("0") - should extract kubeconfig
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:78: error: -[KegTests.KubernetesShadowTests testKubectlExec] : failed - Timed out waiting for node Ready after 90s
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:156: error: -[KegTests.KubernetesShadowTests testKubectlExec] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:157: error: -[KegTests.KubernetesShadowTests testKubectlExec] : XCTAssertTrue failed - Node should be Ready
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:460: error: -[KegTests.KubernetesShadowTests testKubectlExec] : XCTAssertEqual failed: ("1") is not equal to ("0") - nginx deployment should create: error: failed to create deployment: the server could not find the requested resource (post deployments.apps)
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:78: error: -[KegTests.KubernetesShadowTests testKubectlExec] : failed - Timed out waiting for nginx pod Running after 90s
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:473: error: -[KegTests.KubernetesShadowTests testKubectlExec] : XCTAssertEqual failed: ("1") is not equal to ("0") - should get pod name
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:482: error: -[KegTests.KubernetesShadowTests testKubectlExec] : XCTAssertEqual failed: ("1") is not equal to ("0") - kubectl exec should succeed
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:483: error: -[KegTests.KubernetesShadowTests testKubectlExec] : XCTAssertTrue failed - nginx.conf should contain worker_processes, got: E0917 00:30:06.836684   33889 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:30:06.838722   33889 memcac
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:488: error: -[KegTests.KubernetesShadowTests testKubectlExec] : XCTAssertEqual failed: ("1") is not equal to ("0")
+Test Case '-[KegTests.KubernetesShadowTests testKubectlExec]' failed (190.458 seconds).
+Test Case '-[KegTests.KubernetesShadowTests testKubectlLogs]' started.
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:108: error: -[KegTests.KubernetesShadowTests testKubectlLogs] : XCTAssertEqual failed: ("1") is not equal to ("0") - IP forwarding should enable
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:117: error: -[KegTests.KubernetesShadowTests testKubectlLogs] : XCTAssertEqual failed: ("1") is not equal to ("0") - kubeadm init should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:125: error: -[KegTests.KubernetesShadowTests testKubectlLogs] : XCTAssertEqual failed: ("1") is not equal to ("0") - CNI install should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:141: error: -[KegTests.KubernetesShadowTests testKubectlLogs] : XCTAssertEqual failed: ("1") is not equal to ("0") - should extract kubeconfig
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:78: error: -[KegTests.KubernetesShadowTests testKubectlLogs] : failed - Timed out waiting for node Ready after 90s
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:156: error: -[KegTests.KubernetesShadowTests testKubectlLogs] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:157: error: -[KegTests.KubernetesShadowTests testKubectlLogs] : XCTAssertTrue failed - Node should be Ready
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:503: error: -[KegTests.KubernetesShadowTests testKubectlLogs] : XCTAssertEqual failed: ("1") is not equal to ("0") - nginx deployment should create: error: failed to create deployment: the server could not find the requested resource (post deployments.apps)
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:78: error: -[KegTests.KubernetesShadowTests testKubectlLogs] : failed - Timed out waiting for nginx pod Running after 90s
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:516: error: -[KegTests.KubernetesShadowTests testKubectlLogs] : XCTAssertEqual failed: ("1") is not equal to ("0") - should get pod name
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:523: error: -[KegTests.KubernetesShadowTests testKubectlLogs] : XCTAssertEqual failed: ("1") is not equal to ("0") - kubectl logs should succeed
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:532: error: -[KegTests.KubernetesShadowTests testKubectlLogs] : XCTAssertEqual failed: ("1") is not equal to ("0")
+Test Case '-[KegTests.KubernetesShadowTests testKubectlLogs]' failed (190.645 seconds).
+Test Case '-[KegTests.KubernetesShadowTests testRollingUpdate]' started.
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:108: error: -[KegTests.KubernetesShadowTests testRollingUpdate] : XCTAssertEqual failed: ("1") is not equal to ("0") - IP forwarding should enable
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:117: error: -[KegTests.KubernetesShadowTests testRollingUpdate] : XCTAssertEqual failed: ("1") is not equal to ("0") - kubeadm init should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:125: error: -[KegTests.KubernetesShadowTests testRollingUpdate] : XCTAssertEqual failed: ("1") is not equal to ("0") - CNI install should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:141: error: -[KegTests.KubernetesShadowTests testRollingUpdate] : XCTAssertEqual failed: ("1") is not equal to ("0") - should extract kubeconfig
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:78: error: -[KegTests.KubernetesShadowTests testRollingUpdate] : failed - Timed out waiting for node Ready after 90s
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:156: error: -[KegTests.KubernetesShadowTests testRollingUpdate] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:157: error: -[KegTests.KubernetesShadowTests testRollingUpdate] : XCTAssertTrue failed - Node should be Ready
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:411: error: -[KegTests.KubernetesShadowTests testRollingUpdate] : XCTAssertEqual failed: ("1") is not equal to ("0") - nginx:1.25 deployment should create: error: failed to create deployment: the server could not find the requested resource (post deployments.apps)
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:78: error: -[KegTests.KubernetesShadowTests testRollingUpdate] : failed - Timed out waiting for nginx:1.25 pod Running after 90s
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:425: error: -[KegTests.KubernetesShadowTests testRollingUpdate] : XCTAssertEqual failed: ("1") is not equal to ("0") - set image should succeed: E0917 00:36:27.342743   34550 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:36:27.345364   34550 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:36:27.349685   34550 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:36:27.351988   34550 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+r...
+✅ Cluster deleted and verified gone
+✅ Kubeconfig cleaned up
+🔄 Creating K8s cluster 'keg-k8s-shadow'...
+✅ K8s node container started
+✅ IP forwarding enabled
+🔄 Running kubeadm init (this takes ~60s)...
+✅ kubeadm initialized
+✅ CNI installed
+✅ Control-plane taint removed (code: 1)
+✅ Kubeconfig saved to /Users/rahult/.keg/kubeconfig-shadow
+  ⏳ Waiting for node Ready... (5s)
+  ⏳ Waiting for node Ready... (10s)
+  ⏳ Waiting for node Ready... (15s)
+  ⏳ Waiting for node Ready... (20s)
+  ⏳ Waiting for node Ready... (25s)
+  ⏳ Waiting for node Ready... (30s)
+  ⏳ Waiting for node Ready... (35s)
+  ⏳ Waiting for node Ready... (40s)
+  ⏳ Waiting for node Ready... (46s)
+  ⏳ Waiting for node Ready... (51s)
+  ⏳ Waiting for node Ready... (56s)
+  ⏳ Waiting for node Ready... (61s)
+  ⏳ Waiting for node Ready... (66s)
+  ⏳ Waiting for node Ready... (71s)
+  ⏳ Waiting for node Ready... (76s)
+  ⏳ Waiting for node Ready... (81s)
+  ⏳ Waiting for node Ready... (86s)
+  ⏳ Waiting for node Ready... (91s)
+✅ K8s cluster ready:
+E0917 00:25:24.231703   33175 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:25:24.233900   33175 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:25:24.236082   33175 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:25:24.238039   33175 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:25:24.239657   33175 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+🔄 Deploying nginx...
+✅ nginx deployment applied
+  ⏳ Waiting for nginx pod Running... (5s)
+  ⏳ Waiting for nginx pod Running... (10s)
+  ⏳ Waiting for nginx pod Running... (15s)
+  ⏳ Waiting for nginx pod Running... (20s)
+  ⏳ Waiting for nginx pod Running... (25s)
+  ⏳ Waiting for nginx pod Running... (30s)
+  ⏳ Waiting for nginx pod Running... (35s)
+  ⏳ Waiting for nginx pod Running... (40s)
+  ⏳ Waiting for nginx pod Running... (45s)
+  ⏳ Waiting for nginx pod Running... (51s)
+  ⏳ Waiting for nginx pod Running... (56s)
+  ⏳ Waiting for nginx pod Running... (61s)
+  ⏳ Waiting for nginx pod Running... (66s)
+  ⏳ Waiting for nginx pod Running... (71s)
+  ⏳ Waiting for nginx pod Running... (76s)
+  ⏳ Waiting for nginx pod Running... (81s)
+  ⏳ Waiting for nginx pod Running... (86s)
+  ⏳ Waiting for nginx pod Running... (92s)
+✅ nginx pod running:
+E0917 00:26:56.339949   33309 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:26:56.342425   33309 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:26:56.344191   33309 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:26:56.345675   33309 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:26:56.347127   33309 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+✅ Deployment ready:
+E0917 00:26:56.376153   33310 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:26:56.378263   33310 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:26:56.380390   33310 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:26:56.382324   33310 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:26:56.384417   33310 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+✅ nginx deployment deleted
+🔄 Creating K8s cluster 'keg-k8s-shadow'...
+✅ K8s node container started
+✅ IP forwarding enabled
+🔄 Running kubeadm init (this takes ~60s)...
+✅ kubeadm initialized
+✅ CNI installed
+✅ Control-plane taint removed (code: 1)
+✅ Kubeconfig saved to /Users/rahult/.keg/kubeconfig-shadow
+  ⏳ Waiting for node Ready... (5s)
+  ⏳ Waiting for node Ready... (10s)
+  ⏳ Waiting for node Ready... (15s)
+  ⏳ Waiting for node Ready... (20s)
+  ⏳ Waiting for node Ready... (25s)
+  ⏳ Waiting for node Ready... (30s)
+  ⏳ Waiting for node Ready... (35s)
+  ⏳ Waiting for node Ready... (40s)
+  ⏳ Waiting for node Ready... (45s)
+  ⏳ Waiting for node Ready... (51s)
+  ⏳ Waiting for node Ready... (56s)
+  ⏳ Waiting for node Ready... (61s)
+  ⏳ Waiting for node Ready... (66s)
+  ⏳ Waiting for node Ready... (71s)
+  ⏳ Waiting for node Ready... (76s)
+  ⏳ Waiting for node Ready... (81s)
+  ⏳ Waiting for node Ready... (86s)
+  ⏳ Waiting for node Ready... (91s)
+✅ K8s cluster ready:
+E0917 00:28:34.739255   33442 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:28:34.741627   33442 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:28:34.743944   33442 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:28:34.745655   33442 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:28:34.747821   33442 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+🔄 Deploying nginx for exec test...
+  ⏳ Waiting for nginx pod Running... (5s)
+  ⏳ Waiting for nginx pod Running... (10s)
+  ⏳ Waiting for nginx pod Running... (15s)
+  ⏳ Waiting for nginx pod Running... (20s)
+  ⏳ Waiting for nginx pod Running... (25s)
+  ⏳ Waiting for nginx pod Running... (30s)
+  ⏳ Waiting for nginx pod Running... (35s)
+  ⏳ Waiting for nginx pod Running... (40s)
+  ⏳ Waiting for nginx pod Running... (46s)
+  ⏳ Waiting for nginx pod Running... (51s)
+  ⏳ Waiting for nginx pod Running... (56s)
+  ⏳ Waiting for nginx pod Running... (61s)
+  ⏳ Waiting for nginx pod Running... (66s)
+  ⏳ Waiting for nginx pod Running... (71s)
+  ⏳ Waiting for nginx pod Running... (76s)
+  ⏳ Waiting for nginx pod Running... (81s)
+  ⏳ Waiting for nginx pod Running... (86s)
+  ⏳ Waiting for nginx pod Running... (91s)
+✅ Pod name: E0917 00:30:06.781233   33888 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:30:06.783294   33888 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:30:06.785279   33888 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:30:06.787262   33888 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:30:06.789184   33888 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+✅ Exec output contains worker_processes
+✅ Exec test deployment cleaned up
+🔄 Creating K8s cluster 'keg-k8s-shadow'...
+✅ K8s node container started
+✅ IP forwarding enabled
+🔄 Running kubeadm init (this takes ~60s)...
+✅ kubeadm initialized
+✅ CNI installed
+✅ Control-plane taint removed (code: 1)
+✅ Kubeconfig saved to /Users/rahult/.keg/kubeconfig-shadow
+  ⏳ Waiting for node Ready... (5s)
+  ⏳ Waiting for node Ready... (10s)
+  ⏳ Waiting for node Ready... (15s)
+  ⏳ Waiting for node Ready... (20s)
+  ⏳ Waiting for node Ready... (25s)
+  ⏳ Waiting for node Ready... (30s)
+  ⏳ Waiting for node Ready... (35s)
+  ⏳ Waiting for node Ready... (41s)
+  ⏳ Waiting for node Ready... (46s)
+  ⏳ Waiting for node Ready... (51s)
+  ⏳ Waiting for node Ready... (56s)
+  ⏳ Waiting for node Ready... (61s)
+  ⏳ Waiting for node Ready... (66s)
+  ⏳ Waiting for node Ready... (71s)
+  ⏳ Waiting for node Ready... (76s)
+  ⏳ Waiting for node Ready... (82s)
+  ⏳ Waiting for node Ready... (87s)
+  ⏳ Waiting for node Ready... (92s)
+✅ K8s cluster ready:
+E0917 00:31:45.566211   34098 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:31:45.568193   34098 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:31:45.570417   34098 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:31:45.572786   34098 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:31:45.574666   34098 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+🔄 Deploying nginx for logs test...
+  ⏳ Waiting for nginx pod Running... (5s)
+  ⏳ Waiting for nginx pod Running... (10s)
+  ⏳ Waiting for nginx pod Running... (15s)
+  ⏳ Waiting for nginx pod Running... (20s)
+  ⏳ Waiting for nginx pod Running... (25s)
+  ⏳ Waiting for nginx pod Running... (30s)
+  ⏳ Waiting for nginx pod Running... (35s)
+  ⏳ Waiting for nginx pod Running... (40s)
+  ⏳ Waiting for nginx pod Running... (45s)
+  ⏳ Waiting for nginx pod Running... (50s)
+  ⏳ Waiting for nginx pod Running... (55s)
+  ⏳ Waiting for nginx pod Running... (61s)
+  ⏳ Waiting for nginx pod Running... (66s)
+  ⏳ Waiting for nginx pod Running... (71s)
+  ⏳ Waiting for nginx pod Running... (76s)
+  ⏳ Waiting for nginx pod Running... (81s)
+  ⏳ Waiting for nginx pod Running... (86s)
+  ⏳ Waiting for nginx pod Running... (91s)
+✅ Pod name: E0917 00:33:17.170969   34230 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:33:17.172948   34230 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:33:17.174964   34230 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:33:17.177166   34230 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:33:17.179099   34230 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+✅ Logs fetched successfully (765 bytes)
+  Log preview: E0917 00:33:17.211951   34231 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:33:17.213705   34231 memcac
+✅ Logs test deployment cleaned up
+🔄 Creating K8s cluster 'keg-k8s-shadow'...
+✅ K8s node container started
+✅ IP forwarding enabled
+🔄 Running kubeadm init (this takes ~60s)...
+✅ kubeadm initialized
+✅ CNI installed
+✅ Control-plane taint removed (code: 1)
+✅ Kubeconfig saved to /Users/rahult/.keg/kubeconfig-shadow
+  ⏳ Waiting for node Ready... (5s)
+  ⏳ Waiting for node Ready... (10s)
+  ⏳ Waiting for node Ready... (15s)
+  ⏳ Waiting for node Ready... (20s)
+  ⏳ Waiting for node Ready... (25s)
+  ⏳ Waiting for node Ready... (30s)
+  ⏳ Waiting for node Ready... (35s)
+  ⏳ Waiting for node Ready... (40s)
+  ⏳ Waiting for node Ready... (45s)
+  ⏳ Waiting for node Ready... (50s)
+  ⏳ Waiting for node Ready... (55s)
+  ⏳ Waiting for node Ready... (60s)
+  ⏳ Waiting for node Ready... (66s)
+  ⏳ Waiting for node Ready... (71s)
+  ⏳ Waiting for node Ready... (76s)
+  ⏳ Waiting for node Ready... (81s)
+  ⏳ Waiting for node Ready... (86s)
+  ⏳ Waiting for node Ready... (91s)
+✅ K8s cluster ready:
+E0917 00:34:55.627325   34417 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:34:55.629274   34417 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:34:55.631056   34417 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:34:55.633198   34417 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:34:55.634952   34417 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+🔄 Deploying nginx:1.25 for rolling update test...
+  ⏳ Waiting for nginx:1.25 pod Running... (5s)
+  ⏳ Waiting for nginx:1.25 pod Running... (10s)
+  ⏳ Waiting for nginx:1.25 pod Running... (15s)
+  ⏳ Waiting for nginx:1.25 pod Running... (20s)
+  ⏳ Waiting for nginx:1.25 pod Running... (25s)
+  ⏳ Waiting for nginx:1.25 pod Running... (30s)
+  ⏳ Waiting for nginx:1.25 pod Running... (35s)
+  ⏳ Waiting for nginx:1.25 pod Running... (40s)
+  ⏳ Waiting for nginx:1.25 pod Running... (45s)
+  ⏳ Waiting for nginx:1.25 pod Running... (50s)
+  ⏳ Waiting for nginx:1.25 pod Running... (55s)
+  ⏳ Waiting for nginx:1.25 pod Running... (61s)
+  ⏳ Waiting for nginx:1.25 pod Running... (66s)
+  ⏳ Waiting for nginx:1.25 pod Running... (71s)
+  ⏳ Waiting for nginx:1.25 pod Running... (76s)
+  ⏳ Waiting for nginx:1.25 pod Running... (81s)
+  ⏳ Waiting for nginx:1.25 pod Running... (86s)
+  ⏳ Waiting for nginx:1.25 pod Running... (91s)
+✅ nginx:1.25 running
+🔄 Updating image to nginx:latest...
+  ⏳ Waiting for rollout complete... (5s)
+  ⏳ Waiting for rollout complete... (10s)
+  ⏳ Waiting for rollout complete... (15s)
+  ⏳ Waiting for rollout complete... (20s)
+  ⏳ Waiting for rollout complete... (25s)
+  ⏳ Waiting for rollout complete... (30s)
+  ⏳ Waiting for rollout complete... (35s)
+  ⏳ Waiting for rollout complete... (40s)
+  ⏳ Waiting for rollout complete... (45s)
+  ⏳ Waiting for rollout complete... (50s)
+  ⏳ Waiting for rollout complete... (55s)
+  ⏳ Waiting for rollout complete... (60s)
+  ⏳ Waiting for rollout complete... (65s)
+  ⏳ Waiting for rollout complete... (71s)
+  ⏳ Waiting for rollout complete... (76s)
+  ⏳ Waiting for rollout complete... (81s)
+  ⏳ Waiting for rollout complete... (86s)
+  ⏳ Waiting for rollout complete... (91s)
+  ⏳ Waiting for rollout complete... (96s)
+  ⏳ Waiting for rollout complete... (101s)
+  ⏳ Waiting for rollout complete... (106s)
+  ⏳ Waiting for rollout complete... (111s)
+  ⏳ Waiting for rollout complete... (116s)
+  ⏳ Waiting for rollout complete... (121s)
+✅ Rollo/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:78: error: -[KegTests.KubernetesShadowTests testRollingUpdate] : failed - Timed out waiting for rollout complete after 120s
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:439: error: -[KegTests.KubernetesShadowTests testRollingUpdate] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:440: error: -[KegTests.KubernetesShadowTests testRollingUpdate] : XCTAssertTrue failed - Image should be nginx:latest, got: E0917 00:38:29.263074   34708 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:38:29.267827   34708 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:38:29.269980   34708 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:38:29.271714   34708 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:38:29.273334   34708 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:445: error: -[KegTests.KubernetesShadowTests testRollingUpdate] : XCTAssertEqual failed: ("1") is not equal to ("0")
+Test Case '-[KegTests.KubernetesShadowTests testRollingUpdate]' failed (311.980 seconds).
+Test Case '-[KegTests.KubernetesShadowTests testRunJob]' started.
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:108: error: -[KegTests.KubernetesShadowTests testRunJob] : XCTAssertEqual failed: ("1") is not equal to ("0") - IP forwarding should enable
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:117: error: -[KegTests.KubernetesShadowTests testRunJob] : XCTAssertEqual failed: ("1") is not equal to ("0") - kubeadm init should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:125: error: -[KegTests.KubernetesShadowTests testRunJob] : XCTAssertEqual failed: ("1") is not equal to ("0") - CNI install should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:141: error: -[KegTests.KubernetesShadowTests testRunJob] : XCTAssertEqual failed: ("1") is not equal to ("0") - should extract kubeconfig
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:78: error: -[KegTests.KubernetesShadowTests testRunJob] : failed - Timed out waiting for node Ready after 90s
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:156: error: -[KegTests.KubernetesShadowTests testRunJob] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:157: error: -[KegTests.KubernetesShadowTests testRunJob] : XCTAssertTrue failed - Node should be Ready
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:272: error: -[KegTests.KubernetesShadowTests testRunJob] : XCTAssertEqual failed: ("1") is not equal to ("0") - Job creation should succeed: error: failed to create job: the server could not find the requested resource (post jobs.batch)
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:78: error: -[KegTests.KubernetesShadowTests testRunJob] : failed - Timed out waiting for job Complete after 60s
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:282: error: -[KegTests.KubernetesShadowTests testRunJob] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:283: error: -[KegTests.KubernetesShadowTests testRunJob] : XCTAssertTrue failed - Job should complete
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:288: error: -[KegTests.KubernetesShadowTests testRunJob] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:289: error: -[KegTests.KubernetesShadowTests testRunJob] : XCTAssertTrue failed - Job output should contain our message
+Test Case '-[KegTests.KubernetesShadowTests testRunJob]' failed (159.323 seconds).
+Test Case '-[KegTests.KubernetesShadowTests testScaleDeployment]' started.
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:108: error: -[KegTests.KubernetesShadowTests testScaleDeployment] : XCTAssertEqual failed: ("1") is not equal to ("0") - IP forwarding should enable
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:117: error: -[KegTests.KubernetesShadowTests testScaleDeployment] : XCTAssertEqual failed: ("1") is not equal to ("0") - kubeadm init should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:125: error: -[KegTests.KubernetesShadowTests testScaleDeployment] : XCTAssertEqual failed: ("1") is not equal to ("0") - CNI install should succeed: Error: container keg-k8s-shadow is not running
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:141: error: -[KegTests.KubernetesShadowTests testScaleDeployment] : XCTAssertEqual failed: ("1") is not equal to ("0") - should extract kubeconfig
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:78: error: -[KegTests.KubernetesShadowTests testScaleDeployment] : failed - Timed out waiting for node Ready after 90s
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:156: error: -[KegTests.KubernetesShadowTests testScaleDeployment] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:157: error: -[KegTests.KubernetesShadowTests testScaleDeployment] : XCTAssertTrue failed - Node should be Ready
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:360: error: -[KegTests.KubernetesShadowTests testScaleDeployment] : XCTAssertEqual failed: ("1") is not equal to ("0") - nginx deployment should create: error: failed to create deployment: the server could not find the requested resource (post deployments.apps)
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:78: error: -[KegTests.KubernetesShadowTests testScaleDeployment] : failed - Timed out waiting for nginx pod Running after 90s
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:372: error: -[KegTests.KubernetesShadowTests testScaleDeployment] : XCTAssertEqual failed: ("1") is not equal to ("0") - scale should succeed: E0917 00:44:18.676928   35247 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:44:18.679012   35247 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:44:18.682360   35247 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:44:18.686179   35247 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:44:18.687954   35247 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:78: error: -[KegTests.KubernetesShadowTests testScaleDeployment] : failed - Timed out waiting for 3 pods Running after 120s
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:383: error: -[KegTests.KubernetesShadowTests testScaleDeployment] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:385: error: -[KegTests.KubernetesShadowTests testScaleDeployment] : XCTAssertGreaterThanOrEqual failed: ("0") is less than ("3") - Should have 3 Running pods, got 0
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:390: error: -[KegTests.KubernetesShadowTests testScaleDeployment] : XCTAssertEqual failed: ("1") is not equal to ("0")
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:391: error: -[KegTests.KubernetesShadowTests testScaleDeployment] : XCTAssertTrue failed - deployment should have 3/3 ready
+/Volumes/Atlas/Code/projects/meadow/Tests/KegTests/KubernetesShadowTests.swift:396: error: -[KegTests.KubernetesShadowTests testScaleDeployment] : XCTAssertEqual failed: ("1") is not equal to ("0")
+Test Case '-[KegTests.KubernetesShadowTests testScaleDeployment]' failed (312.591 seconds).
+Test Suite 'KubernetesShadowTests' failed at 2026-09-17 00:46:21.509.
+	 Executed 12 tests, with 142 failures (0 unexpected) in 1974.882 (1974.887) seconds
+Test Suite 'KegTests.xctest' failed at 2026-09-17 00:46:21.509.
+	 Executed 12 tests, with 142 failures (0 unexpected) in 1974.882 (1974.887) seconds
+Test Suite 'Selected tests' failed at 2026-09-17 00:46:21.509.
+	 Executed 12 tests, with 142 failures (0 unexpected) in 1974.882 (1974.893) seconds
+ut complete
+✅ Image verified: E0917 00:38:29.263074   34708 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:38:29.267827   34708 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:38:29.269980   34708 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:38:29.271714   34708 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:38:29.273334   34708 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+✅ Rolling update deployment cleaned up
+🔄 Creating K8s cluster 'keg-k8s-shadow'...
+✅ K8s node container started
+✅ IP forwarding enabled
+🔄 Running kubeadm init (this takes ~60s)...
+✅ kubeadm initialized
+✅ CNI installed
+✅ Control-plane taint removed (code: 1)
+✅ Kubeconfig saved to /Users/rahult/.keg/kubeconfig-shadow
+  ⏳ Waiting for node Ready... (5s)
+  ⏳ Waiting for node Ready... (10s)
+  ⏳ Waiting for node Ready... (15s)
+  ⏳ Waiting for node Ready... (20s)
+  ⏳ Waiting for node Ready... (25s)
+  ⏳ Waiting for node Ready... (30s)
+  ⏳ Waiting for node Ready... (35s)
+  ⏳ Waiting for node Ready... (40s)
+  ⏳ Waiting for node Ready... (45s)
+  ⏳ Waiting for node Ready... (50s)
+  ⏳ Waiting for node Ready... (55s)
+  ⏳ Waiting for node Ready... (61s)
+  ⏳ Waiting for node Ready... (66s)
+  ⏳ Waiting for node Ready... (71s)
+  ⏳ Waiting for node Ready... (76s)
+  ⏳ Waiting for node Ready... (81s)
+  ⏳ Waiting for node Ready... (86s)
+  ⏳ Waiting for node Ready... (91s)
+✅ K8s cluster ready:
+E0917 00:40:07.541177   34860 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:40:07.542990   34860 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:40:07.545327   34860 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:40:07.547565   34860 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:40:07.549618   34860 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+🔄 Running K8s job...
+✅ Job created
+  ⏳ Waiting for job Complete... (5s)
+  ⏳ Waiting for job Complete... (10s)
+  ⏳ Waiting for job Complete... (15s)
+  ⏳ Waiting for job Complete... (20s)
+  ⏳ Waiting for job Complete... (25s)
+  ⏳ Waiting for job Complete... (30s)
+  ⏳ Waiting for job Complete... (35s)
+  ⏳ Waiting for job Complete... (40s)
+  ⏳ Waiting for job Complete... (45s)
+  ⏳ Waiting for job Complete... (50s)
+  ⏳ Waiting for job Complete... (55s)
+  ⏳ Waiting for job Complete... (60s)
+✅ Job completed:
+E0917 00:41:08.616764   34962 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:41:08.618913   34962 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:41:08.621156   34962 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:41:08.622939   34962 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:41:08.624643   34962 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+✅ Job output: E0917 00:41:08.659800   34963 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:41:08.662399   34963 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:41:08.664456   34963 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:41:08.666424   34963 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+error: error from server (NotFound): the server could not find the requested resource in namespace "default"
+✅ Job cleaned up
+🔄 Creating K8s cluster 'keg-k8s-shadow'...
+✅ K8s node container started
+✅ IP forwarding enabled
+🔄 Running kubeadm init (this takes ~60s)...
+✅ kubeadm initialized
+✅ CNI installed
+✅ Control-plane taint removed (code: 1)
+✅ Kubeconfig saved to /Users/rahult/.keg/kubeconfig-shadow
+  ⏳ Waiting for node Ready... (5s)
+  ⏳ Waiting for node Ready... (10s)
+  ⏳ Waiting for node Ready... (15s)
+  ⏳ Waiting for node Ready... (20s)
+  ⏳ Waiting for node Ready... (25s)
+  ⏳ Waiting for node Ready... (30s)
+  ⏳ Waiting for node Ready... (35s)
+  ⏳ Waiting for node Ready... (40s)
+  ⏳ Waiting for node Ready... (45s)
+  ⏳ Waiting for node Ready... (50s)
+  ⏳ Waiting for node Ready... (56s)
+  ⏳ Waiting for node Ready... (61s)
+  ⏳ Waiting for node Ready... (66s)
+  ⏳ Waiting for node Ready... (71s)
+  ⏳ Waiting for node Ready... (76s)
+  ⏳ Waiting for node Ready... (81s)
+  ⏳ Waiting for node Ready... (86s)
+  ⏳ Waiting for node Ready... (91s)
+✅ K8s cluster ready:
+E0917 00:42:46.940189   35121 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:42:46.941791   35121 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:42:46.943557   35121 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:42:46.945561   35121 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:42:46.947398   35121 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+🔄 Deploying nginx for scale test...
+  ⏳ Waiting for nginx pod Running... (5s)
+  ⏳ Waiting for nginx pod Running... (10s)
+  ⏳ Waiting for nginx pod Running... (15s)
+  ⏳ Waiting for nginx pod Running... (20s)
+  ⏳ Waiting for nginx pod Running... (25s)
+  ⏳ Waiting for nginx pod Running... (30s)
+  ⏳ Waiting for nginx pod Running... (35s)
+  ⏳ Waiting for nginx pod Running... (40s)
+  ⏳ Waiting for nginx pod Running... (45s)
+  ⏳ Waiting for nginx pod Running... (50s)
+  ⏳ Waiting for nginx pod Running... (56s)
+  ⏳ Waiting for nginx pod Running... (61s)
+  ⏳ Waiting for nginx pod Running... (66s)
+  ⏳ Waiting for nginx pod Running... (71s)
+  ⏳ Waiting for nginx pod Running... (76s)
+  ⏳ Waiting for nginx pod Running... (81s)
+  ⏳ Waiting for nginx pod Running... (86s)
+  ⏳ Waiting for nginx pod Running... (91s)
+🔄 Scaling to 3 replicas...
+  ⏳ Waiting for 3 pods Running... (5s)
+  ⏳ Waiting for 3 pods Running... (10s)
+  ⏳ Waiting for 3 pods Running... (15s)
+  ⏳ Waiting for 3 pods Running... (20s)
+  ⏳ Waiting for 3 pods Running... (25s)
+  ⏳ Waiting for 3 pods Running... (30s)
+  ⏳ Waiting for 3 pods Running... (35s)
+  ⏳ Waiting for 3 pods Running... (40s)
+  ⏳ Waiting for 3 pods Running... (45s)
+  ⏳ Waiting for 3 pods Running... (50s)
+  ⏳ Waiting for 3 pods Running... (55s)
+  ⏳ Waiting for 3 pods Running... (61s)
+  ⏳ Waiting for 3 pods Running... (66s)
+  ⏳ Waiting for 3 pods Running... (71s)
+  ⏳ Waiting for 3 pods Running... (76s)
+  ⏳ Waiting for 3 pods Running... (81s)
+  ⏳ Waiting for 3 pods Running... (86s)
+  ⏳ Waiting for 3 pods Running... (91s)
+  ⏳ Waiting for 3 pods Running... (96s)
+  ⏳ Waiting for 3 pods Running... (101s)
+  ⏳ Waiting for 3 pods Running... (106s)
+  ⏳ Waiting for 3 pods Running... (112s)
+  ⏳ Waiting for 3 pods Running... (117s)
+  ⏳ Waiting for 3 pods Running... (122s)
+✅ Scaled to 3 replicas:
+E0917 00:46:20.958549   35439 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:46:20.960787   35439 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:46:20.962788   35439 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:46:20.965119   35439 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:46:20.970889   35439 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+✅ Deployment ready:
+E0917 00:46:21.038194   35442 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:46:21.039799   35442 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:46:21.041325   35442 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:46:21.042882   35442 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+E0917 00:46:21.044609   35442 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: the server could not find the requested resource"
+Error from server (NotFound): the server could not find the requested resource
+
+✅ Scaled deployment cleaned up
+objc[35446]: Class _TtC12UniversalHID17FluidTouchGesture is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4b208) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x10631e5a0). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID23FluidTouchGestureFilter is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4b2a8) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x10631e6a0). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID15RotationGesture is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4b428) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x10631e860). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID20GameControllerFilter is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4b4c8) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x10631ea40). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID18TranslationGesture is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4b5a8) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x10631eb68). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID21HIDVirtualServicePool is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4b648) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x10631ef88). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtCC12UniversalHID21HIDVirtualServicePool14VirtualService is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4b710) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x10631f088). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID14PointerGesture is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4b870) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x10631f5d8). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID12ScaleGesture is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4b9d8) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x10631f798). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID16DigitizerGesture is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4be00) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x10631fec8). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID12ScrollFilter is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4bec8) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x106320120). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID14KeyboardFilter is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4bf80) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x106320230). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID27TouchSensitiveButtonGesture is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4c090) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x1063203d0). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID21GameControllerGesture is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4c1f0) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x1063207b0). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID17HIDVirtualService is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4c298) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x106320970). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHIDP33_77F0A1D2252CCF67CE1080DE620C755225HIDVirtualServiceDelegate is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4b090) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x10631e360). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID22AbsolutePointerGesture is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4c3e0) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x106320c70). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID13PointerFilter is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4c4a8) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x106320d80). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID22NavigationSwipeGesture is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4c5a0) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x106320e78). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID21GenericGestureGesture is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4c668) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x1063213c0). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID16DockSwipeGesture is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4c728) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x106321480). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID19HIDReportDispatcher is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4c7c8) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x106321580). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID26TouchSensitiveButtonFilter is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4c888) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x1063216f0). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID15DigitizerFilter is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4c940) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x1063217b8). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID13ScrollGesture is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4ca38) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x106321938). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+objc[35446]: Class _TtC12UniversalHID17ZoomToggleGesture is implemented in both /System/Library/PrivateFrameworks/UniversalHID.framework/Versions/A/UniversalHID (0x2dbf4cb18) and /Library/Developer/PrivateFrameworks/CoreDevice.framework/Versions/A/Frameworks/UniversalHID.framework/Versions/A/UniversalHID (0x106321a28). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+Note: Some test targets reported failures:
+  - KegTests (XCTest)

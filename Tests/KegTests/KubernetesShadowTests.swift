@@ -85,9 +85,13 @@ final class KubernetesShadowTests: XCTestCase {
         print("🔄 Creating K8s cluster '\(clusterName)'...")
 
         // Step 1: Start the kindest/node container
+        // kindest/node's entrypoint needs full capabilities (remounts /sys,
+        // manages cgroups/iptables); without --cap-add ALL it exits with
+        // "mount: /sys: permission denied".
         let (runCode, runOut) = try runProcess([
             "container", "run", "-d",
             "--name", clusterName,
+            "--cap-add", "ALL",
             "-m", "8G",
             "-c", "4",
             "-e", "KUBECONFIG=/etc/kubernetes/admin.conf",
@@ -101,6 +105,13 @@ final class KubernetesShadowTests: XCTestCase {
         try await Task.sleep(for: .seconds(5))
 
         // Step 3: Enable IP forwarding
+        // Step 3: Remount /proc/sys rw (arrives read-only; sysctl writes fail
+        // with EROFS until remounted) and enable IP forwarding
+        let (mountCode, _) = try runProcess([
+            "container", "exec", clusterName,
+            "mount", "-o", "remount,rw", "/proc/sys"
+        ])
+        XCTAssertEqual(mountCode, 0, "/proc/sys should remount rw")
         let (fwdCode, _) = try runProcess([
             "container", "exec", clusterName,
             "sysctl", "-w", "net.ipv4.ip_forward=1"
@@ -108,12 +119,22 @@ final class KubernetesShadowTests: XCTestCase {
         XCTAssertEqual(fwdCode, 0, "IP forwarding should enable")
         print("✅ IP forwarding enabled")
 
+        // Step 3b: Apple's container networking does not run DNS on the vmnet
+        // gateway; point resolv.conf at public resolvers so kubeadm can pull
+        // images from registry.k8s.io (mirrors KubernetesView's bootstrap).
+        let (dnsCode, _) = try runProcess([
+            "container", "exec", clusterName, "sh", "-euc",
+            "printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf"
+        ])
+        XCTAssertEqual(dnsCode, 0, "DNS resolvers should be written")
+
         // Step 4: Initialize kubeadm
         print("🔄 Running kubeadm init (this takes ~60s)...")
         let (initCode, initOut) = try runProcess([
             "container", "exec", clusterName,
-            "kubeadm", "init", "--pod-network-cidr=10.244.0.0/16"
-        ], timeout: 120)
+            "kubeadm", "init", "--pod-network-cidr=10.244.0.0/16",
+            "--apiserver-cert-extra-sans", "127.0.0.1,localhost"
+        ], timeout: 180)
         XCTAssertEqual(initCode, 0, "kubeadm init should succeed: \(initOut.suffix(500))")
         print("✅ kubeadm initialized")
 

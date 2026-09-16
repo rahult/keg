@@ -57,9 +57,14 @@ final class KubernetesVM {
 
         do {
             output += "Starting K8s node container...\n"
+            // kindest/node's entrypoint remounts /sys, manipulates cgroups and
+            // iptables — without elevated capabilities it dies immediately
+            // with "mount: /sys: permission denied" (container CLI ≥ 1.x
+            // defaults are restrictive).
             let (code, out) = try await runCLI([
                 "container", "run", "-d",
                 "--name", clusterName,
+                "--cap-add", "ALL",
                 "-m", "8G",
                 "-c", "4",
                 "-e", "KUBECONFIG=/etc/kubernetes/admin.conf",
@@ -73,6 +78,9 @@ final class KubernetesVM {
             try await Task.sleep(for: .seconds(5))
 
             output += "Enabling IP forwarding...\n"
+            // /proc/sys arrives read-only, so the sysctl write fails with
+            // EROFS until it's remounted (sysctl(8) writes via the proc file).
+            let _ = try await runCLI(["container", "exec", clusterName, "mount", "-o", "remount,rw", "/proc/sys"])
             let _ = try await runCLI(["container", "exec", clusterName, "sysctl", "-w", "net.ipv4.ip_forward=1"])
 
             // Apple's container networking does not run a DNS service on the vmnet
