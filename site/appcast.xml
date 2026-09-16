@@ -1,0 +1,17 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Keg</title>
+        <item>
+            <title>0.2.0</title>
+            <pubDate>Wed, 16 Sep 2026 06:08:46 +0000</pubDate>
+            <link>https://keg.rahultrikha.com/</link>
+            <sparkle:fullReleaseNotesLink>https://github.com/rahult/keg/releases</sparkle:fullReleaseNotesLink>
+            <sparkle:version>1</sparkle:version>
+            <sparkle:shortVersionString>0.2.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <enclosure url="https://github.com/rahult/keg/releases/download/v0.2.0/Keg-0.2.0.zip" length="19316726" type="application/octet-stream" sparkle:edSignature="LO1tqLjz4UjVeFIvYD2BCxFBnAzaZheVaYKYZRDr7yAtMa92iBvXkfpjDeQTVDkQ6n8t4qDCyMm8y0nvh3ZVAg=="/>
+        </item>
+    </channel>
+</rss>
