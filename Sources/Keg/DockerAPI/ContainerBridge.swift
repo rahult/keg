@@ -283,19 +283,72 @@ actor ContainerBridge {
 
     // MARK: - Network Operations
 
+    /// Compose-created networks. Apple containers share one built-in NAT
+    /// network, so these are bookkeeping entries: every container is
+    /// reachable regardless of which "network" it joined.
+    private var virtualNetworks: [String: DockerNetwork] = [:]
+
+    func createNetwork(name: String, labels: [String: String]?) async throws -> DockerNetwork {
+        let formatter = ISO8601DateFormatter()
+        let created = formatter.string(from: Date())
+        let network = DockerNetwork(
+            name: name,
+            id: "kegnet-\(UUID().uuidString.prefix(12).lowercased())",
+            created: created,
+            scope: "local",
+            driver: "bridge",
+            enableIPv6: false,
+            ipam: DockerIPAM(driver: "default", config: nil),
+            internal: false,
+            attachable: false,
+            ingress: false,
+            options: nil,
+            labels: labels
+        )
+        virtualNetworks[network.id] = network
+        // Also index by name so name-based lookups find it.
+        virtualNetworks[name] = network
+        return network
+    }
+
+    func removeNetwork(id: String) async throws {
+        if let network = virtualNetworks[id] {
+            virtualNetworks.removeValue(forKey: id)
+            virtualNetworks.removeValue(forKey: network.name)
+            return
+        }
+        // The built-in network can't be removed; mirror Docker's error by
+        // simply reporting success for unknown ids (compose prunes eagerly).
+    }
+
+    func network(id: String) async -> DockerNetwork? {
+        if let network = virtualNetworks[id] { return network }
+        if let network = virtualNetworks.values.first(where: { $0.name == id }) { return network }
+        return nil
+    }
+
     func listNetworks() async throws -> [DockerNetwork] {
         let (code, output) = try await runCLI(["container", "network", "list", "--format", "json"])
         guard code == 0, let data = output.data(using: .utf8) else {
             // Return a default bridge network if CLI doesn't support network listing
-            return [defaultBridgeNetwork()]
+            return [defaultBridgeNetwork()] + uniqueVirtualNetworks()
         }
 
         if let entries = try? JSONDecoder().decode([NetworkListEntry].self, from: data) {
-            return entries.map { $0.toDocker() }
+            return entries.map { $0.toDocker() } + uniqueVirtualNetworks()
         }
 
         // If parsing fails, return a default bridge network
-        return [defaultBridgeNetwork()]
+        return [defaultBridgeNetwork()] + uniqueVirtualNetworks()
+    }
+
+    private func uniqueVirtualNetworks() -> [DockerNetwork] {
+        var seen = Set<String>()
+        return virtualNetworks.values.compactMap { network in
+            guard !seen.contains(network.id) else { return nil }
+            seen.insert(network.id)
+            return network
+        }
     }
 
     private func defaultBridgeNetwork() -> DockerNetwork {

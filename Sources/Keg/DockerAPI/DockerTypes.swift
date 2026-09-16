@@ -374,6 +374,26 @@ struct DockerIPAMConfig: Codable {
     }
 }
 
+struct DockerNetworkCreateRequest: Codable {
+    let name: String
+    let labels: [String: String]?
+
+    enum CodingKeys: String, CodingKey {
+        case name = "Name"
+        case labels = "Labels"
+    }
+}
+
+struct DockerNetworkCreateResponse: Codable {
+    let id: String
+    let warning: String
+
+    enum CodingKeys: String, CodingKey {
+        case id = "Id"
+        case warning = "Warning"
+    }
+}
+
 // MARK: - Volume Types
 
 struct DockerVolumeListResponse: Codable {

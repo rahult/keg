@@ -390,13 +390,36 @@ final class DockerAPIServer: Sendable {
                 let networks = try await bridge.listNetworks()
                 return try JSONResponse(networks)
             }
+            router.post("\(prefix)/networks/create") { request, _ in
+                let body = try await request.body.collect(upTo: 1024 * 1024)
+                let name = (try? JSONDecoder().decode(DockerNetworkCreateRequest.self, from: Data(buffer: body)))?.name
+                    ?? "keg-net-\(UUID().uuidString.prefix(8).lowercased())"
+                let network = try await bridge.createNetwork(name: name, labels: nil)
+                return try JSONResponse(DockerNetworkCreateResponse(id: network.id, warning: ""))
+            }
             router.get("\(prefix)/networks/{id}") { _, context in
                 let id = context.parameters.get("id", as: String.self)!
+                if let network = await bridge.network(id: id) {
+                    return try JSONResponse(network)
+                }
                 let networks = try await bridge.listNetworks()
                 if let network = networks.first(where: { $0.id == id || $0.name == id }) {
                     return try JSONResponse(network)
                 }
                 return Response(status: .notFound, body: .init(byteBuffer: ByteBuffer(string: "{\"message\":\"network not found\"}")))
+            }
+            router.delete("\(prefix)/networks/{id}") { _, context in
+                let id = context.parameters.get("id", as: String.self)!
+                try await bridge.removeNetwork(id: id)
+                return Response(status: .noContent)
+            }
+            router.post("\(prefix)/networks/{id}/connect") { _, _ in
+                // All containers share the built-in NAT network; connect is
+                // bookkeeping-only for compose compatibility.
+                Response(status: .ok, body: .init(byteBuffer: ByteBuffer(string: "{}")))
+            }
+            router.post("\(prefix)/networks/{id}/disconnect") { _, _ in
+                Response(status: .ok, body: .init(byteBuffer: ByteBuffer(string: "{}")))
             }
 
             // MARK: Volumes
@@ -495,16 +518,28 @@ final class DockerAPIServer: Sendable {
     }
 
     /// Server-side `filters` support for `GET /containers/json`, as used by
-    /// docker compose (`filters={"label":["com.docker.compose.project=x"]}`).
-    /// Supports `label` (key or key=value), `status`, and `name` matchers.
+    /// docker compose. Supports `label` (key or key=value), `status`, and
+    /// `name` matchers. Handles both filter encodings: the legacy array form
+    /// (`{"label":["a=b"]}`) and the ≥ API 1.43 map form
+    /// (`{"label":{"a=b":true}}`) that modern compose actually sends.
     static func applyContainerFilters(_ containers: [DockerContainer], spec: String) -> [DockerContainer] {
         guard let data = spec.data(using: .utf8),
-              let filters = try? JSONSerialization.jsonObject(with: data) as? [String: [String]]
+              let raw = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { return containers }
+
+        func values(_ key: String) -> [String] {
+            guard let entry = raw[key] else { return [] }
+            if let array = entry as? [String] { return array }
+            if let map = entry as? [String: Any] {
+                return map.compactMap { $0.value as? Bool == true ? $0.key : nil }
+            }
+            return []
+        }
 
         var result = containers
 
-        if let labels = filters["label"], !labels.isEmpty {
+        let labels = values("label")
+        if !labels.isEmpty {
             result = result.filter { container in
                 let containerLabels = container.labels ?? [:]
                 return labels.allSatisfy { matcher in
@@ -518,11 +553,13 @@ final class DockerAPIServer: Sendable {
             }
         }
 
-        if let statuses = filters["status"], !statuses.isEmpty {
+        let statuses = values("status")
+        if !statuses.isEmpty {
             result = result.filter { statuses.contains($0.state) }
         }
 
-        if let names = filters["name"], !names.isEmpty {
+        let names = values("name")
+        if !names.isEmpty {
             result = result.filter { container in
                 names.contains { matcher in
                     container.names.contains { $0.contains(matcher) }
