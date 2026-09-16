@@ -5,8 +5,7 @@ struct MenuBarPopover: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        LaunchDiagnostics.mark("MenuBarPopover.body")
-        return VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 12) {
             headerSection
 
             Divider()

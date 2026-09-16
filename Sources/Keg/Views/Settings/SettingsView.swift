@@ -20,8 +20,7 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        LaunchDiagnostics.mark("SettingsView.body")
-        return Form {
+        Form {
             Section("Container CLI") {
                 ContainerCLIStatusRow()
                 if !ContainerCLI.isInstalled {

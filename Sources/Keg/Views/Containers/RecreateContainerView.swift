@@ -29,7 +29,11 @@ struct RecreateContainerView: View {
 
         let config = container.configuration
         _imageName = State(initialValue: config.image.reference)
-        _containerName = State(initialValue: config.labels["name"] ?? "")
+        // `--name` on apple/container sets the container ID, not a label, so
+        // fall back to the ID prefix (what the rest of the UI displays).
+        let currentName = config.labels["name"].flatMap { $0.isEmpty ? nil : $0 }
+            ?? String(container.id.prefix(12))
+        _containerName = State(initialValue: currentName)
         _command = State(initialValue: Self.prefilledCommand(config))
         _envVars = State(initialValue: config.initProcess.environment.joined(separator: ", "))
         _ports = State(initialValue: config.publishedPorts

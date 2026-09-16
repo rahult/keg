@@ -64,7 +64,6 @@ final class AppState {
     private var refreshTimer: Timer?
 
     init() {
-        LaunchDiagnostics.mark("AppState.init start")
         // Ship with Docker API auto-start on by default. First-run users should get
         // a working `docker` CLI without hunting through Settings. Existing users who
         // explicitly set the key keep their choice.
@@ -80,7 +79,6 @@ final class AppState {
         // Remove it eagerly so clients get ECONNREFUSED (which they retry cleanly)
         // until the real server binds.
         try? FileManager.default.removeItem(atPath: DockerAPIServer.socketPath())
-        LaunchDiagnostics.mark("AppState.init middle (defaults+socket)")
 
         // DISABLED (launch-stall + repeated keychain prompts): the eager
         // keychain migration/read below runs on the main actor and its
