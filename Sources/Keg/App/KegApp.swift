@@ -277,10 +277,31 @@ struct MainView: View {
 
 struct DetailView: View {
     @Environment(AppState.self) private var appState
+    @SceneStorage("main.sidebar-visible") private var isSidebarVisible = true
 
     var body: some View {
         KegDetailView()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // The standard sidebar toggle disappears once the sidebar
+            // collapses (.detailOnly), leaving no way to reopen it. Provide
+            // our own toggle in that state so the sidebar is always
+            // recoverable. Hidden while the sidebar is visible to avoid
+            // duplicating the standard toggle.
+            .toolbar {
+                ToolbarItem(placement: .navigation) {
+                    if !isSidebarVisible {
+                        Button {
+                            withAnimation {
+                                isSidebarVisible = true
+                            }
+                        } label: {
+                            Image(systemName: "sidebar.left")
+                        }
+                        .help("Show Sidebar")
+                        .accessibilityLabel("Show Sidebar")
+                    }
+                }
+            }
     }
 }
 
