@@ -4,6 +4,7 @@ import SwiftUI
 @main
 struct KegApp: App {
     @State private var appState = AppState()
+    @State private var updater = SoftwareUpdater()
 
     init() {
         if let icon = KegIcon.image {
@@ -55,12 +56,20 @@ struct KegApp: App {
         WindowGroup(id: "main") {
             MainView()
                 .environment(appState)
+                .environment(updater)
                 .frame(minWidth: 700, minHeight: 500)
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified(showsTitle: true))
         .defaultSize(width: 1100, height: 700)
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") {
+                    updater.checkForUpdates()
+                }
+                .disabled(!updater.canCheckForUpdates)
+            }
+
             CommandGroup(after: .newItem) {
                 Button("Run Container…") {
                     presentRunContainer()
@@ -115,6 +124,7 @@ struct KegApp: App {
         MenuBarExtra {
             MenuBarPopover()
                 .environment(appState)
+                .environment(updater)
         } label: {
             if let icon = KegIcon.menuBarImage {
                 Image(nsImage: icon)
@@ -131,6 +141,7 @@ struct KegApp: App {
         Settings {
             SettingsView()
                 .environment(appState)
+                .environment(updater)
         }
     }
 }

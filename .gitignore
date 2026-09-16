@@ -11,3 +11,5 @@ release/
 outputs/qa/
 .omc/state/
 .claude/worktrees/
+.env.release
+.env

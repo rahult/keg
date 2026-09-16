@@ -1,0 +1,251 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 0.2.0) — tags, builds, notarizes and publishes"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  # Resolves the tag being released. On manual dispatch it also creates and
+  # pushes the tag. The tag is pushed with GITHUB_TOKEN, which deliberately
+  # does not re-trigger workflows — the build below runs in this same run
+  # instead of racing a second one.
+  tag:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - id: resolve
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ inputs.version }}"
+            echo "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' \
+              || { echo "::error::'$version' is not a semantic version"; exit 1; }
+          else
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: github.event_name == 'workflow_dispatch'
+
+      - name: Create and push the tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          tag="${{ steps.resolve.outputs.tag }}"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "::error::$tag already exists"; exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "$tag"
+          git push origin "$tag"
+
+  release:
+    needs: tag
+    runs-on: macos-26
+    # Apple's notarization queue occasionally stalls. Fail fast so the job can
+    # be re-run against the existing tag rather than burning the six-hour cap.
+    timeout-minutes: 60
+
+    env:
+      TAG: ${{ needs.tag.outputs.tag }}
+      VERSION: ${{ needs.tag.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ needs.tag.outputs.tag }}
+
+      # Fail here with a readable list rather than forty minutes later inside
+      # codesign with an empty identity.
+      - name: Verify the required secrets are present
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          set -uo pipefail
+          missing=""
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY \
+                      APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID SPARKLE_PRIVATE_KEY; do
+            [ -n "${!name:-}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing — run ./Scripts/setup-release.sh"
+            exit 1
+          fi
+          echo "All seven release secrets are set."
+
+      - name: Cache SwiftPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: spm-release-${{ hashFiles('Package.resolved') }}
+          restore-keys: spm-release-
+
+      - name: Run tests
+        run: swift test
+
+      - name: Import the Developer ID certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "$APPLE_CERTIFICATE" | base64 --decode > signing-cert.p12
+          security create-keychain -p actions build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p actions build.keychain
+          # A fresh keychain re-locks after five minutes idle, and codesign
+          # then waits forever for an unlock prompt no one will ever answer.
+          security set-keychain-settings -lut 21600 build.keychain
+          security import signing-cert.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
+          rm signing-cert.p12
+          security find-identity -v -p codesigning
+
+      # Builds, embeds and signs Sparkle inside-out, notarizes and staples the
+      # app, then produces the DMG people download and the ZIP Sparkle fetches.
+      - name: Build, sign and notarize
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          RELEASE_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: make release VERSION="$VERSION" BUILD="${{ github.run_number }}"
+
+      - name: Verify Gatekeeper accepts the result
+        run: |
+          set -euo pipefail
+          spctl --assess --type execute --verbose=4 release/Keg.app
+          xcrun stapler validate release/Keg.app
+          xcrun stapler validate "release/Keg-$VERSION.dmg"
+
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" \
+            --title "Keg $TAG" \
+            --generate-notes \
+            "release/Keg.dmg" \
+            "release/Keg-$VERSION.dmg" \
+            "release/Keg-$VERSION.zip"
+
+      # Sparkle's own tooling signs the archive with the EdDSA private key and
+      # writes the feed the app polls. The signature has to be made here, where
+      # both the key and the artifact are — the site only ever serves the
+      # result.
+      - name: Generate the signed appcast
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          curl -fsSL -o sparkle.tar.xz \
+            https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-2.10.0.tar.xz
+          mkdir -p sparkle-tools && tar -xJf sparkle.tar.xz -C sparkle-tools
+          generate_appcast=$(find sparkle-tools -name generate_appcast -type f | head -1)
+
+          mkdir -p feed
+          cp "release/Keg-$VERSION.zip" feed/
+
+          printf '%s' "$SPARKLE_PRIVATE_KEY" > sparkle_key
+          trap 'rm -f sparkle_key' EXIT
+
+          "$generate_appcast" \
+            --ed-key-file sparkle_key \
+            --download-url-prefix "https://github.com/rahult/keg/releases/download/$TAG/" \
+            --link "https://keg.rahultrikha.com/" \
+            --full-release-notes-url "https://github.com/rahult/keg/releases" \
+            -o appcast.xml \
+            feed
+
+          grep -q 'sparkle:edSignature' appcast.xml \
+            || { echo "::error::appcast.xml has no EdDSA signature — Sparkle would reject every update"; exit 1; }
+          cat appcast.xml
+
+      # A tiny static file so the site can show the current version without
+      # calling the GitHub API from the browser, where it would be rate-limited
+      # per visitor IP and fail silently.
+      - name: Write version.json
+        run: |
+          set -euo pipefail
+          cat > version.json <<JSON
+          {
+            "version": "$VERSION",
+            "build": "${{ github.run_number }}",
+            "published": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "dmg": "https://github.com/rahult/keg/releases/latest/download/Keg.dmg",
+            "notes": "https://github.com/rahult/keg/releases/tag/$TAG",
+            "minimumSystemVersion": "26.0"
+          }
+          JSON
+          cat version.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: update-feed
+          path: |
+            appcast.xml
+            version.json
+
+  # Committing the feed is a separate job because the build above runs against
+  # a detached tag, and these files belong on main where the site is served
+  # from.
+  publish-feed:
+    needs: [tag, release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: update-feed
+          path: incoming
+
+      - name: Commit the update feed
+        run: |
+          set -euo pipefail
+          mv incoming/appcast.xml incoming/version.json site/
+          rmdir incoming
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/appcast.xml site/version.json
+          if git diff --cached --quiet; then
+            echo "Feed unchanged — nothing to commit."
+            exit 0
+          fi
+          git commit -m "chore: publish ${{ needs.tag.outputs.tag }} update feed"
+          git push origin HEAD:main
+
+      # The commit above is made with GITHUB_TOKEN and so will not trigger the
+      # site workflow on its own. Ask for it explicitly.
+      - name: Deploy the site
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run site.yml --ref main

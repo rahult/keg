@@ -158,8 +158,13 @@ struct SettingsView: View {
                 agentAPISection
             }
 
+            Section("Software Update") {
+                SoftwareUpdateSection()
+            }
+
             Section("About") {
                 LabeledContent("App", value: "Keg")
+                LabeledContent("Version", value: AppVersion.displayString)
                 LabeledContent("Description", value: "Docker Desktop replacement for macOS — native containers, Docker API, Compose, and Kubernetes")
                 LabeledContent("Runtime", value: "Apple Containerization")
                 LabeledContent("Requirements", value: "macOS 26+, Apple Silicon, Apple container CLI")

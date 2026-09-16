@@ -1,5 +1,5 @@
 {
-  "originHash" : "b610d121751f051e0ca8ec3844c2e69d3eca0ee52e1c5735273c6ebd0961bd4e",
+  "originHash" : "778363893d7489fd606187a86adf31fedec97a7ef336e4eeb2a820d4e485785c",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -62,6 +62,15 @@
       "state" : {
         "revision" : "a2ed0a0294de56e18ba55344eafc801a7a385a90",
         "version" : "2.22.0"
+      }
+    },
+    {
+      "identity" : "sparkle",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/sparkle-project/Sparkle.git",
+      "state" : {
+        "revision" : "eef1a539a373c1f1a320624b1130fc5de7b2e100",
+        "version" : "2.10.0"
       }
     },
     {

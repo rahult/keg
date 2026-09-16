@@ -1,0 +1,45 @@
+name: Deploy site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/site.yml"
+  # The release workflow dispatches this once it has committed a new
+  # appcast.xml, so a release reaches the update feed without waiting for
+  # another push.
+  workflow_dispatch:
+
+permissions:
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/configure-pages@v5
+        with:
+          # Auto-enable Pages (source: GitHub Actions) on first deploy.
+          enablement: true
+
+      # The site is hand-written HTML with no build step, so the directory
+      # ships as-is. site/CNAME is what points keg.rahultrikha.com here.
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
