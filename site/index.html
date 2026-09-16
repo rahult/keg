@@ -152,15 +152,6 @@ a { color: inherit; text-decoration: none; }
 }
 .hero-specs span + span { border-left: 1px solid var(--line-soft); }
 .hero-actions { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 36px; }
-.dl-meta {
-  margin-top: 16px;
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.02em;
-  color: var(--ink-3);
-}
-.dl-meta a { border-bottom: 1px solid var(--line); }
-.dl-meta a:hover { color: var(--accent-ink); border-bottom-color: var(--accent); }
 .btn {
   font-family: var(--mono); font-size: 0.74rem; font-weight: 600;
   letter-spacing: 0.1em; text-transform: uppercase;
@@ -176,7 +167,7 @@ a { color: inherit; text-decoration: none; }
 .btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
 .btn-ghost:hover { border-color: var(--ink); }
 
-/* ─── Figure plates (app mockup) ─── */
+/* ─── Figure plates (real screenshots) ─── */
 .figure { padding: 56px 32px 64px; border-bottom: 1px solid var(--line); }
 .fig-cap {
   font-family: var(--mono); font-size: 0.68rem; font-weight: 500;
@@ -186,53 +177,56 @@ a { color: inherit; text-decoration: none; }
 }
 .fig-cap span { min-width: 0; }
 .fig-cap .fig-no { color: var(--accent-ink); }
-.plate {
-  background: var(--plate); border: 1px solid var(--ink);
-  border-radius: 8px; overflow: hidden;
+
+.shot {
+  position: relative;
+  background: var(--plate);
+  border: 1px solid var(--ink);
+  border-radius: 10px;
+  padding: 10px;
   box-shadow: 0 1px 0 rgba(24,24,24,0.08), 0 16px 44px -18px rgba(24,24,24,0.28);
 }
-.plate-titlebar {
-  display: flex; align-items: center; padding: 11px 16px;
-  border-bottom: 1px solid var(--plate-line);
+.shot img {
+  display: block; width: 100%; height: 100%;
+  object-fit: cover; object-position: top center;
+  border-radius: 4px;
 }
-.plate-dots { display: flex; gap: 6px; }
-.plate-dots span { width: 10px; height: 10px; border-radius: 50%; }
-.plate-dots .r { background: #ff5f57; } .plate-dots .y { background: #febc2e; } .plate-dots .g { background: #28c840; }
-.plate-title { flex: 1; text-align: center; font-size: 0.72rem; color: var(--plate-dim); font-weight: 500; }
-.plate-body { display: grid; grid-template-columns: 210px minmax(0, 1fr); min-height: 400px; font-size: 0.78rem; }
-.plate-main { min-width: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-@media (max-width: 768px) { .plate-body { grid-template-columns: 1fr; min-height: auto; } .plate-sidebar { display: none; } .mock-table { min-width: 620px; } }
+/* floating mono annotation tags */
+.tag {
+  position: absolute;
+  font-family: var(--mono); font-size: 0.62rem; font-weight: 500;
+  letter-spacing: 0.08em; color: var(--plate-text);
+  background: rgba(16,16,20,0.82);
+  border: 1px solid rgba(255,255,255,0.14);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  padding: 5px 10px; border-radius: 100px;
+  white-space: nowrap;
+}
+.tag .dot { color: #34d399; }
+.tag-tr { top: 20px; right: 20px; }
+.tag-bl { bottom: 20px; left: 20px; }
+.tag-tl { top: 20px; left: 20px; }
 
-.plate-sidebar { border-right: 1px solid var(--plate-line); padding: 16px 12px; }
-.mock-seg { display: flex; gap: 2px; padding: 3px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 14px; }
-.mock-seg span { flex: 1; text-align: center; padding: 5px 8px; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: var(--plate-dim); }
-.mock-seg span.active { background: rgba(255,255,255,0.1); color: var(--plate-text); }
-.mock-status { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.16); border-radius: 9px; padding: 9px 12px; margin-bottom: 14px; }
-.mock-status-row { display: flex; align-items: center; gap: 6px; font-size: 0.68rem; color: #a7c8b8; }
-.mock-status-dot { width: 6px; height: 6px; background: #34d399; border-radius: 50%; }
-.mock-status-label { font-weight: 600; color: var(--plate-text); }
-.mock-section-title { font-family: var(--mono); font-size: 0.58rem; font-weight: 600; color: var(--plate-dim); letter-spacing: 0.1em; text-transform: uppercase; padding: 10px 8px 6px; }
-.mock-nav-item { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 7px; margin-bottom: 2px; font-size: 0.74rem; color: #9a9aa8; }
-.mock-nav-item.active { background: rgba(255,255,255,0.07); color: var(--plate-text); }
-.mock-nav-icon { font-size: 0.8rem; width: 18px; text-align: center; }
-.mock-badge { margin-left: auto; font-family: var(--mono); font-size: 0.6rem; background: rgba(52,211,153,0.12); color: #34d399; padding: 1px 7px; border-radius: 100px; font-weight: 600; }
+/* aspect boxes */
+.ratio-wide { aspect-ratio: 16 / 10; }
+.ratio-tall { aspect-ratio: 4 / 4.4; }
+.ratio-auto img { height: auto; }
 
-.plate-toolbar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--plate-line); }
-.plate-toolbar-btn { font-size: 0.7rem; font-weight: 600; padding: 5px 14px; border-radius: 6px; color: var(--plate-dim); border: 1px solid var(--plate-line); }
-.plate-toolbar-btn.primary { background: #34d399; color: #06281c; border-color: transparent; }
-.plate-toolbar-search { margin-left: auto; font-size: 0.68rem; color: var(--plate-dim); background: rgba(255,255,255,0.04); border: 1px solid var(--plate-line); padding: 5px 12px; border-radius: 6px; width: 150px; }
-
-.mock-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; }
-.mock-table th { text-align: left; padding: 9px 16px; font-family: var(--mono); font-weight: 500; color: var(--plate-dim); font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 1px solid var(--plate-line); }
-.mock-table td { padding: 10px 16px; border-bottom: 1px solid var(--plate-line); color: #9a9aa8; }
-.mock-table tr:last-child td { border-bottom: none; }
-.mock-name { color: var(--plate-text); font-weight: 500; }
-.mock-id { font-family: var(--mono); font-size: 0.65rem; color: var(--plate-dim); }
-.mock-status-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 0.65rem; font-weight: 500; }
-.mock-status-badge .dot { width: 5px; height: 5px; border-radius: 50%; }
-.mock-status-badge .dot.green { background: #34d399; }
-.mock-status-badge .dot.red { background: #f87171; }
-.mock-status-badge .dot.blue { background: #60a5fa; }
+/* ─── Screenshot gallery — mosaic ─── */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+}
+.g-item { min-width: 0; }
+.g-item .fig-cap { margin-bottom: 12px; }
+.g-span2 { grid-column: 1 / -1; }
+@media (max-width: 768px) {
+  .gallery { grid-template-columns: 1fr; }
+  .g-span2 { grid-column: auto; }
+  .ratio-tall { aspect-ratio: 16 / 12; }
+}
 
 /* ─── Stats band ─── */
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--line); }
@@ -335,6 +329,7 @@ a:focus-visible, .btn:focus-visible {
   .stat { padding: 32px 22px; }
   .hero h1 { font-size: 2.7rem; }
   .stat-val { font-size: 2.4rem; }
+  .tag { font-size: 0.56rem; padding: 4px 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -353,12 +348,13 @@ a:focus-visible, .btn:focus-visible {
     <a href="#" class="wordmark">Keg<span class="deg">.</span></a>
     <nav>
       <a href="#features">Features</a>
+      <a href="#tour">Tour</a>
       <a href="#docker">Docker</a>
       <a href="#compose">Compose</a>
       <a href="#k8s">Kubernetes</a>
       <a href="#compare">Compare</a>
     </nav>
-    <a href="https://github.com/rahult/keg/releases/latest/download/Keg.dmg" class="dl">Download <span>↓</span></a>
+    <a href="https://github.com/rahult/keg/releases" class="dl">Download <span>↓</span></a>
   </div>
 </header>
 
@@ -367,7 +363,7 @@ a:focus-visible, .btn:focus-visible {
 <!-- Hero -->
 <section class="hero">
   <div>
-    <div class="kicker">Apple Containerization · Native macOS</div>
+    <div class="kicker">Apple Containerization 1.3.1 · Native macOS</div>
     <h1>Containers on<br><em>Apple Silicon.</em></h1>
     <p class="hero-sub">The Docker Desktop replacement for macOS. Native SwiftUI. Hardware-level isolation. Sub-second boot. Open source forever.</p>
     <div class="hero-specs">
@@ -376,117 +372,22 @@ a:focus-visible, .btn:focus-visible {
       <span>Apache 2.0</span>
     </div>
     <div class="hero-actions">
-      <a href="https://github.com/rahult/keg/releases/latest/download/Keg.dmg" class="btn btn-primary">Download for Mac <span class="arr">↓</span></a>
-      <a href="#features" class="btn btn-ghost">See features <span class="arr">→</span></a>
+      <a href="https://github.com/rahult/keg/releases" class="btn btn-primary">Download for Mac <span class="arr">↓</span></a>
+      <a href="#tour" class="btn btn-ghost">Take the tour <span class="arr">→</span></a>
     </div>
-    <p class="dl-meta" id="dl-meta">Universal disk image · Signed &amp; notarized · Auto-updating</p>
   </div>
 </section>
 
-<!-- Fig. 01 — App plate -->
+<!-- Fig. 01 — Real dashboard screenshot -->
 <figure class="figure">
   <figcaption class="fig-cap">
-    <span><span class="fig-no">Fig. 01</span> — Container list, Keg for macOS</span>
+    <span><span class="fig-no">Fig. 01</span> — System dashboard, Keg for macOS</span>
     <span>SwiftUI · Virtualization.framework</span>
   </figcaption>
-  <div class="plate">
-    <div class="plate-titlebar">
-      <div class="plate-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
-      <div class="plate-title">Keg</div>
-      <div style="width: 54px;"></div>
-    </div>
-    <div class="plate-body">
-      <div class="plate-sidebar">
-        <div class="mock-seg"><span class="active">Keg</span></div>
-        <div class="mock-status">
-          <div class="mock-status-row">
-            <span class="mock-status-dot"></span>
-            <span class="mock-status-label">System Running</span>
-          </div>
-        </div>
-        <div class="mock-section-title">Overview</div>
-        <div class="mock-nav-item">📊 Dashboard</div>
-        <div class="mock-section-title">Workloads</div>
-        <div class="mock-nav-item active">📦 Containers <span class="mock-badge">4</span></div>
-        <div class="mock-nav-item">🔗 Compose</div>
-        <div class="mock-nav-item">☸️ Kubernetes</div>
-        <div class="mock-section-title">Content</div>
-        <div class="mock-nav-item">💿 Images</div>
-        <div class="mock-nav-item">🔨 Builds</div>
-        <div class="mock-section-title">System</div>
-        <div class="mock-nav-item">🌐 Networks</div>
-        <div class="mock-nav-item">💾 Volumes</div>
-        <div class="mock-nav-item">🔑 Registries</div>
-      </div>
-      <div class="plate-main">
-        <div class="plate-toolbar">
-          <div class="plate-toolbar-btn primary">▶ Run Container...</div>
-          <div class="plate-toolbar-btn">↻ Refresh</div>
-          <div class="plate-toolbar-search">🔍 Search containers</div>
-        </div>
-        <table class="mock-table">
-          <thead>
-            <tr><th>Name</th><th>Image</th><th>Status</th><th>ID</th><th>Ports</th><th>CPU</th><th>Memory</th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><span class="mock-name">web-frontend</span></td>
-              <td>nginx:latest</td>
-              <td><span class="mock-status-badge"><span class="dot green"></span> Running</span></td>
-              <td><span class="mock-id">a1b2c3d4e5f6</span></td>
-              <td>8080:80</td>
-              <td>0.3%</td>
-              <td>24 MB</td>
-            </tr>
-            <tr>
-              <td><span class="mock-name">api-server</span></td>
-              <td>node:20-alpine</td>
-              <td><span class="mock-status-badge"><span class="dot green"></span> Running</span></td>
-              <td><span class="mock-id">b2c3d4e5f6a1</span></td>
-              <td>3000:3000</td>
-              <td>1.2%</td>
-              <td>85 MB</td>
-            </tr>
-            <tr>
-              <td><span class="mock-name">postgres-db</span></td>
-              <td>postgres:16-alpine</td>
-              <td><span class="mock-status-badge"><span class="dot green"></span> Running</span></td>
-              <td><span class="mock-id">c3d4e5f6a1b2</span></td>
-              <td>5432:5432</td>
-              <td>0.1%</td>
-              <td>42 MB</td>
-            </tr>
-            <tr>
-              <td><span class="mock-name">redis-cache</span></td>
-              <td>redis:7-alpine</td>
-              <td><span class="mock-status-badge"><span class="dot green"></span> Running</span></td>
-              <td><span class="mock-id">d4e5f6a1b2c3</span></td>
-              <td>6379:6379</td>
-              <td>0.0%</td>
-              <td>12 MB</td>
-            </tr>
-            <tr>
-              <td><span class="mock-name">worker-queue</span></td>
-              <td>alpine:3.20</td>
-              <td><span class="mock-status-badge"><span class="dot red"></span> Stopped</span></td>
-              <td><span class="mock-id">e5f6a1b2c3d4</span></td>
-              <td></td>
-              <td></td>
-              <td></td>
-            </tr>
-            <tr>
-              <td><span class="mock-name">build-runner</span></td>
-              <td>alpine:latest</td>
-              <td><span class="mock-status-badge"><span class="dot blue"></span> Created</span></td>
-              <td><span class="mock-id">f6a1b2c3d4e5</span></td>
-              <td></td>
-              <td></td>
-              <td></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+  <div class="shot ratio-wide">
+    <img src="screenshots/dashboard.png" alt="Keg system dashboard in dark mode showing CPU, memory, image storage, API latency, eight running services, disk usage, and runtime status" loading="eager">
+    <span class="tag tag-tr"><span class="dot">●</span> 8 running</span>
+    <span class="tag tag-bl">453 µs · container api latency</span>
   </div>
 </figure>
 
@@ -495,13 +396,13 @@ a:focus-visible, .btn:focus-visible {
   <div class="stat"><div class="stat-val">618<span class="unit">ms</span></div><div class="stat-label">Container Start</div></div>
   <div class="stat"><div class="stat-val">55<span class="unit">ms</span></div><div class="stat-label">Exec Latency</div></div>
   <div class="stat"><div class="stat-val">69<span class="unit">MB</span></div><div class="stat-label">Idle Memory</div></div>
-  <div class="stat"><div class="stat-val">341</div><div class="stat-label">Tests Passing</div></div>
+  <div class="stat"><div class="stat-val">347</div><div class="stat-label">Tests Passing</div></div>
 </div>
 
 <!-- 01 Features -->
 <section class="section" id="features">
   <div class="sec-head"><span class="sec-no">01</span><h2 class="sec-title">Everything you need.</h2></div>
-  <p class="sec-desc">Containers, images, networks, volumes, builds, Compose, Kubernetes. All native. All fast.</p>
+  <p class="sec-desc">Containers, images, networks, volumes, builds, Compose, Kubernetes — plus a health score, port dashboard, embedded terminal, and dev containers. All native. All fast.</p>
   <div class="ledger">
     <div class="ledger-item">
       <div class="ledger-idx"><span>No. 01</span><span>Boot</span></div>
@@ -521,24 +422,119 @@ a:focus-visible, .btn:focus-visible {
     <div class="ledger-item">
       <div class="ledger-idx"><span>No. 04</span><span>Compat</span></div>
       <h3>Docker API</h3>
-      <p>Full Engine API on a Unix socket. docker ps, docker run, docker compose. It all works.</p>
+      <p>Full Engine API on a Unix socket at ~/.keg/docker.sock. docker ps, docker run, docker compose. It all works.</p>
     </div>
     <div class="ledger-item">
-      <div class="ledger-idx"><span>No. 05</span><span>Cluster</span></div>
+      <div class="ledger-idx"><span>No. 05</span><span>Stacks</span></div>
+      <h3>Compose Orchestration</h3>
+      <p>Dependency-ordered bring-up, per-service output, env vars, volumes, networks. Your compose files, zero changes.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 06</span><span>Cluster</span></div>
       <h3>Kubernetes</h3>
       <p>One-click K8s cluster. kindest/node + kubeadm. kubectl ready in 90 seconds.</p>
     </div>
     <div class="ledger-item">
-      <div class="ledger-idx"><span>No. 06</span><span>License</span></div>
+      <div class="ledger-idx"><span>No. 07</span><span>Health</span></div>
+      <h3>Health Score</h3>
+      <p>A single 0–100 score across every container, with per-container memory and CPU signals. Spot the one that needs attention at a glance.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 08</span><span>Ports</span></div>
+      <h3>Ports Dashboard</h3>
+      <p>Every published port across every container in one table, with one-click localhost URLs. No more hunting for what bound 8080.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 09</span><span>Tooling</span></div>
+      <h3>Terminal &amp; Dev Containers</h3>
+      <p>Embedded shell with the container CLI wired in, merged multi-container log streams, and .devcontainer project support built in.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 10</span><span>License</span></div>
       <h3>Open Source</h3>
       <p>Apache 2.0, free forever. No seat licenses, no feature gates, no telemetry.</p>
     </div>
   </div>
 </section>
 
-<!-- 02 Docker -->
+<!-- 02 Tour — screenshot gallery -->
+<section class="section" id="tour">
+  <div class="sec-head"><span class="sec-no">02</span><h2 class="sec-title">The grand tour.</h2></div>
+  <p class="sec-desc">Real screens from the shipping app — light and dark mode, nothing mocked.</p>
+  <div class="gallery">
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 02</span> — Container list</span>
+        <span>dark mode</span>
+      </figcaption>
+      <div class="shot ratio-tall">
+        <img src="screenshots/containers.png" alt="Container list in dark mode showing eight running and two stopped containers with status, IP, CPU and memory columns">
+        <span class="tag tag-tr">10 containers · live stats</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 03</span> — Container inspector</span>
+        <span>light mode</span>
+      </figcaption>
+      <div class="shot ratio-tall">
+        <img src="screenshots/container-detail.png" alt="Container inspector showing memory, network and block I/O, runtime, network address, published ports, resources and process configuration">
+        <span class="tag tag-tr">runtime · container-runtime-linux</span>
+      </div>
+    </div>
+
+    <div class="g-item g-span2">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 04</span> — Compose up, dependency-ordered</span>
+        <span>light mode</span>
+      </figcaption>
+      <div class="shot ratio-wide">
+        <img src="screenshots/compose.png" alt="Compose view showing services in dependency order, running service table, and full compose up output log">
+        <span class="tag tag-tr">4 services · one click</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 05</span> — Image library</span>
+        <span>light mode</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/images.png" alt="Image library listing pulled images with digest and size columns">
+        <span class="tag tag-tr">7 images · 20.85 gb</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 06</span> — Ports dashboard</span>
+        <span>light mode</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/ports.png" alt="Ports dashboard listing every published port with clickable localhost URLs">
+        <span class="tag tag-tr">one-click localhost</span>
+      </div>
+    </div>
+
+    <div class="g-item g-span2">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 07</span> — Health score</span>
+        <span>light mode</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/health.png" alt="Health dashboard with a 66-point score ring and per-container health scores, memory and CPU">
+        <span class="tag tag-tr">score 66 · 2 need attention</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 03 Docker -->
 <section class="section" id="docker">
-  <div class="sec-head"><span class="sec-no">02</span><h2 class="sec-title">Drop-in replacement.</h2></div>
+  <div class="sec-head"><span class="sec-no">03</span><h2 class="sec-title">Drop-in replacement.</h2></div>
   <p class="sec-desc">Same CLI. Same Compose files. Same API. Just faster, lighter, and with real isolation.</p>
   <div class="listings">
     <div class="listing">
@@ -570,9 +566,9 @@ a:focus-visible, .btn:focus-visible {
   </div>
 </section>
 
-<!-- 03 Compose -->
+<!-- 04 Compose -->
 <section class="section" id="compose">
-  <div class="sec-head"><span class="sec-no">03</span><h2 class="sec-title">Your compose files. Zero changes.</h2></div>
+  <div class="sec-head"><span class="sec-no">04</span><h2 class="sec-title">Your compose files. Zero changes.</h2></div>
   <p class="sec-desc">Dependency ordering, networks, volumes, port mapping, env vars. Keg's orchestrator handles it all.</p>
   <div class="listings">
     <div class="listing">
@@ -613,9 +609,9 @@ a:focus-visible, .btn:focus-visible {
   </div>
 </section>
 
-<!-- 04 Kubernetes -->
+<!-- 05 Kubernetes -->
 <section class="section" id="k8s">
-  <div class="sec-head"><span class="sec-no">04</span><h2 class="sec-title">Local K8s. 90 seconds.</h2></div>
+  <div class="sec-head"><span class="sec-no">05</span><h2 class="sec-title">Local K8s. 90 seconds.</h2></div>
   <p class="sec-desc">Full cluster inside an Apple Container. kubeadm, CNI, kubeconfig. Ready for kubectl.</p>
   <div class="steps">
     <div class="step">
@@ -645,9 +641,9 @@ kubectl logs -f deploy/nginx</div>
   </div>
 </section>
 
-<!-- 05 Comparison -->
+<!-- 06 Comparison -->
 <section class="section" id="compare">
-  <div class="sec-head"><span class="sec-no">05</span><h2 class="sec-title">Numbers don't lie.</h2></div>
+  <div class="sec-head"><span class="sec-no">06</span><h2 class="sec-title">Numbers don't lie.</h2></div>
   <p class="sec-desc">Benchmarked against Docker Desktop and OrbStack.</p>
   <div class="cmp-wrap"><div class="cmp-scroll">
     <table class="cmp">
@@ -658,7 +654,10 @@ kubectl logs -f deploy/nginx</div>
         <tr><td>Boot time</td><td>~30s</td><td>~2s</td><td class="keg">&lt;1s</td></tr>
         <tr><td>Idle RAM</td><td>~2 GB</td><td>~500 MB</td><td class="keg">69 MB</td></tr>
         <tr><td>Docker API</td><td>✓</td><td>✓</td><td class="keg">✓</td></tr>
+        <tr><td>Compose</td><td>✓</td><td>✓</td><td class="keg">✓</td></tr>
         <tr><td>Kubernetes</td><td>✓</td><td>✓</td><td class="keg">✓</td></tr>
+        <tr><td>Health score</td><td>—</td><td>—</td><td class="keg">✓</td></tr>
+        <tr><td>Dev containers</td><td>✓</td><td>—</td><td class="keg">✓</td></tr>
         <tr><td>Native macOS</td><td>Electron</td><td>Native-ish</td><td class="keg">SwiftUI</td></tr>
         <tr><td>License</td><td>$9/seat/mo</td><td>Paid</td><td class="keg">Apache 2.0</td></tr>
       </tbody>
@@ -671,7 +670,7 @@ kubectl logs -f deploy/nginx</div>
   <h2>Built for Apple Silicon.<br><em>Open source, free forever.</em></h2>
   <p>Requires macOS 26 (Tahoe) and Apple Silicon (M1/M2/M3/M4).</p>
   <div class="hero-actions">
-    <a href="https://github.com/rahult/keg/releases/latest/download/Keg.dmg" class="btn btn-primary">Download for Mac <span class="arr">↓</span></a>
+    <a href="https://github.com/rahult/keg/releases" class="btn btn-primary">Download for Mac <span class="arr">↓</span></a>
     <a href="https://github.com/rahult/keg" class="btn btn-ghost">View on GitHub <span class="arr">→</span></a>
   </div>
 </section>
@@ -681,7 +680,7 @@ kubectl logs -f deploy/nginx</div>
   <div class="fine">
     © 2026 Keg — Apache License 2.0<br>
     Set in Newsreader &amp; JetBrains Mono<br>
-    Built on Apple Containerization
+    Built on Apple Containerization 1.3.1
   </div>
   <div class="links">
     <a href="https://github.com/rahult/keg">GitHub</a>
@@ -691,22 +690,5 @@ kubectl logs -f deploy/nginx</div>
 </footer>
 
 </div>
-<script>
-// Fill in the current version from the static file the release workflow
-// commits. Deliberately not the GitHub API: that is rate-limited per visitor
-// IP and would leave the line blank for anyone unlucky enough to share one.
-fetch("version.json", { cache: "no-cache" })
-  .then((r) => (r.ok ? r.json() : Promise.reject()))
-  .then((v) => {
-    const el = document.getElementById("dl-meta");
-    if (!el || !v.version) return;
-    el.innerHTML =
-      `Version ${v.version} · Signed &amp; notarized · Auto-updating · ` +
-      `<a href="${v.notes}">Release notes</a>`;
-  })
-  .catch(() => {
-    /* Leave the static wording in place. */
-  });
-</script>
 </body>
 </html>

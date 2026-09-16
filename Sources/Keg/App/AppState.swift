@@ -77,8 +77,13 @@ final class AppState {
         // A stale socket file from a previous Keg run makes `docker info` return EOF
         // because the kernel accepts the connect() and then immediately closes it.
         // Remove it eagerly so clients get ECONNREFUSED (which they retry cleanly)
-        // until the real server binds.
-        try? FileManager.default.removeItem(atPath: DockerAPIServer.socketPath())
+        // until the real server binds. The removal is liveness-guarded: AppState
+        // is also instantiated by unit tests, and unlinking a socket owned by a
+        // *running* Keg app would silently kill its Docker API.
+        let socketPath = DockerAPIServer.socketPath()
+        if !DockerAPIServer.socketRespondsToPing(at: socketPath) {
+            try? FileManager.default.removeItem(atPath: socketPath)
+        }
 
         // DISABLED (launch-stall + repeated keychain prompts): the eager
         // keychain migration/read below runs on the main actor and its

@@ -238,6 +238,38 @@ struct DockerImage: Codable {
         case size = "Size"
         case labels = "Labels"
     }
+
+    /// Returns a copy with a different reported size.
+
+    func withSize(_ size: Int64) -> DockerImage {
+        DockerImage(id: id, repoTags: repoTags, repoDigests: repoDigests, created: created, size: size, labels: labels)
+    }
+}
+
+/// Shape of `GET /images/{name}/json`. Unlike the list entry, Docker clients
+/// (docker compose especially) unmarshal `Created` strictly as an RFC 3339
+/// *string* — a numeric epoch here fails with "cannot unmarshal number into
+/// Go struct field ImageInspectResult.Created of type string".
+struct DockerImageInspect: Codable {
+    let id: String
+    let repoTags: [String]?
+    let repoDigests: [String]?
+    let created: String
+    let size: Int64
+    let architecture: String?
+    let os: String?
+    let config: DockerContainerConfig?
+
+    enum CodingKeys: String, CodingKey {
+        case id = "Id"
+        case repoTags = "RepoTags"
+        case repoDigests = "RepoDigests"
+        case created = "Created"
+        case size = "Size"
+        case architecture = "Architecture"
+        case os = "Os"
+        case config = "Config"
+    }
 }
 
 struct DockerVersion: Codable {

@@ -1,10 +1,20 @@
 import Foundation
 import Hummingbird
+import ContainerAPIClient
 
 // MARK: - Container CLI Bridge
 
 actor ContainerBridge {
-    private var pendingContainers: [String: DockerContainerCreateRequest] = [:]
+    /// Platform pinned for image pulls. Without --platform, `container image pull`
+    /// unpacks EVERY platform variant in the index — each becomes a 512 GiB-capacity
+    /// ext4 snapshot (~1.1 GB allocated metadata even for alpine). Keg targets
+    /// Apple Silicon only, so linux/arm64 is always the host platform.
+    private static let hostPlatform = "linux/arm64"
+
+    /// Cache of on-disk image sizes keyed by index digest ("sha256:…").
+    /// Computing these walks the content + snapshot stores, so keep a short TTL.
+    private var imageSizeCache: (timestamp: Date, sizes: [String: Int64])?
+    private let imageSizeCacheTTL: TimeInterval = 30
 
     func runCLI(_ args: [String]) async throws -> (exitCode: Int32, output: String) {
         let (code, output) = try await ContainerCLI.run(args)
@@ -18,14 +28,6 @@ actor ContainerBridge {
         process.standardError = pipe
         try process.run()
         return process
-    }
-
-    func storePendingContainer(id: String, request: DockerContainerCreateRequest) {
-        pendingContainers[id] = request
-    }
-
-    func getPendingContainer(id: String) -> DockerContainerCreateRequest? {
-        pendingContainers.removeValue(forKey: id)
     }
 
     // MARK: - Container Operations
@@ -44,86 +46,95 @@ actor ContainerBridge {
 
     func createContainer(from request: DockerContainerCreateRequest, name: String?) async throws -> DockerContainerCreateResponse {
         let id = name ?? "keg-\(UUID().uuidString.prefix(12).lowercased())"
-        // Store request for later use in start
-        storePendingContainer(id: id, request: request)
 
-        // Pull image if specified
+        // Pull image if specified (pinned to host platform — an unpinned pull
+        // unpacks all platform variants, ~1.1 GB of disk each)
         if let image = request.image, !image.isEmpty {
-            let _ = try await runCLI(["container", "image", "pull", image])
+            let _ = try await runCLI(["container", "image", "pull", "--platform", Self.hostPlatform, image])
+        }
+
+        // Real `container create` so the container exists before start —
+        // the docker CLI issues POST /wait?condition=next-exit BEFORE
+        // /start (to avoid racing short-lived exits), and a wait on a
+        // not-yet-created container must simply block, not 500.
+        var args = ["container", "create", "--name", id]
+        args += Self.containerArgs(from: request)
+        let (code, output) = try await runCLI(args)
+        guard code == 0 else {
+            throw DockerAPIError.containerStartFailed(output)
         }
 
         return DockerContainerCreateResponse(id: id, warnings: [])
     }
 
-    func startContainer(id: String) async throws {
-        if let req = getPendingContainer(id: id) {
-            // Build and run the container
-            var args = ["container", "run", "-d"]
+    /// Flags shared by `container create`/`container run` for a Docker
+    /// create request (env, binds, memory, ports, labels, workdir, cmd).
+    private static func containerArgs(from req: DockerContainerCreateRequest) -> [String] {
+        var args: [String] = []
 
-            if let name = req.name {
-                args += ["--name", name]
-            } else {
-                args += ["--name", id]
+        if let env = req.env {
+            for e in env {
+                args += ["-e", e]
             }
+        }
 
-            if let env = req.env {
-                for e in env {
-                    args += ["-e", e]
+        if let hostConfig = req.hostConfig {
+            if let binds = hostConfig.binds {
+                for b in binds {
+                    args += ["-v", b]
                 }
             }
-
-            if let hostConfig = req.hostConfig {
-                if let binds = hostConfig.binds {
-                    for b in binds {
-                        args += ["-v", b]
-                    }
-                }
-                if let memory = hostConfig.memory, memory > 0 {
-                    let mb = memory / (1024 * 1024)
-                    args += ["--memory", "\(mb)M"]
-                }
-                if let portBindings = hostConfig.portBindings {
-                    for (containerPort, bindings) in portBindings {
-                        for binding in bindings {
-                            let containerPortClean = containerPort.components(separatedBy: "/").first ?? containerPort
-                            if let hostPort = binding.hostPort, let hostIP = binding.hostIP, hostIP != "0.0.0.0" {
-                                args += ["-p", "\(hostIP):\(hostPort):\(containerPortClean)"]
-                            } else if let hostPort = binding.hostPort {
-                                args += ["-p", "\(hostPort):\(containerPortClean)"]
-                            }
+            if let memory = hostConfig.memory, memory > 0 {
+                // Apple's container runtime enforces a 200 MiB minimum;
+                // docker accepts smaller values, so clamp instead of failing.
+                let mb = max(memory / (1024 * 1024), 200)
+                args += ["--memory", "\(mb)M"]
+            }
+            if let portBindings = hostConfig.portBindings {
+                for (containerPort, bindings) in portBindings {
+                    for binding in bindings {
+                        let containerPortClean = containerPort.components(separatedBy: "/").first ?? containerPort
+                        // docker CLI sends HostIp "0.0.0.0" or "" for
+                        // unspecified binds — an empty IP would build the
+                        // invalid publish spec ":port:port".
+                        let hostIP = binding.hostIP.flatMap { $0.isEmpty ? nil : $0 }
+                            .flatMap { $0 == "0.0.0.0" ? nil : $0 }
+                        if let hostPort = binding.hostPort, let hostIP {
+                            args += ["-p", "\(hostIP):\(hostPort):\(containerPortClean)"]
+                        } else if let hostPort = binding.hostPort {
+                            args += ["-p", "\(hostPort):\(containerPortClean)"]
                         }
                     }
                 }
             }
+        }
 
-            if let labels = req.labels {
-                for (k, v) in labels {
-                    args += ["-l", "\(k)=\(v)"]
-                }
+        if let labels = req.labels {
+            for (k, v) in labels {
+                args += ["-l", "\(k)=\(v)"]
             }
+        }
 
-            if let workingDir = req.workingDir {
-                args += ["-w", workingDir]
-            }
+        if let workingDir = req.workingDir {
+            args += ["-w", workingDir]
+        }
 
-            if let image = req.image {
-                args.append(image)
-            }
+        if let image = req.image {
+            args.append(image)
+        }
 
-            if let cmd = req.cmd {
-                args += cmd
-            }
+        if let cmd = req.cmd {
+            args += cmd
+        }
 
-            let (code, output) = try await runCLI(args)
-            if code != 0 {
-                throw DockerAPIError.containerStartFailed(output)
-            }
-        } else {
-            // Container already created, just start it
-            let (code, output) = try await runCLI(["container", "start", id])
-            if code != 0 {
-                throw DockerAPIError.containerStartFailed(output)
-            }
+        return args
+    }
+
+    func startContainer(id: String) async throws {
+        // The container already exists (created via `container create`); start it.
+        let (code, output) = try await runCLI(["container", "start", id])
+        if code != 0 {
+            throw DockerAPIError.containerStartFailed(output)
         }
     }
 
@@ -167,16 +178,68 @@ actor ContainerBridge {
         return output
     }
 
+    /// Block until the container stops, then return its exit code (0 when the
+    /// CLI doesn't report one). Backs the Docker `POST /containers/{id}/wait`
+    /// route — `docker run` and `docker wait` depend on it.
+    func waitContainer(id: String) async throws -> Int32 {
+        while true {
+            let (code, output) = try await runCLI(["container", "inspect", id])
+            if code != 0 {
+                throw DockerAPIError.containerNotFound(id)
+            }
+            guard let data = output.data(using: .utf8),
+                  let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+                  let entry = entries.first
+            else {
+                throw DockerAPIError.containerNotFound(id)
+            }
+            let state = (entry["status"] as? [String: Any])?["state"] as? String
+            if state != "running" {
+                return 0
+            }
+            try await Task.sleep(nanoseconds: 500_000_000)
+        }
+    }
+
     // MARK: - Image Operations
+
+    /// Real on-disk size per image (blobs + unpacked snapshots), keyed by
+    /// image digest — the same numbers the Images screen shows.
+    private func onDiskImageSizes() async -> [String: Int64] {
+        if let cache = imageSizeCache,
+           Date().timeIntervalSince(cache.timestamp) < imageSizeCacheTTL {
+            return cache.sizes
+        }
+        var sizes: [String: Int64] = [:]
+        if let images = try? await ClientImage.list() {
+            for image in images {
+                if let size = try? await ImageDiskUsage.diskSize(for: image), size > 0 {
+                    sizes[image.digest] = size
+                }
+            }
+        }
+        imageSizeCache = (Date(), sizes)
+        return sizes
+    }
+
+    /// Looks up a cached size tolerating digest-format differences
+    /// (with/without the "sha256:" prefix).
+    private func imageSize(_ sizes: [String: Int64], forDigest digest: String) -> Int64? {
+        if let size = sizes[digest] { return size }
+        let hex = digest.split(separator: ":").last.map(String.init) ?? digest
+        return sizes.first(where: { $0.key.split(separator: ":").last.map(String.init) == hex })?.value
+    }
 
     func listImages() async throws -> [DockerImage] {
         let (code, output) = try await runCLI(["container", "image", "list", "--format", "json"])
         guard code == 0, let data = output.data(using: .utf8) else { return [] }
 
-        if let entries = try? JSONDecoder().decode([ImageListEntry].self, from: data) {
-            return entries.map { $0.toDocker() }
+        guard let entries = try? JSONDecoder().decode([ImageListEntry].self, from: data) else { return [] }
+        let sizes = await onDiskImageSizes()
+        return entries.map { entry in
+            let override = entry.configuration?.descriptor?.digest.flatMap { imageSize(sizes, forDigest: $0) }
+            return entry.toDocker(sizeOverride: override)
         }
-        return []
     }
 
     func pullImage(from input: String) async throws {
@@ -186,18 +249,32 @@ actor ContainerBridge {
             imageRef = String(input.dropFirst("fromImage=".count))
         }
 
-        let (code, output) = try await runCLI(["container", "image", "pull", imageRef])
+        let (code, output) = try await runCLI(["container", "image", "pull", "--platform", Self.hostPlatform, imageRef])
         if code != 0 {
             throw DockerAPIError.imagePullFailed(output)
         }
     }
 
-    func inspectImage(name: String) async throws -> DockerImage {
+    func inspectImage(name: String) async throws -> DockerImageInspect {
         let (code, output) = try await runCLI(["container", "image", "inspect", name])
         guard code == 0 else {
             throw DockerAPIError.imageNotFound(name)
         }
-        return try parseImageInspect(output, name: name)
+        let image = try parseImageInspect(output, name: name)
+        let sizes = await onDiskImageSizes()
+        guard let size = imageSize(sizes, forDigest: image.id) else {
+            return image
+        }
+        return DockerImageInspect(
+            id: image.id,
+            repoTags: image.repoTags,
+            repoDigests: image.repoDigests,
+            created: image.created,
+            size: size,
+            architecture: image.architecture,
+            os: image.os,
+            config: image.config
+        )
     }
 
     func removeImage(name: String) async throws {
@@ -323,8 +400,10 @@ actor ContainerBridge {
         }
 
         let cfg = entry["configuration"] as? [String: Any]
-        let status = (entry["status"] as? String) ?? ""
-        let networks = (entry["networks"] as? [[String: Any]]) ?? []
+        // CLI ≥ 1.x: runtime state is an object, not a plain string.
+        let statusObj = entry["status"] as? [String: Any]
+        let status = (statusObj?["state"] as? String) ?? ""
+        let networks = (statusObj?["networks"] as? [[String: Any]]) ?? []
         let firstNet = networks.first
 
         let state = DockerContainerState(
@@ -335,7 +414,7 @@ actor ContainerBridge {
             dead: status == "stopped",
             pid: nil,
             exitCode: nil,
-            startedAt: "",
+            startedAt: (statusObj?["startedDate"] as? String) ?? "",
             finishedAt: ""
         )
 
@@ -344,7 +423,7 @@ actor ContainerBridge {
 
         return DockerContainerInspect(
             id: cfg?["id"] as? String ?? id,
-            created: "",
+            created: cfg?["creationDate"] as? String ?? "",
             path: initProc?["executable"] as? String ?? "",
             args: initProc?["arguments"] as? [String] ?? [],
             state: state,
@@ -368,26 +447,53 @@ actor ContainerBridge {
         )
     }
 
-    private func parseImageInspect(_ output: String, name: String) throws -> DockerImage {
+    private func parseImageInspect(_ output: String, name: String) throws -> DockerImageInspect {
         guard let data = output.data(using: .utf8),
               let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
               let entry = jsonArray.first else {
-            return DockerImage(id: "sha256:" + name, repoTags: [name], repoDigests: nil, created: 0, size: 0, labels: nil)
+            throw DockerAPIError.imageNotFound(name)
         }
 
-        let descriptor = entry["descriptor"] as? [String: Any]
+        let cfg = entry["configuration"] as? [String: Any]
+        let descriptor = cfg?["descriptor"] as? [String: Any]
         let digest = descriptor?["digest"] as? String
         let size = (descriptor?["size"] as? Int).map { Int64($0) } ?? Int64(0)
         let annotations = descriptor?["annotations"] as? [String: String]
-        let imgName = annotations?["com.apple.containerization.image.name"] ?? name
+        let imgName = cfg?["name"] as? String
+            ?? annotations?["com.apple.containerization.image.name"]
+            ?? name
 
-        return DockerImage(
-            id: "sha256:" + (digest ?? name),
+        // Created must be an RFC 3339 string for Docker clients (see
+        // DockerImageInspect); fall back to the epoch when unknown.
+        let created: String
+        if let iso = cfg?["creationDate"] as? String, !iso.isEmpty {
+            created = iso
+        } else {
+            created = "1970-01-01T00:00:00Z"
+        }
+
+        // Variant config (architecture / os / image config) lives per-platform.
+        let variant = (entry["variants"] as? [[String: Any]])?.first
+        let variantConfig = variant?["config"] as? [String: Any]
+        let imageConfig = variantConfig?["config"] as? [String: Any]
+
+        return DockerImageInspect(
+            id: digest ?? "sha256:" + name,
             repoTags: [imgName],
             repoDigests: digest.map { ["\(imgName)@\($0)"] },
-            created: 0,
+            created: created,
             size: size,
-            labels: annotations
+            architecture: variantConfig?["architecture"] as? String,
+            os: variantConfig?["os"] as? String,
+            config: DockerContainerConfig(
+                image: imgName,
+                cmd: imageConfig?["Cmd"] as? [String],
+                env: imageConfig?["Env"] as? [String],
+                labels: imageConfig?["Labels"] as? [String: String] ?? annotations,
+                tty: imageConfig?["Tty"] as? Bool,
+                openStdin: nil,
+                workingDir: imageConfig?["WorkingDir"] as? String
+            )
         )
     }
 }
@@ -396,70 +502,155 @@ actor ContainerBridge {
 
 private struct ContainerListEntry: Codable {
     let configuration: Configuration
-    let status: String?
+    let status: Status?
 
     struct Configuration: Codable {
         let id: String
+        let creationDate: String?
+        let labels: [String: String]?
         let image: ContainerImageRef?
+        let initProcess: InitProcess?
+        let publishedPorts: [PublishedPort]?
 
         struct ContainerImageRef: Codable {
             let reference: String
         }
+
+        struct InitProcess: Codable {
+            let executable: String?
+            let arguments: [String]?
+        }
+
+        struct PublishedPort: Codable {
+            let containerPort: Int
+            let hostPort: Int?
+            let hostAddress: String?
+            let proto: String?
+        }
+    }
+
+    /// CLI ≥ 1.x nests runtime state here; `state` is "running" / "stopped".
+    struct Status: Codable {
+        let state: String?
+        let startedDate: String?
     }
 
     func toDocker() -> DockerContainer {
-        DockerContainer(
+        let running = status?.state == "running"
+        let created = Self.epochSeconds(from: configuration.creationDate)
+        let started = Self.epochSeconds(from: status?.startedDate)
+        let command = ([configuration.initProcess?.executable] + (configuration.initProcess?.arguments ?? []))
+            .compactMap { $0 }
+            .joined(separator: " ")
+        let ports: [DockerPort]? = configuration.publishedPorts?.map { p in
+            DockerPort(
+                ip: p.hostAddress,
+                privatePort: p.containerPort,
+                publicPort: p.hostPort,
+                type: p.proto ?? "tcp"
+            )
+        }
+        let statusText: String
+        if running {
+            statusText = started > 0 ? "Up \(Self.humanDuration(since: started))" : "Up"
+        } else {
+            statusText = "Exited (0)"
+        }
+        return DockerContainer(
             id: configuration.id,
             names: ["/" + configuration.id],
             image: configuration.image?.reference ?? "",
             imageID: "",
-            command: "",
-            created: 0,
-            state: status == "running" ? "running" : "exited",
-            status: status ?? "",
-            ports: nil,
-            labels: nil,
+            command: command,
+            created: created,
+            state: running ? "running" : "exited",
+            status: statusText,
+            ports: ports,
+            labels: configuration.labels,
             networkSettings: nil
         )
+    }
+
+    private static func epochSeconds(from isoDate: String?) -> Int64 {
+        guard let isoDate else { return 0 }
+        let formatter = ISO8601DateFormatter()
+        guard let date = formatter.date(from: isoDate) else { return 0 }
+        return Int64(date.timeIntervalSince1970)
+    }
+
+    private static func humanDuration(since epoch: Int64) -> String {
+        let seconds = Int(Date().timeIntervalSince1970) - Int(epoch)
+        guard seconds >= 0 else { return "less than a second" }
+        let units: [(String, Int)] = [("day", 86400), ("hour", 3600), ("minute", 60)]
+        for (name, unit) in units where seconds >= unit {
+            let value = seconds / unit
+            return "\(value) \(name)\(value == 1 ? "" : "s")"
+        }
+        return "less than a minute"
     }
 }
 
 private struct ImageListEntry: Codable {
-    let reference: String
-    let digest: String?
+    let id: String
+    let configuration: Configuration?
 
-    func toDocker() -> DockerImage {
-        DockerImage(
-            id: "sha256:" + (digest ?? reference),
+    struct Configuration: Codable {
+        let name: String?
+        let creationDate: String?
+        let descriptor: Descriptor?
+
+        struct Descriptor: Codable {
+            let digest: String?
+            let size: Int64?
+        }
+    }
+
+    func toDocker(sizeOverride: Int64? = nil) -> DockerImage {
+        let reference = configuration?.name ?? id
+        let digest = configuration?.descriptor?.digest
+        let formatter = ISO8601DateFormatter()
+        let created = configuration?.creationDate.flatMap { formatter.date(from: $0) }
+            .map { Int64($0.timeIntervalSince1970) } ?? 0
+        return DockerImage(
+            id: digest ?? id,
             repoTags: [reference],
             repoDigests: digest.map { ["\(reference)@\($0)"] },
-            created: 0,
-            size: 0,
+            created: created,
+            size: sizeOverride ?? configuration?.descriptor?.size ?? 0,
             labels: nil
         )
     }
 }
 
 private struct NetworkListEntry: Codable {
-    let name: String?
     let id: String?
-    let driver: String?
-    let scope: String?
+    let configuration: Configuration?
+
+    struct Configuration: Codable {
+        let name: String?
+        let creationDate: String?
+        let labels: [String: String]?
+    }
 
     func toDocker() -> DockerNetwork {
-        DockerNetwork(
-            name: name ?? "unknown",
+        // `docker network ls` parses Created as a timestamp — never emit "".
+        let formatter = ISO8601DateFormatter()
+        let created = configuration?.creationDate.flatMap { formatter.date(from: $0) }
+            .map { ISO8601DateFormatter.string(from: $0, timeZone: .current, formatOptions: .withInternetDateTime) }
+            ?? ISO8601DateFormatter.string(from: Date(), timeZone: .current, formatOptions: .withInternetDateTime)
+        return DockerNetwork(
+            name: configuration?.name ?? id ?? "unknown",
             id: id ?? UUID().uuidString,
-            created: "",
-            scope: scope ?? "local",
-            driver: driver ?? "bridge",
+            created: created,
+            scope: "local",
+            driver: "bridge",
             enableIPv6: false,
             ipam: DockerIPAM(driver: "default", config: nil),
             internal: false,
             attachable: false,
             ingress: false,
             options: nil,
-            labels: nil
+            labels: configuration?.labels
         )
     }
 }

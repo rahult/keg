@@ -25,8 +25,10 @@ actor SupaglueContainer {
     // MARK: - Lifecycle
 
     /// Pull the Supaglue Docker image using `container pull`.
+    /// Pinned to the host platform — an unpinned pull unpacks every platform
+    /// variant in the index (~1.1 GB of disk per ext4 snapshot).
     func pull() async throws -> (code: Int32, stdout: String, stderr: String) {
-        try await runCLI(["container", "pull", Self.imageName])
+        try await runCLI(["container", "pull", "--platform", "linux/arm64", Self.imageName])
     }
 
     /// Start the Supaglue container in detached mode using `container run`.

@@ -29,7 +29,15 @@ final class ImagesVM {
             for image in images {
                 do {
                     let size = try await withThrowingTaskGroup(of: Int64.self) { group in
-                        group.addTask { try await ClientImage.getFullImageSize(image: image) }
+                        group.addTask {
+                            // Real on-disk footprint (blobs + unpacked snapshot),
+                            // matching `container system df`.
+                            let diskSize = try await ImageDiskUsage.diskSize(for: image)
+                            if diskSize > 0 { return diskSize }
+                            // Store not readable (e.g. custom root) — fall back
+                            // to the compressed manifest size.
+                            return try await ClientImage.getFullImageSize(image: image)
+                        }
                         group.addTask {
                             try await Task.sleep(for: .seconds(15))
                             throw CancellationError()
@@ -53,7 +61,8 @@ final class ImagesVM {
         guard !reference.isEmpty else { return }
         let config = await SystemConfigProvider.current()
         let normalized = try ClientImage.normalizeReference(reference, containerSystemConfig: config)
-        _ = try await ClientImage.pull(reference: normalized, containerSystemConfig: config)
+        // Pin to the host platform — a nil platform fetches every variant's blobs.
+        _ = try await ClientImage.pull(reference: normalized, platform: .current, containerSystemConfig: config)
         await refresh()
     }
 

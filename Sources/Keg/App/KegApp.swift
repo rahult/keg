@@ -1,15 +1,70 @@
 import AppKit
 import SwiftUI
 
+/// Launch-time delegate: brings the container backend and Docker API up
+/// without waiting for the main window. Previously `ensureReady()` only ran
+/// from the window's `.task`, so a menu-bar-only launch (or a relaunch where
+/// macOS didn't restore the window) left the Docker socket unbound and the
+/// `docker` CLI dead until the user opened the window.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    let appState: AppState
+
+    init(appState: AppState) {
+        self.appState = appState
+        Self.installExceptionLogger()
+    }
+
+    /// Record uncaught NSExceptions (AppKit layout faults surface this way —
+    /// e.g. the 2026-09-16 SIGABRT in `_postWindowNeedsUpdateConstraints`)
+    /// with their reason and stack, so a crash report alone isn't a riddle.
+    private static func installExceptionLogger() {
+        NSSetUncaughtExceptionHandler { exception in
+            let timestamp = ISO8601DateFormatter().string(from: Date())
+            let report = """
+            [\(timestamp)] Uncaught NSException
+            Name: \(exception.name.rawValue)
+            Reason: \(exception.reason ?? "(none)")
+            \(exception.callStackSymbols.joined(separator: "\n"))
+            """
+            let logDir = URL(filePath: NSHomeDirectory()).appendingPathComponent(".keg")
+            try? FileManager.default.createDirectory(at: logDir, withIntermediateDirectories: true)
+            let logURL = logDir.appendingPathComponent("exceptions.log")
+            if let handle = try? FileHandle(forWritingTo: logURL) {
+                handle.seekToEndOfFile()
+                handle.write(Data((report + "\n\n").utf8))
+                try? handle.close()
+            } else {
+                try? (report + "\n\n").write(to: logURL, atomically: true, encoding: .utf8)
+            }
+            FileHandle.standardError.write(Data((report + "\n").utf8))
+        }
+    }
+
+    nonisolated func applicationDidFinishLaunching(_ notification: Notification) {
+        Task { @MainActor [appState] in
+            await appState.ensureReady()
+            appState.startRefreshing()
+        }
+    }
+}
+
 @main
 struct KegApp: App {
-    @State private var appState = AppState()
+    @State private var appState: AppState
     @State private var updater = SoftwareUpdater()
+    /// Keeps the launch delegate alive for the app's lifetime. (NSApplication
+    /// only weakly references its delegate.)
+    private let appDelegate: AppDelegate
 
     init() {
         if let icon = KegIcon.image {
             NSApplication.shared.applicationIconImage = icon
         }
+        let state = AppState()
+        _appState = State(initialValue: state)
+        let delegate = AppDelegate(appState: state)
+        appDelegate = delegate
+        NSApplication.shared.delegate = delegate
     }
 
     private func presentRunContainer() {

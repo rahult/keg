@@ -299,7 +299,11 @@ struct SystemDashboardDetailView: View {
 
     private func formatStorage(_ metrics: SystemMetrics.Metrics?) -> String {
         guard let m = metrics else { return "--" }
-        return String(format: "%.1f GB", m.diskUsedGB)
+        // diskUsedGB is computed in GiB; re-expand to bytes and format with
+        // the decimal .file style so the tile matches `container system df`
+        // and the Disk Usage section below.
+        let bytes = Int64(m.diskUsedGB * 1_073_741_824)
+        return ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
 
     private func formatLatency(_ ms: Double?) -> String {
@@ -381,6 +385,7 @@ struct StatusCard: View {
 
                 Text(value)
                     .font(.headline)
+                    .monospacedDigit()
 
                 Text(subtitle)
                     .font(.caption)
