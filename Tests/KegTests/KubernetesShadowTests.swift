@@ -19,6 +19,9 @@ final class KubernetesShadowTests: XCTestCase {
         }
         try await super.setUp()
         try await ensureContainerSystemRunning()
+        // Ensure a clean slate: a previous interrupted run may have left the
+        // cluster container behind, which makes kubeadm preflight fail.
+        await deleteCluster()
     }
 
     override func tearDown() async throws {
