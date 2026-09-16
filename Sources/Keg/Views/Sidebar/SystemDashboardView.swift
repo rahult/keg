@@ -30,30 +30,31 @@ struct SystemDashboardView: View {
             }
         } else {
             HStack(spacing: 12) {
-            Label(containersLabel, systemImage: "cube.box")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .accessibilityLabel("Containers")
-                .accessibilityValue(containersLabel)
+                Label(containersLabel, systemImage: "cube.box")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Containers")
+                    .accessibilityValue(containersLabel)
 
-            Label(imagesLabel, systemImage: "photo.stack")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .accessibilityLabel("Images")
-                .accessibilityValue(imagesLabel)
+                Label(imagesLabel, systemImage: "photo.stack")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Images")
+                    .accessibilityValue(imagesLabel)
 
-            Spacer()
+                Spacer()
 
-            Text(formatLatency(metrics?.latencyMs))
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .accessibilityLabel("Container API latency")
-                .accessibilityValue(formatLatency(metrics?.latencyMs))
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Keg system summary")
-        .task {
-            metrics = await metricsService.getMetrics(forceRefresh: true)
+                Text(formatLatency(metrics?.latencyMs))
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .accessibilityLabel("Container API latency")
+                    .accessibilityValue(formatLatency(metrics?.latencyMs))
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Keg system summary")
+            .task {
+                metrics = await metricsService.getMetrics(forceRefresh: true)
+            }
         }
     }
 
