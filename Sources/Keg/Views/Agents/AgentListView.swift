@@ -27,7 +27,7 @@ struct AgentListView: View {
                 }
                 ToolbarItem(id: "create", placement: .primaryAction) {
                     Button { showCreateSheet = true } label: {
-                        Label("Create...", systemImage: "plus")
+                        Label("Create…", systemImage: "plus")
                     }
                     .keyboardShortcut("n", modifiers: .command)
                     .accessibilityLabel("Create new agent")
@@ -90,6 +90,7 @@ struct AgentListView: View {
                 if let id = selectedAgentID,
                    let agent = vm.agents.first(where: { $0.id == id }) {
                     AgentDetailView(agent: agent, vm: vm)
+                        .inspectorColumnWidth(min: 320, ideal: 380, max: 520)
                 }
             }
             .onDisappear { appState.selectedAgentID = nil }
@@ -232,7 +233,7 @@ struct AgentListView: View {
             }
             .width(min: 90)
         }
-        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableStyle(.inset(alternatesRowBackgrounds: false))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Agents list")
         .accessibilityValue("\(filteredAgents.count) agents")

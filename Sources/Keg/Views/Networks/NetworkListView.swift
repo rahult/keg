@@ -77,7 +77,7 @@ struct NetworkListView: View {
                     }
                     .width(min: 80, max: 100)
                 }
-                .tableStyle(.inset(alternatesRowBackgrounds: true))
+                .tableStyle(.inset(alternatesRowBackgrounds: false))
                 .contextMenu(forSelectionType: String.self) { ids in
                     if let id = ids.first {
                         let isBuiltin = vm.networks.first(where: { $0.id == id })?.isBuiltin ?? true
@@ -100,26 +100,7 @@ struct NetworkListView: View {
                 .accessibilityLabel("Refresh networks")
             }
         }
-        .overlay {
-            if let error = vm.errorMessage {
-                VStack {
-                    Spacer()
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
-                        Text(error)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Button("Dismiss") { vm.errorMessage = nil }
-                            .controlSize(.small)
-                        Spacer()
-                    }
-                    .padding(8)
-                    .background(.bar, in: RoundedRectangle(cornerRadius: 6))
-                    .padding(12)
-                }
-            }
-        }
+        .errorBanner($vm.errorMessage)
         .task {
             await vm.refresh()
         }

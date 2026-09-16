@@ -170,7 +170,7 @@ struct SessionInboxView: View {
             }
             .width(80)
         }
-        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableStyle(.inset(alternatesRowBackgrounds: false))
     }
 
     // MARK: - Bulk Actions

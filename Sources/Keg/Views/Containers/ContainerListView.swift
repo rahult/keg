@@ -111,7 +111,7 @@ struct ContainerListView: View {
                     }
                     .width(min: 100)
                 }
-                .tableStyle(.inset(alternatesRowBackgrounds: true))
+                .tableStyle(.inset(alternatesRowBackgrounds: false))
                 .accessibilityLabel("Containers list")
                 .accessibilityValue("\(wrappedContainers.count) containers")
                 .accessibilityHint("Use arrow keys to change selection. Press Command Delete to remove the selected container. Press Escape to clear selection.")
@@ -161,7 +161,7 @@ struct ContainerListView: View {
                 Button {
                     showRunSheet = true
                 } label: {
-                    Label("Run...", systemImage: "plus")
+                    Label("Run…", systemImage: "plus")
                 }
                 .accessibilityHint("Open the run container sheet")
             }
@@ -240,6 +240,7 @@ struct ContainerListView: View {
         )) {
             if let id = selectedContainerIDs.first {
                 ContainerDetailView(containerID: id)
+                    .inspectorColumnWidth(min: 320, ideal: 380, max: 520)
             }
         }
     }

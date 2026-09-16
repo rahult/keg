@@ -165,9 +165,12 @@ final class KubernetesVM {
             let (code, out) = try await runCLI(["container", "start", clusterName])
             if code == 0 {
                 output += "Waiting for API server…\n"
-                await waitForAPIServer()
+                if await waitForAPIServer() {
+                    output += "✅ Cluster running\n"
+                } else {
+                    output += "⚠️ API server did not report ready within 60s — it may still be starting.\n"
+                }
                 clusterStatus = .running
-                output += "✅ Cluster running\n"
             } else {
                 errorMessage = out.isEmpty ? "Failed to start cluster" : out
                 clusterStatus = .stopped
@@ -181,10 +184,19 @@ final class KubernetesVM {
     /// Poll `kubectl get --raw /readyz` until the API server responds or we
     /// time out. Runs inside the node container so it doesn't depend on the
     /// host's kubeconfig being valid yet.
-    private func waitForAPIServer(timeout: Duration = .seconds(60)) async {
-        // TODO(you): implement the readiness check — see the Learning prompt
-        // in the chat. 5-10 lines. This is where your domain input matters.
-        try? await Task.sleep(for: .seconds(5))
+    /// Returns true when the API server reported ready before the deadline.
+    private func waitForAPIServer(timeout: Duration = .seconds(60)) async -> Bool {
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline {
+            if let (code, _) = try? await runCLI([
+                "container", "exec", clusterName,
+                "kubectl", "get", "--raw", "/readyz"
+            ]), code == 0 {
+                return true
+            }
+            try? await Task.sleep(for: .seconds(2))
+        }
+        return false
     }
 
     func deleteCluster() async {
@@ -278,6 +290,7 @@ enum K8sError: Error, CustomStringConvertible {
 
 struct KubernetesView: View {
     @State private var vm = KubernetesVM()
+    @State private var showDeleteConfirmation = false
 
     var body: some View {
         ScrollView {
@@ -312,6 +325,20 @@ struct KubernetesView: View {
                         }
                     }
                     .padding(.top, 4)
+
+                    switch vm.clusterStatus {
+                    case .running, .stopped, .error:
+                        HStack {
+                            Spacer()
+                            Button("Delete Cluster…", role: .destructive) {
+                                showDeleteConfirmation = true
+                            }
+                            .controlSize(.small)
+                            .disabled(vm.isDeleting)
+                        }
+                    case .notCreated, .creating, .starting, .stopping:
+                        EmptyView()
+                    }
                 }
 
                 if vm.clusterStatus == .running, let kcPath = vm.kubeconfigPath {
@@ -351,6 +378,14 @@ struct KubernetesView: View {
             .padding(20)
         }
         .errorBanner($vm.errorMessage)
+        .alert("Delete Cluster \(vm.clusterName)?", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                Task { await vm.deleteCluster() }
+            }
+        } message: {
+            Text("This deletes the cluster container and its extracted kubeconfig. This action cannot be undone.")
+        }
         .navigationTitle("Kubernetes")
         .toolbar {
             ToolbarItem(id: "cluster-action", placement: .primaryAction) {
@@ -361,14 +396,10 @@ struct KubernetesView: View {
                             Task { await vm.createCluster() }
                         }
                         .buttonStyle(.borderedProminent)
-                        .keyboardShortcut(.defaultAction)
 
                     case .running:
                         Button("Stop") {
                             Task { await vm.stopCluster() }
-                        }
-                        Button("Delete Cluster", role: .destructive) {
-                            Task { await vm.deleteCluster() }
                         }
 
                     case .stopped:
@@ -376,9 +407,6 @@ struct KubernetesView: View {
                             Task { await vm.startCluster() }
                         }
                         .buttonStyle(.borderedProminent)
-                        Button("Delete Cluster", role: .destructive) {
-                            Task { await vm.deleteCluster() }
-                        }
 
                     case .creating, .starting, .stopping:
                         ProgressView().controlSize(.small)
@@ -386,9 +414,6 @@ struct KubernetesView: View {
                     case .error:
                         Button("Retry") {
                             Task { await vm.checkClusterStatus() }
-                        }
-                        Button("Delete Cluster", role: .destructive) {
-                            Task { await vm.deleteCluster() }
                         }
                     }
                 }

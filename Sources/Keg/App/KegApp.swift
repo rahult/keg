@@ -62,14 +62,14 @@ struct KegApp: App {
         .defaultSize(width: 1100, height: 700)
         .commands {
             CommandGroup(after: .newItem) {
-                Button("Run Container...") {
+                Button("Run Container…") {
                     presentRunContainer()
                 }
                 .keyboardShortcut("N", modifiers: [.command, .shift])
             }
 
             CommandGroup(after: .importExport) {
-                Button("Pull Image...") {
+                Button("Pull Image…") {
                     presentPullImage()
                 }
                 .keyboardShortcut("P", modifiers: [.command, .shift])
@@ -187,16 +187,6 @@ struct MainView: View {
                 .environment(appState)
         }
         .navigationSplitViewStyle(.balanced)
-        .toolbar {
-            ToolbarItem(placement: .navigation) {
-                Button {
-                    toggleSidebar()
-                } label: {
-                    Label(isSidebarVisible ? "Hide Sidebar" : "Show Sidebar", systemImage: "sidebar.left")
-                }
-                .accessibilityLabel(isSidebarVisible ? "Hide sidebar" : "Show sidebar")
-            }
-        }
         .task {
             await appState.ensureReady()
             appState.startRefreshing()

@@ -338,7 +338,8 @@ struct MetricTile: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(value)
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .font(.system(size: 28, weight: .bold))
+                    .monospacedDigit()
                     .foregroundStyle(.primary)
 
                 Text(subtitle)
@@ -353,7 +354,7 @@ struct MetricTile: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 

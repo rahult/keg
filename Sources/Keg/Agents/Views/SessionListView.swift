@@ -267,7 +267,7 @@ struct SessionListView: View {
             }
             .width(110)
         }
-        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableStyle(.inset(alternatesRowBackgrounds: false))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Sessions list")
         .accessibilityValue("\(vm.filteredSessions.count) sessions")

@@ -194,7 +194,7 @@ struct SourceListView: View {
                     }
                     .width(100)
                 }
-                .tableStyle(.inset(alternatesRowBackgrounds: true))
+                .tableStyle(.inset(alternatesRowBackgrounds: false))
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel("Sources list")
                 .accessibilityValue("\(vm.filteredSources.count) sources")

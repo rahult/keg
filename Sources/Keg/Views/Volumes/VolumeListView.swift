@@ -64,7 +64,7 @@ struct VolumeListView: View {
                     }
                     .width(min: 100)
                 }
-                .tableStyle(.inset(alternatesRowBackgrounds: true))
+                .tableStyle(.inset(alternatesRowBackgrounds: false))
                 .contextMenu(forSelectionType: String.self) { names in
                     if let name = names.first {
                         VolumeContextMenu(name: name, onDelete: {
@@ -86,26 +86,7 @@ struct VolumeListView: View {
                 .keyboardShortcut("r", modifiers: .command)
             }
         }
-        .overlay {
-            if let error = vm.errorMessage {
-                VStack {
-                    Spacer()
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
-                        Text(error)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Button("Dismiss") { vm.errorMessage = nil }
-                            .controlSize(.small)
-                        Spacer()
-                    }
-                    .padding(8)
-                    .background(.bar, in: RoundedRectangle(cornerRadius: 6))
-                    .padding(12)
-                }
-            }
-        }
+        .errorBanner($vm.errorMessage)
         .alert("Delete Volume", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {

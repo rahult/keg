@@ -193,7 +193,7 @@ struct SkillListView: View {
                     }
                     .width(100)
                 }
-                .tableStyle(.inset(alternatesRowBackgrounds: true))
+                .tableStyle(.inset(alternatesRowBackgrounds: false))
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel("Skills list")
                 .accessibilityValue("\(vm.filteredSkills.count) skills")

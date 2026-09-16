@@ -124,23 +124,7 @@ struct BuildView: View {
                 .padding(20)
             }
         }
-        .overlay(alignment: .bottom) {
-            if let error = errorMessage {
-                HStack {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                    Text(error)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Button("Dismiss") { errorMessage = nil }
-                        .controlSize(.small)
-                    Spacer()
-                }
-                .padding(8)
-                .background(.bar, in: RoundedRectangle(cornerRadius: 6))
-                .padding(12)
-            }
-        }
+        .errorBanner($errorMessage)
         .navigationTitle("Builds")
         .onAppear {
             if focusedField == nil {
@@ -169,7 +153,6 @@ struct BuildView: View {
                     }
                     .disabled(contextDir.isEmpty)
                     .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.defaultAction)
                     .accessibilityHint("Start building the selected container image")
                 }
             }

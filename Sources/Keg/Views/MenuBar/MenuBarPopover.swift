@@ -110,22 +110,30 @@ struct MenuBarPopover: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Image(systemName: "terminal")
-                        .frame(width: 16)
-                    Text("Terminal")
-                        .font(.caption)
-                    Spacer()
-                }
-                HStack {
-                    Image(systemName: "cube.box")
-                        .frame(width: 16)
-                    Text("Containers")
-                        .font(.caption)
-                    Spacer()
-                }
+                quickAccessRow(icon: "terminal", title: "Terminal", section: .terminal)
+                quickAccessRow(icon: "cube.box", title: "Containers", section: .containers)
             }
         }
+    }
+
+    private func quickAccessRow(icon: String, title: String, section: KegSection) -> some View {
+        Button {
+            appState.currentArea = .keg
+            appState.selectedKegSection = section
+            openWindow(id: "main")
+        } label: {
+            HStack {
+                Image(systemName: icon)
+                    .frame(width: 16)
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.primary)
+                Spacer()
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Open Keg at \(title)")
     }
 
     private var agentStatusSection: some View {
@@ -282,7 +290,7 @@ private struct AgentApprovalRow: View {
         }
         .padding(10)
         .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(item.title). Source \(item.source). \(item.summary)")
     }

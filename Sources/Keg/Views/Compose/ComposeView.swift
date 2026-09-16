@@ -164,7 +164,7 @@ final class ComposeVM {
         if output.isEmpty {
             output = line
         } else {
-            output += "\n\n" + line
+            output += "\n" + line
         }
     }
 
@@ -332,7 +332,7 @@ struct ComposeView: View {
                             .width(min: 80, max: 120)
                         }
                         .frame(minHeight: 180)
-                        .tableStyle(.inset(alternatesRowBackgrounds: true))
+                        .tableStyle(.inset(alternatesRowBackgrounds: false))
                         .contextMenu(forSelectionType: String.self) { ids in
                             if let id = ids.first, let svc = composeServices.first(where: { $0.id == id }) {
                                 ComposeRowContextMenu(
@@ -373,23 +373,7 @@ struct ComposeView: View {
             }
             .padding(20)
         }
-        .overlay(alignment: .bottom) {
-            if let error = vm.errorMessage {
-                HStack {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                    Text(error)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Button("Dismiss") { vm.errorMessage = nil }
-                        .controlSize(.small)
-                    Spacer()
-                }
-                .padding(8)
-                .background(.bar, in: RoundedRectangle(cornerRadius: 6))
-                .padding(12)
-            }
-        }
+        .errorBanner($vm.errorMessage)
         .accessibilityLabel("Compose")
         .accessibilityHint("Manage Docker Compose services")
         .navigationTitle("Compose")
@@ -400,7 +384,6 @@ struct ComposeView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(vm.composeFilePath.isEmpty || vm.isRunning)
-                .keyboardShortcut(.defaultAction)
                 .accessibilityLabel("Compose Up")
                 .accessibilityHint("Start all services defined in the compose file")
             }

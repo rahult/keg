@@ -34,7 +34,7 @@ struct RegistryListView: View {
                         }
                     }
                 }
-                .listStyle(.inset(alternatesRowBackgrounds: true))
+                .listStyle(.inset(alternatesRowBackgrounds: false))
             }
         }
         .accessibilityLabel("Registries")

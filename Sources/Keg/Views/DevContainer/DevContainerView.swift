@@ -16,23 +16,7 @@ struct DevContainerView: View {
                 )
             }
         }
-        .overlay(alignment: .bottom) {
-            if let error = vm.errorMessage {
-                HStack {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                    Text(error)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Button("Dismiss") { vm.errorMessage = nil }
-                        .controlSize(.small)
-                    Spacer()
-                }
-                .padding(8)
-                .background(.bar, in: RoundedRectangle(cornerRadius: 6))
-                .padding(12)
-            }
-        }
+        .errorBanner($vm.errorMessage)
         .navigationTitle("Dev Containers")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

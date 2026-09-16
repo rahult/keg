@@ -116,7 +116,7 @@ struct DiskUsageSection: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
         .task {
             await vm.refresh()
         }
@@ -175,7 +175,7 @@ struct RunningServicesSection: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
         .task {
             await vm.refresh()
             vm.startLiveStats()

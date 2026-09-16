@@ -132,6 +132,7 @@ struct ContainerDetailView: View {
     @State private var metricsVM = MetricsHistoryVM()
     @State private var selectedTab: ContainerDetailTab = .overview
     @State private var showRecreate = false
+    @State private var showDeleteConfirmation = false
 
     init(containerID: String) {
         self.containerID = containerID
@@ -150,12 +151,17 @@ struct ContainerDetailView: View {
                         headerActions(container)
                     }
 
-                    Picker("", selection: $selectedTab) {
+                    Picker(selection: $selectedTab) {
                         ForEach(ContainerDetailTab.allCases) { tab in
-                            Text(tab.rawValue).tag(tab)
+                            Label(tab.rawValue, systemImage: tab.systemImage).tag(tab)
                         }
+                    } label: {
+                        Label(selectedTab.rawValue, systemImage: selectedTab.systemImage)
                     }
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .fixedSize()
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 20)
                     .padding(.top, 12)
                     .padding(.bottom, 8)
@@ -177,6 +183,14 @@ struct ContainerDetailView: View {
                         }
                     }
                 }
+                .alert("Delete \(displayName(container))?", isPresented: $showDeleteConfirmation) {
+                    Button("Cancel", role: .cancel) {}
+                    Button("Delete", role: .destructive) {
+                        Task { await vm.delete() }
+                    }
+                } message: {
+                    Text("Delete this container. This action cannot be undone.")
+                }
             } else {
                 ProgressView("Loading...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -188,7 +202,7 @@ struct ContainerDetailView: View {
     @ViewBuilder
     private func tabContent(_ container: ContainerSnapshot) -> some View {
         switch selectedTab {
-        case .overview:    OverviewTab(container: container, stats: vm.stats)
+        case .overview:    OverviewTab(container: container, stats: vm.stats, metrics: metricsVM)
         case .environment: EnvironmentTab(container: container)
         case .mounts:      MountsTab(container: container)
         case .files:
@@ -220,15 +234,15 @@ struct ContainerDetailView: View {
             Button("Start") { Task { await vm.start() } }
                 .buttonStyle(.borderedProminent)
         }
-        Menu {
-            Button("Edit & Recreate…") { showRecreate = true }
+        Button {
+            showRecreate = true
         } label: {
-            Image(systemName: "ellipsis.circle")
+            Label("Edit & Recreate", systemImage: "square.and.pencil")
         }
-        .menuStyle(.borderlessButton)
-        .fixedSize()
+        .labelStyle(.iconOnly)
+        .help("Edit & Recreate…")
         Button(role: .destructive) {
-            Task { await vm.delete() }
+            showDeleteConfirmation = true
         } label: {
             Image(systemName: "trash")
         }
@@ -248,6 +262,7 @@ struct ContainerDetailView: View {
 private struct OverviewTab: View {
     let container: ContainerSnapshot
     let stats: ContainerStats?
+    let metrics: MetricsHistoryVM
 
     var body: some View {
         ScrollView {
@@ -280,15 +295,13 @@ private struct OverviewTab: View {
                     )
                 }
 
-                // 2-column grids
-                let columns = [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)]
-                LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
+                // Sections — single column so rows stay readable at inspector widths
+                VStack(alignment: .leading, spacing: 16) {
                     SectionGrid("Overview", rows: overviewRows)
                     SectionGrid("Image", rows: imageRows)
                     SectionGrid("Network", rows: networkRows)
                     SectionGrid("Resources", rows: resourceRows)
                     SectionGrid("Process Configuration", rows: processRows)
-                        .gridCellColumns(2)
                 }
             }
             .padding(20)
@@ -314,8 +327,10 @@ private struct OverviewTab: View {
         return "R:\(r) W:\(w)"
     }
     private var cpuValue: String {
-        guard let usec = stats?.cpuUsageUsec else { return "\(container.configuration.resources.cpus) cores" }
-        return String(format: "%.1f s", Double(usec) / 1_000_000)
+        if let delta = metrics.cpuDelta {
+            return String(format: "%.0f%%", delta)
+        }
+        return "\(container.configuration.resources.cpus) cores"
     }
 
     // MARK: rows
@@ -402,28 +417,40 @@ private struct EnvironmentTab: View {
                     }
                     .width(min: 160, ideal: 220)
                     TableColumn("Value") { entry in
-                        HStack(spacing: 4) {
-                            Text(entry.value)
-                                .font(.system(.body, design: .monospaced))
-                                .textSelection(.enabled)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                            Spacer(minLength: 4)
-                            Button {
-                                NSPasteboard.general.clearContents()
-                                NSPasteboard.general.setString("\(entry.key)=\(entry.value)", forType: .string)
-                            } label: {
-                                Image(systemName: "doc.on.doc").font(.caption2)
-                            }
-                            .buttonStyle(.borderless)
-                            .controlSize(.small)
-                            .accessibilityLabel("Copy \(entry.key)")
-                        }
+                        EnvValueCell(entry: entry)
                     }
                 }
-                .tableStyle(.inset(alternatesRowBackgrounds: true))
+                .tableStyle(.inset(alternatesRowBackgrounds: false))
                 .searchable(text: $search, prompt: "Search variables")
             }
+        }
+    }
+
+    private struct EnvValueCell: View {
+        let entry: EnvEntry
+        @State private var isHovered = false
+
+        var body: some View {
+            HStack(spacing: 4) {
+                Text(entry.value)
+                    .font(.system(.body, design: .monospaced))
+                    .textSelection(.enabled)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: 4)
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString("\(entry.key)=\(entry.value)", forType: .string)
+                } label: {
+                    Image(systemName: "doc.on.doc").font(.caption2)
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+                .opacity(isHovered ? 1 : 0)
+                .accessibilityLabel("Copy \(entry.key)")
+            }
+            .contentShape(Rectangle())
+            .onHover { isHovered = $0 }
         }
     }
 
@@ -486,7 +513,7 @@ private struct MountsTab: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .tableStyle(.inset(alternatesRowBackgrounds: false))
         }
     }
 
@@ -533,7 +560,7 @@ private struct StatsTab: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                MetricsTimelineView(title: "CPU", points: metrics.cpuHistory, color: .blue, unit: "%")
+                MetricsTimelineView(title: "CPU Time", points: metrics.cpuHistory, color: .blue, unit: "s")
                 MetricsTimelineView(title: "Memory", points: metrics.memoryHistory, color: .green, unit: "%")
                 MetricsTimelineView(title: "Network RX", points: metrics.networkRxHistory, color: .purple, unit: "bps")
                 MetricsTimelineView(title: "Network TX", points: metrics.networkTxHistory, color: .orange, unit: "bps")

@@ -43,7 +43,7 @@ struct DetailHeader<Actions: View>: View {
             }
             Spacer(minLength: 12)
             HStack(spacing: 8) { actions() }
-                .controlSize(.regular)
+                .controlSize(.small)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)

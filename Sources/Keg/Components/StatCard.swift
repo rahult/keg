@@ -44,8 +44,7 @@ struct StatCard: View {
             Spacer(minLength: 0)
         }
         .padding(padding)
-        .background(backgroundMaterial, in: RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.08)))
+        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
     }
 
     private var padding: EdgeInsets {
@@ -73,13 +72,5 @@ struct StatCard: View {
     }
     private var labelFont: Font {
         switch size { case .compact: .caption2; case .standard: .caption; case .prominent: .callout }
-    }
-
-    private var backgroundMaterial: AnyShapeStyle {
-        switch size {
-        case .compact:   AnyShapeStyle(.thinMaterial)
-        case .standard:  AnyShapeStyle(.regularMaterial)
-        case .prominent: AnyShapeStyle(.regularMaterial)
-        }
     }
 }

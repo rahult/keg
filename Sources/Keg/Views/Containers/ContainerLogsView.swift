@@ -157,7 +157,7 @@ struct ContainerLogsView: View {
 
             ToolbarItem(placement: .automatic) {
                 Toggle(isOn: $isFollowing) {
-                    Label("Follow", systemImage: isFollowing ? "arrow.down.to.line.compact" : "arrow.down.to.line.compact")
+                    Label("Follow", systemImage: isFollowing ? "arrow.down.to.line" : "pause")
                 }
                 .toggleStyle(.button)
                 .tint(isFollowing ? .accentColor : .secondary)
@@ -284,7 +284,7 @@ struct ContainerLogsView: View {
     // MARK: - Actions
 
     private func copyAllLogs() {
-        let allText = logLines.map(\.text).joined(separator: "\n")
+        let allText = filteredLines.map(\.text).joined(separator: "\n")
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(allText, forType: .string)
     }

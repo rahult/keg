@@ -150,7 +150,7 @@ struct KegSidebarContent: View {
         SidebarSection(name: "Overview", items: [.dashboard]),
         SidebarSection(name: "Workloads", items: [.containers, .compose, .kubernetes, .logs]),
         SidebarSection(name: "Content", items: [.images, .builds]),
-        SidebarSection(name: "System", items: [.networks, .volumes, .registries]),
+        SidebarSection(name: "System", items: [.networks, .ports, .volumes, .registries]),
         SidebarSection(name: "Tools", items: [.terminal, .devcontainers, .health]),
     ]
 

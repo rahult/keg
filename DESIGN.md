@@ -92,7 +92,7 @@ The VM still owns filtering logic. The view just syncs the text.
 **Every table must have a context menu.** Developers right-click everything.
 
 ```swift
-.tableStyle(.inset(alternatesRowBackgrounds: true))
+.tableStyle(.inset(alternatesRowBackgrounds: false))
 .contextMenu(forSelectionType: String.self) { ids in
     if let id = ids.first {
         ContainerContextMenu(id: id, vm: vm)
@@ -219,7 +219,7 @@ Table(items, selection: $selectedID) {
     }
     .width(min: 90, max: 120)
 }
-.tableStyle(.inset(alternatesRowBackgrounds: true))
+.tableStyle(.inset(alternatesRowBackgrounds: false))
 ```
 
 ### Table Rules
@@ -228,7 +228,7 @@ Table(items, selection: $selectedID) {
 - **Short IDs** — show 12 chars in tables, full ID via copy
 - **Monospaced** — IDs, digests, paths, ports, IPs get `.monospaced`
 - **Secondary color** — metadata (dates, sizes, types) get `.foregroundStyle(.secondary)`
-- **Alternating rows** — always `.inset(alternatesRowBackgrounds: true)`
+- **No alternating rows** — always `.inset(alternatesRowBackgrounds: false)`. On macOS 26, `alternatesRowBackgrounds: true` paints phantom stripes down the full table viewport beyond the last real row
 - **Identifiable** — items must conform to `Identifiable`. Wrap external types:
 
 ```swift
@@ -569,7 +569,7 @@ Before submitting a new view, verify:
 - [ ] Copy buttons on IDs/paths/commands
 - [ ] Monospaced font on technical values
 - [ ] `.keyboardShortcut(.defaultAction/.cancelAction)` on dialog buttons
-- [ ] `.tableStyle(.inset(alternatesRowBackgrounds: true))` on tables
+- [ ] `.tableStyle(.inset(alternatesRowBackgrounds: false))` on tables
 - [ ] `ContentUnavailableView` for empty states
 - [ ] Overlay error banners (not toolbar errors)
 - [ ] `.foregroundStyle(.secondary)` on metadata

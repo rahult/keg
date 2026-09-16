@@ -80,7 +80,7 @@ struct PortDashboardView: View {
                     }
                     .width(40)
                 }
-                .tableStyle(.inset(alternatesRowBackgrounds: true))
+                .tableStyle(.inset(alternatesRowBackgrounds: false))
                 .contextMenu(forSelectionType: UUID.self) { ids in
                     if let id = ids.first, let entry = filteredEntries.first(where: { $0.id == id }) {
                         PortEntryContextMenu(entry: entry)

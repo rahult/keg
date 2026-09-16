@@ -264,7 +264,7 @@ struct AgentDashboardView: View {
                     StatusBadge(status: session.ended == nil ? "Active" : "Completed")
                 }
             }
-            .tableStyle(.inset(alternatesRowBackgrounds: true))
+            .tableStyle(.inset(alternatesRowBackgrounds: false))
             .accessibilityLabel("Recent sessions table")
             .accessibilityHint("Use arrow keys to review recent sessions")
         }

@@ -28,6 +28,8 @@ struct MetricsTimelineView: View {
                 } else {
                     return String(format: "%.0f B/s", value)
                 }
+            case "s":
+                return String(format: "%.1f s", value)
             default:
                 return String(format: "%.1f", value)
             }

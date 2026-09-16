@@ -130,7 +130,7 @@ struct HealthDashboardView: View {
             }
             .width(70)
         }
-        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableStyle(.inset(alternatesRowBackgrounds: false))
     }
 
     private func scoreForeground(_ name: String) -> Color {

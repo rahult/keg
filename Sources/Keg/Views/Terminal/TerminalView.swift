@@ -50,7 +50,7 @@ struct TerminalView: View {
 
                 TextField("Enter command", text: $input)
                     .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
                     .textFieldStyle(.plain)
                     .onSubmit {
                         runCommand(input)
@@ -193,36 +193,18 @@ struct QuickTerminalView: View {
             .id(selectedCommand.id)
             .navigationTitle("Terminal")
             .toolbar {
-                ToolbarItem(id: "shell", placement: .primaryAction) {
-                    Button {
-                        selectedCommand = .shell
+                ToolbarItem(id: "presets", placement: .primaryAction) {
+                    Menu {
+                        Button("Shell") { selectedCommand = .shell }
+                        Divider()
+                        Button("docker ps") { selectedCommand = .dockerPS }
+                        Button("container ls") { selectedCommand = .containerList }
+                        Button("container images") { selectedCommand = .containerImages }
+                        Button("kubectl get pods") { selectedCommand = .kubectlPods }
                     } label: {
-                        Label("Shell", systemImage: "terminal")
+                        Label("Presets", systemImage: "terminal")
                     }
-                }
-
-                ToolbarItem(id: "docker-ps", placement: .automatic) {
-                    Button("docker ps") {
-                        selectedCommand = .dockerPS
-                    }
-                }
-
-                ToolbarItem(id: "container-ls", placement: .automatic) {
-                    Button("container ls") {
-                        selectedCommand = .containerList
-                    }
-                }
-
-                ToolbarItem(id: "container-images", placement: .automatic) {
-                    Button("images") {
-                        selectedCommand = .containerImages
-                    }
-                }
-
-                ToolbarItem(id: "kubectl", placement: .automatic) {
-                    Button("kubectl") {
-                        selectedCommand = .kubectlPods
-                    }
+                    .accessibilityHint("Run a preset command in a fresh terminal")
                 }
             }
             .toolbarRole(.editor)

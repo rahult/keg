@@ -353,7 +353,7 @@ struct ContainerFilesView: View {
             }
             .width(min: 90, max: 130)
         }
-        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .tableStyle(.inset(alternatesRowBackgrounds: false))
         .contextMenu(forSelectionType: String.self) { ids in
             if let id = ids.first, let entry = vm.entries.first(where: { $0.id == id }) {
                 if entry.isDirectory {

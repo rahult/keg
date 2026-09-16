@@ -41,7 +41,9 @@ struct ImageListView: View {
                     .width(min: 200)
 
                     TableColumn("Digest") { item in
-                        Text(String(item.image.digest.prefix(19)))
+                        let digest = item.image.digest
+                        let bare = digest.hasPrefix("sha256:") ? digest.dropFirst(7) : digest[...]
+                        Text(String(bare.prefix(12)))
                             .font(.system(.caption, design: .monospaced))
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
@@ -49,12 +51,12 @@ struct ImageListView: View {
                     .width(min: 120)
 
                     TableColumn("Size") { item in
-                        Text(vm.imageSizes[item.image.reference] ?? "Calculating...")
+                        Text(vm.imageSizes[item.image.reference] ?? "—")
                             .foregroundStyle(.secondary)
                     }
                     .width(min: 80, max: 120)
                 }
-                .tableStyle(.inset(alternatesRowBackgrounds: true))
+                .tableStyle(.inset(alternatesRowBackgrounds: false))
                 .accessibilityLabel("Images list")
                 .accessibilityValue("\(wrappedImages.count) images")
                 .accessibilityHint("Use arrow keys to change selection. Press Command Delete to remove the selected image. Press Escape to clear selection.")
@@ -100,9 +102,21 @@ struct ImageListView: View {
                 Button {
                     showPullSheet = true
                 } label: {
-                    Label("Pull...", systemImage: "arrow.down.circle")
+                    Label("Pull…", systemImage: "arrow.down.circle")
                 }
                 .accessibilityHint("Open the pull image sheet")
+            }
+
+            ToolbarItem(id: "run", placement: .automatic) {
+                Button {
+                    if let ref = selectedImageRefs.first {
+                        runImageReference = ref
+                    }
+                } label: {
+                    Label("Run", systemImage: "play")
+                }
+                .disabled(selectedImageRefs.count != 1)
+                .accessibilityHint("Run the selected image as a new container")
             }
 
             ToolbarItem(id: "prune", placement: .automatic) {
