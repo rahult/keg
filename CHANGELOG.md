@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed (0.3.1)
+- **Window-resize crash with the container inspector open**: resizing the window with a container selected aborted with `NSGenericException` ("more Update Constraints in Window passes than there are views in the window"). The inspector's Overview tab used an adaptive-column `LazyVGrid` for its stat cards; the column count changed with the proposed width, so the inspector's reported minimum size oscillated during live resizes until AppKit's update-constraints loop guard fired. Replaced with a fixed two-column grid.
+- **Stale sidebar system summary**: the "Containers N/N · Images · API latency" row above the sidebar sections fetched metrics once per appearance and never refreshed, so it showed launch-time counts all session. It now polls every 5s (task-cancelled when hidden, sharing the metrics actor's cache with the dashboard).
+
 ### Research
 - **Craft + Notion Agents analysis for Keg**: completed a two-round research sweep comparing Craft Agents and Notion Agents against Keg's current Agents area.
   - Verified strongest overlap: sources, skills, permission modes, session workflow metadata, automations, and auditability
