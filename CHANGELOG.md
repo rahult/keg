@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added (0.4.0)
+- **Compose Topology**: the Compose screen renders an interactive dependency graph of the file's services — nodes show service, image and live state; arrows point at dependencies, reading left to right like request flow. Click a node to trace its edges; right-click for logs, restart, or copy. Derived from the same parsed plan as "What Will Run".
+- **Real embedded terminal**: the Terminal section is now a genuine pseudo-terminal (SwiftTerm) running your login shell with full VT100/xterm support — colors, line editing, full-screen apps like vim. `DOCKER_HOST`, `KUBECONFIG` and Homebrew `PATH` are pre-wired; presets type into the live session instead of restarting it.
+- **Welcome screen with live sidebar preview**: picking an experience level shows exactly what the sidebar will look like before you commit.
+- **Sidebar reoriented per experience level**: Getting Started groups tasks in plain language (My Apps, Essentials); the full operator surface appears at Comfortable/Full Control. New sidebar footer switches levels in place — no Settings trip.
+- New dependency: SwiftTerm 1.11.2 (MIT) for the terminal emulator.
+
 ### Fixed (0.3.1)
 - **Window-resize crash with the container inspector open**: resizing the window with a container selected aborted with `NSGenericException` ("more Update Constraints in Window passes than there are views in the window"). The inspector's Overview tab used an adaptive-column `LazyVGrid` for its stat cards; the column count changed with the proposed width, so the inspector's reported minimum size oscillated during live resizes until AppKit's update-constraints loop guard fired. Replaced with a fixed two-column grid.
 - **Stale sidebar system summary**: the "Containers N/N · Images · API latency" row above the sidebar sections fetched metrics once per appearance and never refreshed, so it showed launch-time counts all session. It now polls every 5s (task-cancelled when hidden, sharing the metrics actor's cache with the dashboard).
