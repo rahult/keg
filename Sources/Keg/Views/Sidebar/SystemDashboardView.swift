@@ -25,9 +25,7 @@ struct SystemDashboardView: View {
             .frame(maxWidth: .infinity)
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Keg system summary: \(containersLabel) containers running, \(imagesLabel) images")
-            .task {
-                metrics = await metricsService.getMetrics(forceRefresh: true)
-            }
+            .task { await pollMetrics() }
         } else {
             HStack(spacing: 12) {
                 Label(containersLabel, systemImage: "cube.box")
@@ -52,9 +50,19 @@ struct SystemDashboardView: View {
             }
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Keg system summary")
-            .task {
-                metrics = await metricsService.getMetrics(forceRefresh: true)
-            }
+            .task { await pollMetrics() }
+        }
+    }
+
+    /// Metrics used to load once per appearance, which left the summary
+    /// stale ("0/0") until the next relaunch. Poll so "is anything running?"
+    /// stays answerable; .task cancels the loop when the row leaves the
+    /// hierarchy. Non-forced reads share the metrics actor's 2s cache with
+    /// the dashboard's auto-refresh.
+    private func pollMetrics() async {
+        while !Task.isCancelled {
+            metrics = await metricsService.getMetrics()
+            try? await Task.sleep(for: .seconds(5))
         }
     }
 
