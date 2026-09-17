@@ -187,9 +187,15 @@ struct ComposeView: View {
     @State private var vm = ComposeVM()
     @State private var showFilePicker = false
     @State private var selectedServiceID: String?
+    @State private var selectedGraphNode: String?
 
     private var composeServices: [ComposeServiceRow] {
         vm.services.map { ComposeServiceRow(id: $0.name, name: $0.name, service: $0.service, state: $0.state) }
+    }
+
+    /// service name → lifecycle state, for coloring graph nodes.
+    private var serviceStates: [String: String] {
+        Dictionary(uniqueKeysWithValues: vm.services.map { ($0.service, $0.state) })
     }
 
     private var isUp: Bool { !composeServices.isEmpty }
@@ -335,6 +341,28 @@ struct ComposeView: View {
                                 }
                                 Spacer()
                             }
+                        }
+                        .padding(.top, 4)
+                    }
+                }
+
+                if let plan = vm.plan, plan.services.count > 1 {
+                    GroupBox("Topology") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Arrows point at dependencies — traffic flows the same way. Click a node to trace what it talks to; right-click for actions.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            ComposeGraphView(
+                                plan: plan,
+                                states: serviceStates,
+                                selectedService: $selectedGraphNode,
+                                onViewLogs: { service in
+                                    Task { await vm.showLogs(for: service) }
+                                },
+                                onRestart: { service in
+                                    Task { await vm.restart(service: service) }
+                                }
+                            )
                         }
                         .padding(.top, 4)
                     }

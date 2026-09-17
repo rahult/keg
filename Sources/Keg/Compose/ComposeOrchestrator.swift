@@ -241,6 +241,8 @@ actor ComposeOrchestrator {
     struct ComposePlan: Sendable {
         struct PlannedService: Sendable {
             let name: String
+            let image: String?
+            let dependsOn: [String]
             let command: String
             let warnings: [String]
         }
@@ -293,6 +295,8 @@ actor ComposeOrchestrator {
 
             return ComposePlan.PlannedService(
                 name: serviceName,
+                image: service.image,
+                dependsOn: (service.dependsOn ?? []).filter { file.services[$0] != nil },
                 command: formatCommand(args),
                 warnings: serviceWarnings(service) + extraWarnings
             )
