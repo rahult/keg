@@ -208,9 +208,7 @@ a { color: inherit; text-decoration: none; }
 .tag-bl { bottom: 20px; left: 20px; }
 .tag-tl { top: 20px; left: 20px; }
 
-/* aspect boxes */
-.ratio-wide { aspect-ratio: 16 / 10; }
-.ratio-tall { aspect-ratio: 4 / 4.4; }
+/* aspect boxes — real screenshots keep their natural aspect */
 .ratio-auto img { height: auto; }
 
 /* ─── Screenshot gallery — mosaic ─── */
@@ -225,7 +223,6 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 768px) {
   .gallery { grid-template-columns: 1fr; }
   .g-span2 { grid-column: auto; }
-  .ratio-tall { aspect-ratio: 16 / 12; }
 }
 
 /* ─── Stats band ─── */
@@ -384,10 +381,10 @@ a:focus-visible, .btn:focus-visible {
     <span><span class="fig-no">Fig. 01</span> — System dashboard, Keg for macOS</span>
     <span>SwiftUI · Virtualization.framework</span>
   </figcaption>
-  <div class="shot ratio-wide">
-    <img src="screenshots/dashboard.png" alt="Keg system dashboard in dark mode showing CPU, memory, image storage, API latency, eight running services, disk usage, and runtime status" loading="eager">
-    <span class="tag tag-tr"><span class="dot">●</span> 8 running</span>
-    <span class="tag tag-bl">453 µs · container api latency</span>
+  <div class="shot ratio-auto">
+    <img src="screenshots/dashboard.png" alt="Keg system dashboard in dark mode showing system status for Apple Containerization 1.3.1, CPU, memory, storage and API latency metrics, four running services, and disk usage" loading="eager">
+    <span class="tag tag-tr"><span class="dot">●</span> 4 running</span>
+    <span class="tag tag-bl">455 µs · container api latency</span>
   </div>
 </figure>
 
@@ -396,13 +393,13 @@ a:focus-visible, .btn:focus-visible {
   <div class="stat"><div class="stat-val">618<span class="unit">ms</span></div><div class="stat-label">Container Start</div></div>
   <div class="stat"><div class="stat-val">55<span class="unit">ms</span></div><div class="stat-label">Exec Latency</div></div>
   <div class="stat"><div class="stat-val">69<span class="unit">MB</span></div><div class="stat-label">Idle Memory</div></div>
-  <div class="stat"><div class="stat-val">347</div><div class="stat-label">Tests Passing</div></div>
+  <div class="stat"><div class="stat-val">356</div><div class="stat-label">Tests Passing</div></div>
 </div>
 
 <!-- 01 Features -->
 <section class="section" id="features">
   <div class="sec-head"><span class="sec-no">01</span><h2 class="sec-title">Everything you need.</h2></div>
-  <p class="sec-desc">Containers, images, networks, volumes, builds, Compose, Kubernetes — plus a health score, port dashboard, embedded terminal, and dev containers. All native. All fast.</p>
+  <p class="sec-desc">Containers, images, networks, volumes, builds, Compose, Kubernetes — plus guided onboarding, a health score, port dashboard, embedded terminal, and dev containers. All native. All fast.</p>
   <div class="ledger">
     <div class="ledger-item">
       <div class="ledger-idx"><span>No. 01</span><span>Boot</span></div>
@@ -454,78 +451,143 @@ a:focus-visible, .btn:focus-visible {
       <h3>Open Source</h3>
       <p>Apache 2.0, free forever. No seat licenses, no feature gates, no telemetry.</p>
     </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 11</span><span>Onboarding</span></div>
+      <h3>Grows With You</h3>
+      <p>Three experience levels — Getting Started, Comfortable, Full Control — with first-run quick starts (a 5-second demo, a web server) and inline help on every section.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 12</span><span>Design</span></div>
+      <h3>Plain Language, Labeled Actions</h3>
+      <p>Every toolbar action carries its name, every disabled button explains itself, and status lives next to the thing it describes. You should never have to guess.</p>
+    </div>
   </div>
 </section>
 
 <!-- 02 Tour — screenshot gallery -->
 <section class="section" id="tour">
   <div class="sec-head"><span class="sec-no">02</span><h2 class="sec-title">The grand tour.</h2></div>
-  <p class="sec-desc">Real screens from the shipping app — light and dark mode, nothing mocked.</p>
+  <p class="sec-desc">Twelve real screens from the shipping app — light and dark mode, nothing mocked. A live three-service Compose stack, a cache container, and real logs.</p>
   <div class="gallery">
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 02</span> — Container list</span>
+        <span><span class="fig-no">Fig. 02</span> — First run: pick an experience level</span>
+        <span>welcome sheet</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/onboarding.png" alt="Keg welcome sheet asking How do you want to use Keg? with three experience level cards — Getting Started, Comfortable and Full Control — plus one-click quick starts">
+        <span class="tag tag-tr">getting started → full control</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 03</span> — Container list</span>
         <span>dark mode</span>
       </figcaption>
-      <div class="shot ratio-tall">
-        <img src="screenshots/containers.png" alt="Container list in dark mode showing eight running and two stopped containers with status, IP, CPU and memory columns">
-        <span class="tag tag-tr">10 containers · live stats</span>
+      <div class="shot ratio-auto">
+        <img src="screenshots/containers.png" alt="Container list in dark mode showing four running containers — shop-db-1, shop-api-1, cache and shop-web-1 — with image, status, IP, ports, CPU and memory columns">
+        <span class="tag tag-tr">4 running · live stats</span>
       </div>
     </div>
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 03</span> — Container inspector</span>
+        <span><span class="fig-no">Fig. 04</span> — Compose, dependency-ordered</span>
         <span>light mode</span>
       </figcaption>
-      <div class="shot ratio-tall">
-        <img src="screenshots/container-detail.png" alt="Container inspector showing memory, network and block I/O, runtime, network address, published ports, resources and process configuration">
-        <span class="tag tag-tr">runtime · container-runtime-linux</span>
+      <div class="shot ratio-auto">
+        <img src="screenshots/compose.png" alt="Compose view showing a three-service stack with What Will Run startup order, a 3 of 3 services running status row, a running services table and full compose up output">
+        <span class="tag tag-tr">3 of 3 services running</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 05</span> — Container inspector</span>
+        <span>light mode</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/container-detail.png" alt="Container inspector for shop-web-1 showing memory, network and block I/O usage, image, network address, published port 8080:80, resources and process configuration">
+        <span class="tag tag-tr">inspector · shop-web-1</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 06</span> — Image library</span>
+        <span>light mode</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/images.png" alt="Image library listing six images including nginx:alpine, postgres:16-alpine and redis:alpine with digest and size columns">
+        <span class="tag tag-tr">6 images · digests + sizes</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 07</span> — Ports dashboard</span>
+        <span>light mode</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/ports.png" alt="Ports dashboard showing shop-web-1 publishing host port 8080 to container port 80 with a clickable localhost URL">
+        <span class="tag tag-tr">8080:80 → localhost</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 08</span> — Health score</span>
+        <span>light mode</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/health.png" alt="Health dashboard with an overall score of 81 and per-container health scores, memory and CPU for four running containers">
+        <span class="tag tag-tr">score 81 · 4 healthy</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 09</span> — Embedded terminal</span>
+        <span>light mode</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/terminal.png" alt="Embedded terminal running container ls, listing the four running containers with state, IP, CPUs and memory">
+        <span class="tag tag-tr">container cli · built in</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 10</span> — Kubernetes</span>
+        <span>light mode</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/kubernetes.png" alt="Kubernetes cluster configuration showing Not Created status, cluster name keg-k8s and kindest/node v1.34.0 image with a Create Cluster toolbar button">
+        <span class="tag tag-tr">kindest/node v1.34.0</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 11</span> — Dev containers</span>
+        <span>light mode</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/devcontainers.png" alt="Dev Containers view with an empty state pointing at projects with a devcontainer.json and a Browse Project toolbar button">
+        <span class="tag tag-tr">.devcontainer support</span>
       </div>
     </div>
 
     <div class="g-item g-span2">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 04</span> — Compose up, dependency-ordered</span>
-        <span>light mode</span>
-      </figcaption>
-      <div class="shot ratio-wide">
-        <img src="screenshots/compose.png" alt="Compose view showing services in dependency order, running service table, and full compose up output log">
-        <span class="tag tag-tr">4 services · one click</span>
-      </div>
-    </div>
-
-    <div class="g-item">
-      <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 05</span> — Image library</span>
+        <span><span class="fig-no">Fig. 12</span> — Merged log streams</span>
         <span>light mode</span>
       </figcaption>
       <div class="shot ratio-auto">
-        <img src="screenshots/images.png" alt="Image library listing pulled images with digest and size columns">
-        <span class="tag tag-tr">7 images · 20.85 gb</span>
-      </div>
-    </div>
-
-    <div class="g-item">
-      <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 06</span> — Ports dashboard</span>
-        <span>light mode</span>
-      </figcaption>
-      <div class="shot ratio-auto">
-        <img src="screenshots/ports.png" alt="Ports dashboard listing every published port with clickable localhost URLs">
-        <span class="tag tag-tr">one-click localhost</span>
-      </div>
-    </div>
-
-    <div class="g-item g-span2">
-      <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 07</span> — Health score</span>
-        <span>light mode</span>
-      </figcaption>
-      <div class="shot ratio-auto">
-        <img src="screenshots/health.png" alt="Health dashboard with a 66-point score ring and per-container health scores, memory and CPU">
-        <span class="tag tag-tr">score 66 · 2 need attention</span>
+        <img src="screenshots/logs.png" alt="Merged log stream from shop-web-1 and shop-api-1 showing nginx boot logs, HTTP access lines and heartbeat messages interleaved">
+        <span class="tag tag-tr">merged streams · 2 containers</span>
       </div>
     </div>
 
@@ -591,20 +653,21 @@ a:focus-visible, .btn:focus-visible {
     </div>
     <div class="listing">
       <div class="listing-bar"><span class="listing-title">Lifecycle</span><span class="listing-no">Listing 04</span></div>
-      <div class="listing-body"><span class="p">$</span> <span class="c">keg compose up -d</span>
-<span class="o">Compose up: my-app</span>
+      <div class="listing-body"><span class="d"># Or drive it from the Keg UI — Start Services</span>
+<span class="p">$</span> <span class="c">docker compose up -d</span>
+<span class="o">Compose up: shop</span>
 <span class="o">==&gt; Service: db</span>
 <span class="o">==&gt; Service: api</span>
 <span class="o">==&gt; Service: web</span>
-<span class="o">Compose up finished.</span>
+<span class="o">3 of 3 services running.</span>
 
-<span class="p">$</span> <span class="c">keg compose ps</span>
+<span class="p">$</span> <span class="c">docker compose ps</span>
 <span class="o">NAME         SERVICE  STATE</span>
-<span class="o">my-app-db    db       running</span>
-<span class="o">my-app-api   api      running</span>
-<span class="o">my-app-web   web      running</span>
+<span class="o">shop-db-1    db       running</span>
+<span class="o">shop-api-1   api      running</span>
+<span class="o">shop-web-1   web      running</span>
 
-<span class="p">$</span> <span class="c">keg compose down</span><span class="cursor"></span></div>
+<span class="p">$</span> <span class="c">docker compose down</span><span class="cursor"></span></div>
     </div>
   </div>
 </section>
