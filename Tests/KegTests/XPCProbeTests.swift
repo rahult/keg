@@ -8,6 +8,11 @@ import ContainerAPIClient
 /// builds or require a signed app bundle.
 final class XPCProbeTests: XCTestCase {
     func testContainerListResponds() async throws {
+        // CI runners have no Apple container runtime — these probes only
+        // mean anything on machines where the apiserver exists.
+        guard ContainerCLI.isInstalled else {
+            throw XCTSkip("container CLI not installed")
+        }
         let client = ContainerClient()
         let probe = Task {
             try await client.list()
@@ -16,13 +21,13 @@ final class XPCProbeTests: XCTestCase {
             try await Task.sleep(for: .seconds(15))
             probe.cancel()
         }
-        defer { timeout.cancel() }
         do {
             let containers = try await probe.value
             XCTAssertNotNil(containers)
         } catch is CancellationError {
             XCTFail("XPC list() timed out after 15s — apiserver did not answer this binary")
         }
+        timeout.cancel()
     }
 
     /// bootstrap on a freshly created (not started) container is exactly
