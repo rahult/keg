@@ -114,6 +114,17 @@ final class AppState {
         // the agents feature needs launch-time auth state again.
     }
 
+    /// Handles `keg://<section>` deep links from the companion CLI's
+    /// `keg open` command: focuses the main area on the named section.
+    /// Section names are case-insensitive; unknown names land on Containers.
+    func handleDeepLink(_ url: URL) {
+        guard url.scheme?.lowercased() == "keg" else { return }
+        let section = url.host ?? url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        currentArea = .keg
+        let match = KegSection.allCases.first { $0.rawValue.lowercased() == section.lowercased() }
+        selectedKegSection = match ?? .containers
+    }
+
     /// Bring the container backend and Docker API up without user intervention.
     /// Called from the main window on launch.
     func ensureReady() async {

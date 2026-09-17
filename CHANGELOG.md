@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added (0.4.0)
+- **`keg` companion CLI, installed from the app**: a Foundation-only terminal client for Keg — no docker CLI required. Ships inside Keg.app (`Contents/SharedSupport/bin/keg`) and installs onto PATH with one click from Settings → Keg CLI (or `keg install` itself): first writable of `/usr/local/bin`, `/opt/homebrew/bin`, `~/.keg/bin`, the last with a copyable PATH line. Commands: `status`, `doctor` (pass/fail stack checks with hints), `version`, `env` (DOCKER_HOST exports), `ps [-a]`, `images`, `logs [-f] [-n N]` (stdcopy demuxed, follow until exit), `start/stop/restart/rm`, `open [section]` — a `keg://` deep link that focuses the named section in the app (scheme registered in the bundle Info.plist) — and `install`/`uninstall`. Verified round-trip live: install → `keg status` from PATH → uninstall. Built as target `kegcli` (the build dir is case-insensitive; a `keg` artifact would clobber the `Keg` app binary) and symlinked as `keg` on PATH.
 - **Native advantages made visible (Phase 1)**:
   - **Isolation banner** in the container inspector: every container runs in its own microVM with a dedicated kernel — the security property Docker Desktop and OrbStack (shared kernel) can't offer, now stated where operators look.
   - **Memory honesty**: the inspector shows used-vs-limit while running and explains that freed pages stay inside the VM until stop/restart (Apple's runtime doesn't return pages to macOS mid-run) — turning the known limitation into actionable guidance.

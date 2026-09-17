@@ -58,6 +58,10 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Keg CLI") {
+                KegCLIStatusRow()
+            }
+
             Section("Container System") {
                 HStack {
                     switch appState.systemStatus {
@@ -434,8 +438,7 @@ struct SettingsView: View {
 
 /// Detection + install flow for Apple's `container` CLI. Refreshes whenever the
 /// Settings pane becomes active so users see the updated state after an install.
-private struct ContainerCLIStatusRow: View {
-    @State private var resolvedPath: String? = ContainerCLI.resolve()
+private struct ContainerCLIStatusRow: View {    @State private var resolvedPath: String? = ContainerCLI.resolve()
 
     private let brewCommand = "brew install container"
     private let releasesURL = URL(string: "https://github.com/apple/container/releases")!
@@ -503,5 +506,102 @@ private struct ContainerCLIStatusRow: View {
         let script = "tell application \"Terminal\" to do script \"\(brewCommand)\""
         var error: NSDictionary?
         NSAppleScript(source: script)?.executeAndReturnError(&error)
+    }
+}
+
+/// Keg's own companion CLI (`keg`): status + one-click PATH installation.
+/// No privileges needed — the first writable of /usr/local/bin,
+/// /opt/homebrew/bin, ~/.keg/bin wins (same rules the CLI itself uses).
+private struct KegCLIStatusRow: View {
+    @State private var installer = KegCLIInstaller()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 10, height: 10)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(statusTitle)
+                        .font(.headline)
+                    Text(statusDetail)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
+                Spacer()
+                switch installer.state {
+                case .installed:
+                    Button("Uninstall") { installer.uninstall() }
+                        .controlSize(.small)
+                        .disabled(installer.isWorking)
+                case .notInstalled:
+                    Button("Install") { installer.install() }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .disabled(installer.isWorking)
+                case .unavailable:
+                    EmptyView()
+                }
+            }
+
+            if case .notInstalled = installer.state {
+                Text("Adds the `keg` command to your shell — status, ps, images, logs, start/stop/rm, doctor, and `keg open` to jump back into the app. No admin rights needed.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let hint = installer.pathHint {
+                HStack(spacing: 4) {
+                    Text(hint)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(hint, forType: .string)
+                    } label: {
+                        Image(systemName: "doc.on.doc")
+                    }
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
+                    .accessibilityLabel("Copy PATH line")
+                }
+                Text("Run this in your shell, then restart the terminal.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let error = installer.lastError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+        }
+        .padding(.vertical, 4)
+        .onAppear { installer.refresh() }
+    }
+
+    private var statusColor: Color {
+        switch installer.state {
+        case .installed: return .green
+        case .notInstalled: return .orange
+        case .unavailable: return .gray
+        }
+    }
+
+    private var statusTitle: String {
+        switch installer.state {
+        case .installed: return "Installed"
+        case .notInstalled: return "Not Installed"
+        case .unavailable: return "Unavailable in this build"
+        }
+    }
+
+    private var statusDetail: String {
+        switch installer.state {
+        case .installed(let link, _): return link
+        case .notInstalled: return "keg — companion CLI for terminal control of Keg"
+        case .unavailable: return "The keg binary ships inside Keg.app — run a make app build"
+        }
     }
 }

@@ -6,6 +6,12 @@ let package = Package(
     platforms: [.macOS(.v26)],
     products: [
         .executable(name: "Keg", targets: ["Keg"]),
+        // Built as `kegcli` because the build directory lives on a
+        // case-insensitive filesystem: a `keg` artifact would collide with
+        // the app's `Keg` binary. The Makefile installs it as `keg` inside
+        // the app bundle, and PATH installs symlink it as `keg`.
+        .executable(name: "kegcli", targets: ["kegcli"]),
+        .library(name: "KegCLICore", targets: ["KegCLICore"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/container.git", exact: "1.3.1"),
@@ -23,9 +29,26 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.33.0"),
     ],
     targets: [
+        // Shared logic for the `keg` companion CLI and the app's CLI
+        // installer. Foundation-only so the CLI starts fast and the app can
+        // reuse the install-location rules without linking GUI code.
+        .target(
+            name: "KegCLICore",
+            path: "Sources/KegCLICore",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        .executableTarget(
+            name: "kegcli",
+            dependencies: [
+                .target(name: "KegCLICore"),
+            ],
+            path: "Sources/KegCLI",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
         .executableTarget(
             name: "Keg",
             dependencies: [
+                .target(name: "KegCLICore"),
                 .product(name: "ContainerAPIClient", package: "container"),
                 .product(name: "ContainerResource", package: "container"),
                 .product(name: "ContainerPersistence", package: "container"),
@@ -52,6 +75,7 @@ let package = Package(
             name: "KegTests",
             dependencies: [
                 .target(name: "Keg"),
+                .target(name: "KegCLICore"),
                 .product(name: "ContainerAPIClient", package: "container"),
                 .product(name: "ContainerResource", package: "container"),
                 .product(name: "ContainerPersistence", package: "container"),

@@ -122,6 +122,9 @@ struct KegApp: App {
                 .environment(appState)
                 .environment(updater)
                 .frame(minWidth: 700, minHeight: 500)
+                .onOpenURL { url in
+                    appState.handleDeepLink(url)
+                }
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified(showsTitle: true))

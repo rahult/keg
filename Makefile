@@ -20,6 +20,7 @@ BUILD      ?= 0
 BUILD_DIR  := .build/release
 MACOS_DIR  := $(APP_NAME)/Contents/MacOS
 RES_DIR    := $(APP_NAME)/Contents/Resources
+SHARED_SUPPORT_BIN := $(APP_NAME)/Contents/SharedSupport/bin
 FRAMEWORKS_DIR := $(APP_NAME)/Contents/Frameworks
 PLIST      := $(APP_NAME)/Contents/Info.plist
 ICON_FILE  := Resources/Keg.icns
@@ -62,8 +63,13 @@ build:
 # builds and release builds sign the same bundle very differently.
 bundle: build
 	@rm -rf $(APP_NAME)
-	@mkdir -p $(MACOS_DIR) $(RES_DIR) $(FRAMEWORKS_DIR)
+	@mkdir -p $(MACOS_DIR) $(RES_DIR) $(SHARED_SUPPORT_BIN) $(FRAMEWORKS_DIR)
 	@cp $(BUILD_DIR)/$(BINARY) $(MACOS_DIR)/$(BINARY)
+	# The CLI lives in SharedSupport (NOT MacOS): on case-insensitive
+	# filesystems a MacOS/keg copy would overwrite the Keg binary itself.
+	@test -f $(BUILD_DIR)/kegcli || { echo "❌ keg CLI binary not found. Run 'swift build -c release' (builds all targets)."; exit 1; }
+	@cp $(BUILD_DIR)/kegcli $(SHARED_SUPPORT_BIN)/keg
+	@chmod 755 $(SHARED_SUPPORT_BIN)/keg
 	@cp $(ICON_FILE) $(RES_DIR)/Keg.icns
 	@cp $(MENU_BAR_ICON_FILE) $(RES_DIR)/KegMenuBarTemplate.png
 	@test -d $(SPARKLE_FRAMEWORK) || { echo "❌ Sparkle.framework not found. Run 'swift package resolve' first."; exit 1; }
@@ -84,6 +90,11 @@ bundle: build
 	@echo '  <key>NSHighResolutionCapable</key>       <true/>'                              >> $(PLIST)
 	@echo '  <key>SUFeedURL</key>                     <string>$(APPCAST_URL)</string>'      >> $(PLIST)
 	@echo '  <key>SUPublicEDKey</key>                 <string>$(SPARKLE_PUBLIC_KEY)</string>' >> $(PLIST)
+	@echo '  <key>CFBundleURLTypes</key>'                                                   >> $(PLIST)
+	@echo '  <array><dict>'                                                                  >> $(PLIST)
+	@echo '    <key>CFBundleURLName</key>        <string>dev.rahult.keg.cli</string>'        >> $(PLIST)
+	@echo '    <key>CFBundleURLSchemes</key>     <array><string>keg</string></array>'        >> $(PLIST)
+	@echo '  </dict></array>'                                                                >> $(PLIST)
 	@echo '</dict></plist>'                                                                >> $(PLIST)
 
 # Sign everything Sparkle ships from the inside out. Signing the outer app
@@ -95,6 +106,7 @@ bundle: build
 # secure timestamp for release builds; neither is wanted locally because the
 # timestamp server makes every build a network round trip).
 define sign_bundle
+	@$(CODESIGN) --force --sign "$(1)" $(2) "$(SHARED_SUPPORT_BIN)/keg" || exit 1
 	@fw="$(FRAMEWORKS_DIR)/Sparkle.framework/Versions/B"; \
 	for nested in "$$fw/XPCServices/Downloader.xpc" "$$fw/XPCServices/Installer.xpc" "$$fw/Updater.app" "$$fw/Autoupdate"; do \
 		$(CODESIGN) --force --sign "$(1)" $(2) --preserve-metadata=entitlements "$$nested" || exit 1; \
