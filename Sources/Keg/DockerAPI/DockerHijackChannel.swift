@@ -46,6 +46,11 @@ final class HijackedConnection: @unchecked Sendable {
     /// connection fully raw). The consumer starts its async work here.
     var onEstablished: (@Sendable () -> Void)?
 
+    /// Invoked when the client disconnects (half-close or full close).
+    var onClosed: (@Sendable () -> Void)?
+    private var closedReported = false
+    private var isClosed = false
+
     init(channel: Channel) {
         self.channel = channel
     }
@@ -83,22 +88,46 @@ final class HijackedConnection: @unchecked Sendable {
     func deliverEOF() {
         lock.lock()
         let handler = onEOF
-        let alreadyEOF = sawEOF
+        let closedHandler = onClosed
+        let alreadyReported = closedReported
+        closedReported = true
         sawEOF = true
         lock.unlock()
         handler?()
-        _ = alreadyEOF
+        if !alreadyReported {
+            closedHandler?()
+        }
+        _ = alreadyReported
     }
 
-    /// Bytes to send to the client (stdout/stderr for exec).
+    /// Bytes to send to the client (stdout/stderr for exec). The actual
+    /// write runs ON the channel's event loop: it serializes with close
+    /// handling, and a write that loses the race simply sees an inactive
+    /// channel — otherwise the write syscall can hit EBADF after fd
+    /// teardown, which is a fatal NIO precondition.
     func write(_ data: Data) {
         guard !data.isEmpty else { return }
+        lock.lock()
+        let closed = isClosed
+        lock.unlock()
+        guard !closed else { return }
+        let channel = self.channel
         var buffer = channel.allocator.buffer(capacity: data.count)
         buffer.writeBytes(data)
-        channel.writeAndFlush(buffer, promise: nil)
+        channel.eventLoop.execute {
+            guard channel.isActive else { return }
+            channel.writeAndFlush(buffer, promise: nil)
+        }
     }
 
     func close() {
+        lock.lock()
+        guard !isClosed else {
+            lock.unlock()
+            return
+        }
+        isClosed = true
+        lock.unlock()
         channel.close(promise: nil)
     }
 }

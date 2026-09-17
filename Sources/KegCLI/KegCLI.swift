@@ -21,6 +21,8 @@ enum KegCLI {
       exec [opts] <id> cmd…  Run a command in a container and stream its
                              output (-i stdin, -t tty, -e K=V, -w dir,
                              -u user); exit code propagates
+      attach <id>            Attach to a running container's output (with
+                             recent history); -i also forwards stdin
       start <id>…            Start containers
       stop <id>…             Stop containers
       restart <id>…          Restart containers
@@ -86,6 +88,7 @@ enum KegCLI {
         case "images": return images(socketOverride: socketOverride, print: print)
         case "logs": return logs(operands: operands, socketOverride: socketOverride, print: print)
         case "exec": return exec(operands: operands, socketOverride: socketOverride, print: print)
+        case "attach": return attach(operands: operands, socketOverride: socketOverride, print: print)
         case "start": return lifecycle(.start, operands: operands, socketOverride: socketOverride, print: print)
         case "stop": return lifecycle(.stop, operands: operands, socketOverride: socketOverride, print: print)
         case "restart": return lifecycle(.restart, operands: operands, socketOverride: socketOverride, print: print)
@@ -398,6 +401,30 @@ enum KegCLI {
         let session = KegExecSession(socketPath: socketPath, containerID: rest[0])
         do {
             return try session.run(options)
+        } catch {
+            print("\(error)")
+            return 1
+        }
+    }
+
+    // MARK: - attach
+
+    /// `keg attach [-i] <id>` — stream a container's retained output
+    /// (history first), forwarding stdin with -i.
+    static func attach(operands: [String], socketOverride: String?, print: (String) -> Void) -> Int32 {
+        let interactive = operands.contains("-i") || operands.contains("--interactive")
+        let ids = operands.filter { !$0.hasPrefix("-") }
+        guard let id = ids.first, !id.isEmpty else {
+            print("usage: keg attach [-i] <id>")
+            return 2
+        }
+        guard let socketPath = socketOverride ?? KegSocketResolver.resolve() else {
+            print("Keg is not running — no Docker API socket found.")
+            return 1
+        }
+        let session = KegAttachSession(socketPath: socketPath, containerID: id)
+        do {
+            return try session.run(interactive: interactive)
         } catch {
             print("\(error)")
             return 1

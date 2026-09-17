@@ -110,6 +110,41 @@ else
     fail "docker logs: $LOGS"
 fi
 
+section "docker cp"
+CPCTR=$(docker run -d alpine:latest sh -c "echo cp-marker > /note.txt; mkdir -p /proj; echo one > /proj/a.txt; sleep 300")
+CONTAINERS+=("$CPCTR"); sleep 1
+rm -rf /tmp/keg-ct-cp
+docker cp "$CPCTR:/note.txt" /tmp/keg-ct-cp-note.txt 2>&1 && grep -q "cp-marker" /tmp/keg-ct-cp-note.txt && pass "docker cp (file out)" || fail "docker cp file out"
+docker cp "$CPCTR:/proj" /tmp/keg-ct-cp-proj 2>&1 && { grep -qs one /tmp/keg-ct-cp-proj/proj/a.txt || grep -qs one /tmp/keg-ct-cp-proj/a.txt; } && pass "docker cp (dir out)" || fail "docker cp dir out"
+echo cp-in-marker > /tmp/keg-ct-in.txt
+docker cp /tmp/keg-ct-in.txt "$CPCTR:/uploaded.txt" 2>&1 && [ "$(docker exec "$CPCTR" cat /uploaded.txt 2>/dev/null)" = "cp-in-marker" ] && pass "docker cp (file in)" || fail "docker cp file in"
+docker cp /tmp/keg-ct-in.txt "$CPCTR:/tmp" 2>&1 && [ "$(docker exec "$CPCTR" cat /tmp/keg-ct-in.txt 2>/dev/null)" = "cp-in-marker" ] && pass "docker cp (into directory)" || fail "docker cp into dir"
+
+section "restart policies"
+RCTR=$(docker run -d --restart always alpine:latest sh -c "sleep 2; exit 1")
+CONTAINERS+=("$RCTR")
+RESTARTED=0
+for i in 1 2 3 4 5 6 7 8; do
+    ST=$(docker inspect "$RCTR" --format '{{.State.Status}}' 2>/dev/null)
+    [ "$ST" = "running" ] && [ $i -gt 1 ] && RESTARTED=1 && break
+    sleep 2
+done
+if [ "$RESTARTED" = "1" ]; then
+    pass "restart=always revives exited container"
+else
+    fail "restart=always container never came back"
+fi
+
+section "attach to running container"
+ACTR=$(docker run -d alpine:latest sh -c "i=0; while true; do echo att-\$i; i=\$((i+1)); sleep 1; done")
+CONTAINERS+=("$ACTR"); sleep 3
+timeout 5 docker attach "$ACTR" </dev/null >/tmp/keg-ct-attach.txt 2>&1
+if grep -q "att-0" /tmp/keg-ct-attach.txt && grep -q "att-2" /tmp/keg-ct-attach.txt; then
+    pass "docker attach (history replay + live stream)"
+else
+    fail "docker attach: $(head -2 /tmp/keg-ct-attach.txt)"
+fi
+
 section "stats"
 STATS=$(docker stats --no-stream --format '{{.Name}}' "$EXEC_NAME" 2>&1)
 if echo "$STATS" | grep -q "$EXEC_NAME"; then

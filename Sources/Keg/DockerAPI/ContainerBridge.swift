@@ -21,9 +21,20 @@ actor ContainerBridge {
     /// pump's EOF handler and the wait route both await the same future.
     var startedProcesses: [String: Task<Int32, Never>] = [:]
 
-    /// Stdio pumps for containers a client attached to (hijacked) before
-    /// start; consumed by `startContainerWithExitTracking`.
-    var attachIntents: [String: ExecPump] = [:]
+    /// Retained stdio per API-started container: output lands in a bounded
+    /// ring so clients can attach late and still see recent history.
+    var attachBuffers: [String: AttachBuffer] = [:]
+
+    /// Connections that attached before the container started (docker run);
+    /// wired to the buffer the moment start succeeds.
+    var pendingAttaches: [String: [(HijackedConnection, Bool)]] = [:]
+
+    /// Container ids the user explicitly stopped through the API; their
+    /// restart policy (if any) must not trigger an automatic restart.
+    var userStoppedIDs: Set<String> = []
+
+    /// Consecutive auto-restart count per container (crash-loop cap).
+    var restartAttempts: [String: Int] = [:]
 
     /// Live exec pumps, keyed by exec id — resize routes look processes up
     /// here; entries are removed when the pump completes.
@@ -139,6 +150,13 @@ actor ContainerBridge {
             for (k, v) in labels {
                 args += ["-l", "\(k)=\(v)"]
             }
+        }
+
+        // Persist the restart policy as a label so the event bus can honor
+        // it even across Keg restarts (docker's restart=always semantics).
+        if let policy = req.hostConfig?.restartPolicy?.name,
+           ["always", "unless-stopped", "on-failure"].contains(policy) {
+            args += ["-l", "keg.restart-policy=\(policy)"]
         }
 
         if let workingDir = req.workingDir {

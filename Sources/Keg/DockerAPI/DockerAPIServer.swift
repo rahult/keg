@@ -225,6 +225,12 @@ final class DockerAPIServer: Sendable {
                     default:
                         status = .internalServerError
                     }
+                    // HEAD responses must never carry a body — an error
+                    // body on a reused connection poisons the client's
+                    // next response ("unsolicited response").
+                    if request.method == .head {
+                        return Response(status: status)
+                    }
                     let body = try JSONSerialization.data(withJSONObject: ["message": error.description])
                     return Response(status: status, body: .init(byteBuffer: ByteBuffer(data: body)))
                 }
@@ -334,12 +340,14 @@ final class DockerAPIServer: Sendable {
 
             router.post("\(prefix)/containers/{id}/stop") { _, context in
                 let id = context.parameters.get("id", as: String.self)!
+                await bridge.markUserStopped(id)
                 try? await bridge.stopContainer(id: id)
                 return Response(status: .noContent)
             }
 
             router.post("\(prefix)/containers/{id}/kill") { _, context in
                 let id = context.parameters.get("id", as: String.self)!
+                await bridge.markUserStopped(id)
                 try? await bridge.killContainer(id: id)
                 return Response(status: .noContent)
             }
@@ -605,6 +613,46 @@ final class DockerAPIServer: Sendable {
                 let name = context.parameters.get("name", as: String.self)!
                 try await bridge.removeVolume(name: name)
                 return Response(status: .noContent)
+            }
+
+            // MARK: docker cp
+            router.put("\(prefix)/containers/{id}/archive") { request, context in
+                let id = context.parameters.get("id", as: String.self)!
+                guard let path = request.uri.queryParameters.get("path").map({ String($0) }),
+                      !path.isEmpty else {
+                    throw DockerAPIError.badRequest("path parameter is required")
+                }
+                let body = try await request.body.collect(upTo: 512 * 1024 * 1024)
+                try await bridge.copyIntoContainer(id: id, tarData: Data(buffer: body), destination: path)
+                return Response(status: .ok)
+            }
+
+            router.head("\(prefix)/containers/{id}/archive") { request, context in
+                let id = context.parameters.get("id", as: String.self)!
+                guard let path = request.uri.queryParameters.get("path").map({ String($0) }),
+                      !path.isEmpty else {
+                    throw DockerAPIError.badRequest("path parameter is required")
+                }
+                // docker cp stats the path first; the header carries the
+                // base64 JSON, the body stays empty.
+                let stat = try await bridge.containerPathStat(id: id, path: path)
+                var response = Response(status: .ok)
+                response.headers[HTTPField.Name("X-Docker-Container-Path-Stat")!] = stat
+                return response
+            }
+
+            router.get("\(prefix)/containers/{id}/archive") { request, context in
+                let id = context.parameters.get("id", as: String.self)!
+                guard let path = request.uri.queryParameters.get("path").map({ String($0) }),
+                      !path.isEmpty else {
+                    throw DockerAPIError.badRequest("path parameter is required")
+                }
+                let stat = try await bridge.containerPathStat(id: id, path: path)
+                let tar = try await bridge.copyOutOfContainer(id: id, source: path)
+                var response = Response(status: .ok, body: .init(byteBuffer: ByteBuffer(data: tar)))
+                response.headers[.contentType] = "application/x-tar"
+                response.headers[HTTPField.Name("X-Docker-Container-Path-Stat")!] = stat
+                return response
             }
 
             // MARK: Stats
@@ -906,36 +954,37 @@ final class DockerAPIServer: Sendable {
                         }
 
                     case .containerAttach(let id, let wantsStdin):
-                        // Attaching to an already-running container isn't
-                        // possible: the init process's stdio was fixed at
-                        // bootstrap. (Apple's own CLI has the same limit.)
-                        guard let inspect = try? await bridge.inspectContainer(id: id),
-                              !inspect.state.running else {
+                        // Keg retains stdio for containers it started, so
+                        // attach works on running containers too (replay +
+                        // live). Containers started outside the API keep
+                        // their fixed stdio and can't be attached (same
+                        // limit as Apple's CLI). Not-yet-started containers
+                        // park the connection until /start wires it up.
+                        if let buffer = await bridge.attachBuffer(id: id) {
+                            if wantsStdin {
+                                connection.setReadHandler(
+                                    { data in buffer.pump.writeStdin(data) },
+                                    eof: { buffer.pump.closeStdin() }
+                                )
+                            }
+                            buffer.attach(connection)
+                            return
+                        }
+                        guard let inspect = try? await bridge.inspectContainer(id: id) else {
                             connection.close()
                             return
                         }
-                        let pump = ExecPump(
-                            execID: "attach-\(id)",
-                            tty: inspect.config?.tty ?? false,
-                            interactive: wantsStdin
-                        )
-                        connection.setReadHandler(
-                            { data in pump.writeStdin(data) },
-                            eof: { pump.closeStdin() }
-                        )
-                        // The /start route picks this up and bootstraps the
-                        // container with the attached pipes as stdio.
-                        await bridge.registerAttachIntent(id: id, pump: pump)
-
-                        for try await chunk in pump.makeOutputStream() {
-                            if pump.tty {
-                                connection.write(chunk.data)
-                            } else {
-                                connection.write(Self.stdcopyFrame(chunk))
-                            }
+                        if inspect.state.running {
+                            // Started by the UI or the container CLI — no
+                            // retained stdio to attach to.
+                            connection.close()
+                        } else {
+                            await bridge.registerPendingAttach(
+                                id: id,
+                                connection: connection,
+                                wantsStdin: wantsStdin
+                            )
                         }
-                        _ = await pump.completion()
-                        connection.close()
                     }
                 }
             }
@@ -954,6 +1003,18 @@ final class DockerAPIServer: Sendable {
 
         // Store the resolved path so callers know which socket was bound
         resolvedSocketPath = socketPath
+
+        // docker semantics: restart=always containers come back up with
+        // the daemon. Also starts the event bus permanently — restart
+        // policies and webhook dispatch must work with no /events
+        // subscriber connected.
+        let sweepBridge = self.bridge
+        let bus = self.eventBus
+        Task.detached {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            await bus.startBackgroundPolling()
+            await sweepBridge.restartAlwaysContainersOnLaunch()
+        }
 
         try await app.runService()
     }
