@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Keg is a native macOS SwiftUI app that wraps Apple's `container` framework (github.com/apple/container v0.11.0) to provide a Docker Desktop–class experience. Target: macOS 26+ (Tahoe), Apple Silicon only.
+Keg is a native macOS SwiftUI app that wraps Apple's `container` framework (github.com/apple/container v1.3.1) to provide a Docker Desktop–class experience. Target: macOS 26+ (Tahoe), Apple Silicon only.
 
 ## Tech Stack
 
@@ -76,6 +76,6 @@ swift build -c release  # Build binary only
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| apple/container | 0.11.0 | ContainerAPIClient, ContainerResource |
+| apple/container | 1.3.1 | ContainerAPIClient, ContainerResource |
 | hummingbird | 2.22+ | HTTP server for Docker API |
 | Yams | 5.4+ | YAML parsing for Compose |
