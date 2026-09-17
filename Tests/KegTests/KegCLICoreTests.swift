@@ -116,6 +116,61 @@ final class KegCLICoreTests: XCTestCase {
         XCTAssertTrue(output.stdout.isEmpty, "truncated frame should be dropped, not partially read")
     }
 
+    // MARK: - Exec stream splitting (incremental)
+
+    private func frame(_ channel: UInt8, _ payload: String) -> Data {
+        var data = Data([channel, 0, 0, 0])
+        var length = UInt32(payload.utf8.count).bigEndian
+        withUnsafeBytes(of: &length) { data.append(contentsOf: $0) }
+        data.append(contentsOf: Array(payload.utf8))
+        return data
+    }
+
+    func testSplitterHandlesManyFramesInOneChunk() {
+        let splitter = DockerStreamSplitter()
+        let chunk = frame(1, "first") + frame(2, "second") + frame(1, "third")
+        let frames = splitter.append(chunk)
+        XCTAssertEqual(frames.map(\.channel), [.stdout, .stderr, .stdout])
+        XCTAssertEqual(frames.map { String(data: $0.payload, encoding: .utf8) }, ["first", "second", "third"])
+        XCTAssertEqual(splitter.bufferedByteCount, 0)
+    }
+
+    func testSplitterBuffersPartialFramesAcrossChunks() {
+        let splitter = DockerStreamSplitter()
+        let whole = frame(1, "split-me")
+
+        // Feed everything except the final payload byte.
+        let head = whole.dropLast(1)
+        XCTAssertTrue(splitter.append(Data(head)).isEmpty)
+
+        // The last byte completes the frame.
+        let frames = splitter.append(Data(whole.suffix(1)))
+        XCTAssertEqual(frames.count, 1)
+        XCTAssertEqual(String(data: frames[0].payload, encoding: .utf8), "split-me")
+    }
+
+    func testSplitterSurvivesByteAtATimeDelivery() {
+        let splitter = DockerStreamSplitter()
+        let stream = frame(1, "a") + frame(2, "bb") + frame(1, "ccc")
+        var collected: [(StreamChannel, String)] = []
+        for byte in stream {
+            for frame in splitter.append(Data([byte])) {
+                collected.append((frame.channel, String(data: frame.payload, encoding: .utf8)!))
+            }
+        }
+        XCTAssertEqual(collected.map(\.0), [.stdout, .stderr, .stdout])
+        XCTAssertEqual(collected.map(\.1), ["a", "bb", "ccc"])
+        XCTAssertEqual(splitter.bufferedByteCount, 0)
+    }
+
+    func testSplitterSkipsUnknownStreamBytes() {
+        // Stream byte 0 (stdin) never arrives inbound, but a hostile or
+        // buggy server could send it — treat as stdout, never crash.
+        let frames = DockerStreamSplitter().append(frame(0, "odd"))
+        XCTAssertEqual(frames.count, 1)
+        XCTAssertEqual(frames[0].channel, .stdout)
+    }
+
     // MARK: - Formatting
 
     func testTableAlignsColumns() {

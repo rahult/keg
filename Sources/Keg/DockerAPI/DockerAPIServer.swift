@@ -203,6 +203,35 @@ final class DockerAPIServer: Sendable {
 
         let router = Router(options: .autoGenerateHeadEndpoints)
 
+        // Maps Keg's typed errors onto Docker's HTTP statuses — clients key
+        // off 404/400 semantics, and a bare 500 hides the message.
+        struct APIErrorMiddleware: RouterMiddleware {
+            typealias Context = BasicRequestContext
+
+            func handle(
+                _ request: Request,
+                context: Context,
+                next: (Request, Context) async throws -> Response
+            ) async throws -> Response {
+                do {
+                    return try await next(request, context)
+                } catch let error as DockerAPIError {
+                    let status: HTTPResponse.Status
+                    switch error {
+                    case .containerNotFound, .imageNotFound, .webhookNotFound:
+                        status = .notFound
+                    case .badRequest:
+                        status = .badRequest
+                    default:
+                        status = .internalServerError
+                    }
+                    let body = try JSONSerialization.data(withJSONObject: ["message": error.description])
+                    return Response(status: status, body: .init(byteBuffer: ByteBuffer(data: body)))
+                }
+            }
+        }
+        router.middlewares.add(APIErrorMiddleware())
+
         // Diagnostic trail for Docker compatibility work: method, path, status,
         // and any thrown error description appended to ~/.keg/docker-api.log.
         // Must be added before routes so it wraps them.
@@ -376,6 +405,9 @@ final class DockerAPIServer: Sendable {
             // MARK: Exec
             router.post("\(prefix)/containers/{id}/exec") { request, context in
                 let id = context.parameters.get("id", as: String.self)!
+                // Unknown containers fail here (404) rather than at start,
+                // so clients get a real error instead of a dead stream.
+                _ = try await bridge.inspectContainer(id: id)
                 let body = try await request.body.collect(upTo: 1024 * 1024)
                 let execReq = try JSONDecoder().decode(DockerExecCreateRequest.self, from: Data(buffer: body))
                 guard let cmd = execReq.cmd, let first = cmd.first, !first.isEmpty else {
@@ -1074,9 +1106,11 @@ final class DockerAPIServer: Sendable {
         guard connected else { return false }
 
         // Bound but dead sockets accept connect() then EOF — require a real
-        // HTTP response with a short read timeout so we never mistake one
-        // for a live server.
-        var timeout = timeval(tv_sec: 0, tv_usec: 300_000)
+        // HTTP response before declaring the socket dead. The timeout is
+        // generous on purpose: a slow moment on the owner's side (test
+        // hosts, heavy load) must never cause this check to unlink a LIVE
+        // socket, which would silently kill that app's Docker API.
+        var timeout = timeval(tv_sec: 2, tv_usec: 0)
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
         setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
 

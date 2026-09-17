@@ -18,6 +18,9 @@ enum KegCLI {
       ps [-a]                List containers (all states with -a)
       images                 List images
       logs <id> [-f] [-n N]  Container logs (-f follows until it stops)
+      exec [opts] <id> cmd…  Run a command in a container and stream its
+                             output (-i stdin, -t tty, -e K=V, -w dir,
+                             -u user); exit code propagates
       start <id>…            Start containers
       stop <id>…             Stop containers
       restart <id>…          Restart containers
@@ -82,6 +85,7 @@ enum KegCLI {
         case "ps": return ps(operands: operands, socketOverride: socketOverride, print: print)
         case "images": return images(socketOverride: socketOverride, print: print)
         case "logs": return logs(operands: operands, socketOverride: socketOverride, print: print)
+        case "exec": return exec(operands: operands, socketOverride: socketOverride, print: print)
         case "start": return lifecycle(.start, operands: operands, socketOverride: socketOverride, print: print)
         case "stop": return lifecycle(.stop, operands: operands, socketOverride: socketOverride, print: print)
         case "restart": return lifecycle(.restart, operands: operands, socketOverride: socketOverride, print: print)
@@ -333,6 +337,67 @@ enum KegCLI {
                 Thread.sleep(forTimeInterval: 0.7)
             }
             return 0
+        } catch {
+            print("\(error)")
+            return 1
+        }
+    }
+
+    // MARK: - exec
+
+    /// `keg exec [-i] [-t] [-e K=V]… [-w dir] [-u user] <id> cmd [args…]`
+    /// Mirrors docker exec semantics through the hijack protocol; the
+    /// command's exit code becomes keg's own.
+    static func exec(operands: [String], socketOverride: String?, print: (String) -> Void) -> Int32 {
+        var interactive = false
+        var tty = false
+        var environment: [String] = []
+        var workingDirectory: String?
+        var user: String?
+        var rest: [String] = []
+
+        var index = 0
+        while index < operands.count {
+            let arg = operands[index]
+            switch arg {
+            case "-i", "--interactive": interactive = true
+            case "-t", "--tty": tty = true
+            case "-e", "--env":
+                index += 1
+                if index < operands.count { environment.append(operands[index]) }
+            case "-w", "--workdir":
+                index += 1
+                if index < operands.count { workingDirectory = operands[index] }
+            case "-u", "--user":
+                index += 1
+                if index < operands.count { user = operands[index] }
+            default:
+                rest.append(arg)
+            }
+            index += 1
+        }
+
+        guard rest.count >= 2, !rest[0].isEmpty else {
+            print("usage: keg exec [-i] [-t] [-e K=V]… [-w dir] [-u user] <id> cmd [args…]")
+            return 2
+        }
+        guard let socketPath = socketOverride ?? KegSocketResolver.resolve() else {
+            print("Keg is not running — no Docker API socket found.")
+            print("Open the Keg app (or run: keg open), then retry.")
+            return 1
+        }
+
+        let options = KegExecOptions(
+            command: Array(rest.dropFirst()),
+            interactive: interactive,
+            tty: tty,
+            environment: environment,
+            workingDirectory: workingDirectory,
+            user: user
+        )
+        let session = KegExecSession(socketPath: socketPath, containerID: rest[0])
+        do {
+            return try session.run(options)
         } catch {
             print("\(error)")
             return 1
