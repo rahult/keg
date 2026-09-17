@@ -65,10 +65,11 @@ actor ContainerBridge {
     func createContainer(from request: DockerContainerCreateRequest, name: String?) async throws -> DockerContainerCreateResponse {
         let id = name ?? "keg-\(UUID().uuidString.prefix(12).lowercased())"
 
-        // Pull image if specified (pinned to host platform — an unpinned pull
-        // unpacks all platform variants, ~1.1 GB of disk each)
+        // Pull image if specified (pinned to the requested platform, defaulting
+        // to the host — an unpinned pull unpacks all variants, ~1.1 GB each)
         if let image = request.image, !image.isEmpty {
-            let _ = try await runCLI(["container", "image", "pull", "--platform", Self.hostPlatform, image])
+            let platform = (request.platform?.isEmpty == false) ? request.platform! : Self.hostPlatform
+            let _ = try await runCLI(["container", "image", "pull", "--platform", platform, image])
         }
 
         // Real `container create` so the container exists before start —
@@ -108,6 +109,13 @@ actor ContainerBridge {
                 let mb = max(memory / (1024 * 1024), 200)
                 args += ["--memory", "\(mb)M"]
             }
+            // A named network mode (compose sends the stack network) maps to
+            // a real runtime network; pseudo-modes mean "default".
+            if let networkMode = hostConfig.networkMode,
+               !networkMode.isEmpty,
+               !["default", "bridge", "host", "none"].contains(networkMode) {
+                args += ["--network", networkMode]
+            }
             if let portBindings = hostConfig.portBindings {
                 for (containerPort, bindings) in portBindings {
                     for binding in bindings {
@@ -135,6 +143,12 @@ actor ContainerBridge {
 
         if let workingDir = req.workingDir {
             args += ["-w", workingDir]
+        }
+
+        // A requested platform different from the host selects the image
+        // variant AND enables Rosetta translation for amd64.
+        if let platform = req.platform, !platform.isEmpty, platform != Self.hostPlatform {
+            args += ["--platform", platform]
         }
 
         if let image = req.image {
@@ -301,12 +315,41 @@ actor ContainerBridge {
 
     // MARK: - Network Operations
 
-    /// Compose-created networks. Apple containers share one built-in NAT
-    /// network, so these are bookkeeping entries: every container is
-    /// reachable regardless of which "network" it joined.
+    /// Created networks are real runtime networks (`container network
+    /// create`); the in-memory registry below is only a fallback for
+    /// clients that create networks while the runtime refuses (e.g. a name
+    /// collision with the built-in NAT), keeping compose flows alive.
     private var virtualNetworks: [String: DockerNetwork] = [:]
 
     func createNetwork(name: String, labels: [String: String]?) async throws -> DockerNetwork {
+        var args = ["container", "network", "create"]
+        if let labels {
+            for (key, value) in labels {
+                args += ["--label", "\(key)=\(value)"]
+            }
+        }
+        args.append(name)
+        let (code, output) = try await runCLI(args)
+        if code == 0 {
+            return DockerNetwork(
+                name: name,
+                id: output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? name
+                    : output.trimmingCharacters(in: .whitespacesAndNewlines),
+                created: ISO8601DateFormatter().string(from: Date()),
+                scope: "local",
+                driver: "bridge",
+                enableIPv6: false,
+                ipam: DockerIPAM(driver: "default", config: nil),
+                internal: false,
+                attachable: false,
+                ingress: false,
+                options: nil,
+                labels: labels
+            )
+        }
+
+        // Fallback: bookkeeping-only network (all containers stay on NAT).
         let formatter = ISO8601DateFormatter()
         let created = formatter.string(from: Date())
         let network = DockerNetwork(
@@ -330,11 +373,14 @@ actor ContainerBridge {
     }
 
     func removeNetwork(id: String) async throws {
+        // Real runtime networks delete by name or id; virtual bookkeeping
+        // entries remove from the dictionary.
         if let network = virtualNetworks[id] {
             virtualNetworks.removeValue(forKey: id)
             virtualNetworks.removeValue(forKey: network.name)
             return
         }
+        let _ = try await runCLI(["container", "network", "delete", id])
         // The built-in network can't be removed; mirror Docker's error by
         // simply reporting success for unknown ids (compose prunes eagerly).
     }

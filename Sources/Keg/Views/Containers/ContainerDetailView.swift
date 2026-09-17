@@ -305,9 +305,11 @@ private struct OverviewTab: View {
                 // Sections — single column so rows stay readable at inspector widths
                 VStack(alignment: .leading, spacing: 16) {
                     SectionGrid("Overview", rows: overviewRows)
+                    isolationBanner
                     SectionGrid("Image", rows: imageRows)
                     SectionGrid("Network", rows: networkRows)
                     SectionGrid("Resources", rows: resourceRows)
+                    memoryReclaimHint
                     SectionGrid("Process Configuration", rows: processRows)
                 }
             }
@@ -352,6 +354,51 @@ private struct OverviewTab: View {
             rows.append(.init("Started", started.formatted(date: .abbreviated, time: .shortened), monospaced: false))
         }
         return rows
+    }
+
+    /// The headline differentiator: unlike Docker Desktop or OrbStack (one
+    /// shared Linux VM, shared kernel), every Apple container runs in its
+    /// own microVM. Make that visible where the operator is looking.
+    private var isolationBanner: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "lock.shield.fill")
+                .font(.title3)
+                .foregroundStyle(.green)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Isolated microVM")
+                    .font(.callout.weight(.semibold))
+                Text("This container runs in its own virtual machine with a dedicated kernel — it shares nothing with macOS or your other containers.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(.quinary, in: RoundedRectangle(cornerRadius: 8))
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Apple's runtime doesn't return freed memory pages to macOS while the
+    /// VM runs (partial ballooning). Say so where the memory numbers are.
+    private var memoryReclaimHint: some View {
+        let limit = Int64(container.configuration.resources.memoryInBytes)
+        let used = stats?.memoryUsageBytes.map(Int64.init)
+        let running = container.status == .running
+        return Group {
+            if running {
+                VStack(alignment: .leading, spacing: 2) {
+                    if let used {
+                        Text("Using \(ByteCountFormatter.string(fromByteCount: used, countStyle: .memory)) of \(ByteCountFormatter.string(fromByteCount: limit, countStyle: .memory)) limit")
+                            .font(.caption)
+                    }
+                    Text("Freed pages stay inside the VM until it stops — stopping or restarting this container returns all of its memory to macOS.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
     }
 
     private var imageRows: [SectionGrid.Row] {

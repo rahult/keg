@@ -449,6 +449,10 @@ final class DockerAPIServer: Sendable {
                 let fromImage = request.uri.queryParameters.get("fromImage") ?? ""
                 let tag = request.uri.queryParameters.get("tag")
                 let input = request.uri.queryParameters.get("input") ?? ""
+                // docker pull --platform sends linux/amd64 etc.; anything
+                // else falls back to the host platform.
+                let rawPlatform = request.uri.queryParameters.get("platform").map { String($0) }
+                let platform = (rawPlatform?.isEmpty == false) ? rawPlatform : nil
                 var imageRef = fromImage.isEmpty ? input : fromImage
                 if let tag, !tag.isEmpty {
                     // Docker sends the reference and tag separately.
@@ -463,7 +467,7 @@ final class DockerAPIServer: Sendable {
                 // `docker pull` renders live layer progress.
                 let output: StreamingProcess.Output
                 do {
-                    output = try bridge.pullImageStream(from: imageRef)
+                    output = try bridge.pullImageStream(from: imageRef, platform: platform)
                 } catch {
                     throw DockerAPIError.imagePullFailed("\(error)")
                 }

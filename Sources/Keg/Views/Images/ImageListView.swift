@@ -405,6 +405,7 @@ struct PullImageView: View {
     @Environment(\.dismiss) private var dismiss
     let vm: ImagesVM
     @State private var reference = ""
+    @State private var architecture = "arm64"
     @State private var isPulling = false
     @State private var errorMessage: String?
 
@@ -417,6 +418,18 @@ struct PullImageView: View {
                 .textFieldStyle(.roundedBorder)
                 .accessibilityLabel("Image reference")
                 .accessibilityHint("Enter the image name and optional tag to pull")
+
+            Picker("Architecture", selection: $architecture) {
+                Text("arm64 · native").tag("arm64")
+                Text("amd64 · Rosetta").tag("amd64")
+            }
+            .pickerStyle(.segmented)
+            .accessibilityLabel("Image architecture")
+            if architecture == "amd64" {
+                Text("x86 images run translated through Rosetta — slower than native arm64.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             if let errorMessage {
                 Text(errorMessage)
@@ -450,7 +463,7 @@ struct PullImageView: View {
         errorMessage = nil
         Task {
             do {
-                try await vm.pull(reference: reference)
+                try await vm.pull(reference: reference, architecture: architecture)
                 dismiss()
             } catch {
                 errorMessage = error.localizedDescription

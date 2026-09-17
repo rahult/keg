@@ -272,12 +272,13 @@ extension ContainerBridge {
     // MARK: - Streaming image operations
 
     /// Streams `container image pull` output line by line (Docker progress
-    /// JSON mapping happens in the server route).
-    nonisolated func pullImageStream(from imageRef: String) throws -> StreamingProcess.Output {
+    /// JSON mapping happens in the server route). `platform` overrides the
+    /// host default so amd64 images pull for Rosetta when clients ask.
+    nonisolated func pullImageStream(from imageRef: String, platform: String? = nil) throws -> StreamingProcess.Output {
         let binary = ContainerCLI.resolve() ?? "container"
         return try StreamingProcess.start(
             binary,
-            arguments: ["image", "pull", "--platform", Self.hostPlatform, "--progress", "plain", imageRef]
+            arguments: ["image", "pull", "--platform", platform ?? Self.hostPlatform, "--progress", "plain", imageRef]
         ).output
     }
 

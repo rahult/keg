@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added (0.4.0)
+- **Native advantages made visible (Phase 1)**:
+  - **Isolation banner** in the container inspector: every container runs in its own microVM with a dedicated kernel — the security property Docker Desktop and OrbStack (shared kernel) can't offer, now stated where operators look.
+  - **Memory honesty**: the inspector shows used-vs-limit while running and explains that freed pages stay inside the VM until stop/restart (Apple's runtime doesn't return pages to macOS mid-run) — turning the known limitation into actionable guidance.
+  - **x86 images via Rosetta**: the pull sheet picks arm64 (native) or amd64 (Rosetta); `POST /images/create` honors `?platform=`, and create requests carrying `Platform` (e.g. `"linux/amd64"`) pull and run the amd64 variant — verified `uname -m` → `x86_64`.
+  - **Real networks**: Docker API network create/delete now provisions actual runtime networks (`container network create` gets its own subnet — verified `keg-net-test → 192.168.65.0/24`), and create requests with a named `HostConfig.NetworkMode` (what compose sends) attach the container to that network via `--network`. In-memory bookkeeping remains only as an error fallback.
 - **Docker CLI daily-driver parity**: the Docker API socket now backs the full `docker` workflow, verified end-to-end against the real docker CLI (29.x) by `Scripts/docker-cli-contract-test.sh` — all 15 checks green:
   - `docker run` streams stdout/stderr and propagates real exit codes (verified `exit 7` round-trips)
   - `docker exec` works (including `-i` stdin and exit codes) via a from-scratch HTTP connection hijack: Hummingbird has no upgrade support, so Keg runs a custom NIO child channel that answers `101 Switching Protocols` + `Upgrade: tcp` and splices the socket to the container's stdio over XPC

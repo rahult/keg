@@ -77,6 +77,8 @@ struct DockerContainerCreateRequest: Codable {
     let exposedPorts: [String: AnyCodable]?
     let tty: Bool?
     let openStdin: Bool?
+    /// Requested image platform, e.g. "linux/amd64" (docker run --platform).
+    let platform: String?
 
     enum CodingKeys: String, CodingKey {
         case image = "Image"
@@ -90,6 +92,7 @@ struct DockerContainerCreateRequest: Codable {
         case exposedPorts = "ExposedPorts"
         case tty = "Tty"
         case openStdin = "OpenStdin"
+        case platform = "Platform"
     }
 }
 

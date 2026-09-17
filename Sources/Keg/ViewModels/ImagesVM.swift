@@ -57,12 +57,25 @@ final class ImagesVM {
         }
     }
 
-    func pull(reference: String) async throws {
+    /// Pulls an image. `architecture` selects the image variant: "arm64"
+    /// (native) or "amd64" (x86 images via Rosetta). The platform is always
+    /// pinned — an unpinned pull unpacks every variant in the index.
+    func pull(reference: String, architecture: String = "arm64") async throws {
         guard !reference.isEmpty else { return }
         let config = await SystemConfigProvider.current()
         let normalized = try ClientImage.normalizeReference(reference, containerSystemConfig: config)
-        // Pin to the host platform — a nil platform fetches every variant's blobs.
-        _ = try await ClientImage.pull(reference: normalized, platform: .current, containerSystemConfig: config)
+        if architecture == "arm64" {
+            _ = try await ClientImage.pull(reference: normalized, platform: .current, containerSystemConfig: config)
+        } else {
+            // Rosetta path: the CLI accepts an explicit platform and runs
+            // amd64 images translated when the runtime has Rosetta enabled.
+            let (code, output) = try await ContainerCLI.run([
+                "container", "image", "pull", "--platform", "linux/\(architecture)", normalized,
+            ])
+            guard code == 0 else {
+                throw ContainerCLIFailure(message: output.isEmpty ? "Pull failed" : output)
+            }
+        }
         await refresh()
     }
 
