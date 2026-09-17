@@ -17,13 +17,15 @@ struct MenuBarPopover: View {
                 runningContainersSection
             }
 
-            Divider()
+            if AppState.isAgentsEnabled {
+                Divider()
 
-            agentStatusSection
+                agentStatusSection
 
-            Divider()
+                Divider()
 
-            approvalsSection
+                approvalsSection
+            }
         }
         .padding(12)
         .frame(width: 340)
@@ -39,14 +41,16 @@ struct MenuBarPopover: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(statusText)
                     .font(.headline)
-                Text(approvalSummaryText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if AppState.isAgentsEnabled {
+                    Text(approvalSummaryText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Spacer()
 
-            if !appState.pendingAgentApprovals.isEmpty {
+            if AppState.isAgentsEnabled, !appState.pendingAgentApprovals.isEmpty {
                 ApprovalCountBadge(count: appState.pendingAgentApprovals.count)
             }
         }

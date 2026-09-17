@@ -183,8 +183,10 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Section("Claude Agents API") {
-                agentAPISection
+            if AppState.isAgentsEnabled {
+                Section("Claude Agents API") {
+                    agentAPISection
+                }
             }
 
             Section("Software Update") {

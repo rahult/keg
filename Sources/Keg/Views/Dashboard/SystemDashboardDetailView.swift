@@ -35,8 +35,8 @@ struct SystemDashboardDetailView: View {
                 // Quick actions
                 quickActionsSection
 
-                // Agent discovery
-                if !hasSeenAgentDiscovery && appState.activeAgentCount == 0 {
+                // Agent discovery (hidden while the agents feature is shelved)
+                if AppState.isAgentsEnabled && !hasSeenAgentDiscovery && appState.activeAgentCount == 0 {
                     agentDiscoverySection
                 }
             }

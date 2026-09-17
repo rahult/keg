@@ -371,6 +371,14 @@ final class AppState {
         }
     }
 
+    /// Agents feature is shelved: all agent UI (menu bar status, Settings
+    /// API section, dashboard discovery card) is hidden unless explicitly
+    /// re-enabled, e.g. `defaults write <bundle-id> keg.showAgents true`.
+    /// Capability stays in the codebase; this only hides the surface.
+    static var isAgentsEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "keg.showAgents")
+    }
+
     /// Sections hidden in Getting Started mode. Everything stays reachable
     /// by switching levels — this is density control, not a gate.
     static let advancedKegSections: Set<KegSection> = [
