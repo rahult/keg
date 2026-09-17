@@ -33,24 +33,28 @@ final class XPCProbeTests: XCTestCase {
         }
         let unique = "keg-xpc-probe-\(UUID().uuidString.prefix(6))"
         _ = try await ContainerCLI.run(["container", "create", "--name", unique, "alpine:latest", "sleep", "30"])
-        defer { _ = try? await ContainerCLI.run(["container", "delete", "-f", unique]) }
-
-        let client = ContainerClient()
-        let probe = Task<Void, Error> {
-            let process = try await client.bootstrap(id: unique, stdio: [nil, nil, nil])
-            try await process.start()
-        }
-        let timeout = Task {
-            try await Task.sleep(for: .seconds(20))
-            probe.cancel()
-        }
-        defer { timeout.cancel() }
         do {
-            try await probe.value
-        } catch is CancellationError {
-            XCTFail("XPC bootstrap+start timed out after 20s")
+            let client = ContainerClient()
+            let probe = Task<Void, Error> {
+                let process = try await client.bootstrap(id: unique, stdio: [nil, nil, nil])
+                try await process.start()
+            }
+            let timeout = Task {
+                try await Task.sleep(for: .seconds(20))
+                probe.cancel()
+            }
+            do {
+                try await probe.value
+            } catch is CancellationError {
+                XCTFail("XPC bootstrap+start timed out after 20s")
+            } catch {
+                XCTFail("XPC bootstrap failed: \(error)")
+            }
+            timeout.cancel()
         } catch {
-            XCTFail("XPC bootstrap failed: \(error)")
+            _ = try? await ContainerCLI.run(["container", "delete", "-f", unique])
+            throw error
         }
+        _ = try? await ContainerCLI.run(["container", "delete", "-f", unique])
     }
 }
