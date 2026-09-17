@@ -6,6 +6,7 @@ import SwiftUI
 /// from the window's `.task`, so a menu-bar-only launch (or a relaunch where
 /// macOS didn't restore the window) left the Docker socket unbound and the
 /// `docker` CLI dead until the user opened the window.
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let appState: AppState
 
@@ -40,11 +41,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    nonisolated func applicationDidFinishLaunching(_ notification: Notification) {
+    func applicationDidFinishLaunching(_ notification: Notification) {
         Task { @MainActor [appState] in
             await appState.ensureReady()
             appState.startRefreshing()
         }
+    }
+
+    /// Quitting Keg must never leave a stale socket behind: the kernel keeps
+    /// accepting connects on an unlinked-but-bound socket, and every Docker
+    /// client then hangs until timeout instead of failing fast. Stop the
+    /// server and unlink the resolved path while the process still owns it.
+    func applicationWillTerminate(_ notification: Notification) {
+        appState.stopDockerAPI()
     }
 }
 

@@ -9,12 +9,18 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/container.git", exact: "1.3.1"),
+        // Pinned to the exact revision apple/container 1.3.1 requires, so the
+        // Terminal.Size used by ClientProcess.resize resolves to one module.
+        .package(url: "https://github.com/apple/containerization.git", exact: "0.42.0"),
         .package(url: "https://github.com/hummingbird-project/hummingbird.git", from: "2.0.0"),
         .package(url: "https://github.com/jpsim/Yams.git", from: "6.2.1"),
         .package(url: "https://github.com/sparkle-project/Sparkle.git", from: "2.10.0"),
         // Pinned pre-GPU-backend: 1.12+ ships Metal shaders that don't
         // compile under SwiftPM's bare `metal` invocation.
         .package(url: "https://github.com/migueldeicaza/SwiftTerm.git", exact: "1.11.2"),
+        // NIOHTTPTypesHTTP1 hosts HTTP1ToHTTPServerCodec, needed by the
+        // Docker hijack channel to convert classic HTTP parts to HTTPTypes.
+        .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.33.0"),
     ],
     targets: [
         .executableTarget(
@@ -23,7 +29,9 @@ let package = Package(
                 .product(name: "ContainerAPIClient", package: "container"),
                 .product(name: "ContainerResource", package: "container"),
                 .product(name: "ContainerPersistence", package: "container"),
+                .product(name: "ContainerizationOS", package: "containerization"),
                 .product(name: "Hummingbird", package: "hummingbird"),
+                .product(name: "NIOHTTPTypesHTTP1", package: "swift-nio-extras"),
                 .product(name: "Yams", package: "Yams"),
                 .product(name: "Sparkle", package: "Sparkle"),
                 .product(name: "SwiftTerm", package: "SwiftTerm"),

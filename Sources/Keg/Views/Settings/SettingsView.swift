@@ -8,6 +8,7 @@ struct SettingsView: View {
     @State private var connectionError: String?
     @State private var accountInfo: AccountInfo?
     @State private var storedAPIKeyPreview: String?
+    @State private var loginItem = LoginItemController()
 
     private var apiKeyValidation: APIKeyValidation {
         APIKeyValidation(apiKey: apiKeyInput)
@@ -179,6 +180,11 @@ struct SettingsView: View {
                 @Bindable var state = appState
                 Toggle("Start Docker API automatically", isOn: $state.dockerAPIAutoStart)
                 Text("Enables Docker CLI compatibility via Unix socket")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Toggle("Launch Keg at login", isOn: $loginItem.isEnabled)
+                Text("Starts Keg (and its Docker socket) when you log in")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

@@ -9,6 +9,10 @@ struct DockerContainer: Codable {
     let imageID: String
     let command: String
     let created: Int64
+    /// Epoch of the last start. Not part of Docker's list response; used
+    /// internally by the event differ to detect restarts that complete
+    /// between polls. Docker clients ignore unknown fields.
+    let startedAt: Int64?
     let state: String
     let status: String
     let ports: [DockerPort]?
@@ -22,6 +26,7 @@ struct DockerContainer: Codable {
         case imageID = "ImageID"
         case command = "Command"
         case created = "Created"
+        case startedAt = "StartedAt"
         case state = "State"
         case status = "Status"
         case ports = "Ports"
@@ -523,6 +528,298 @@ struct WebhookListResponse: Codable {
 
     enum CodingKeys: String, CodingKey {
         case webhooks = "Webhooks"
+    }
+}
+
+// MARK: - Exec Types
+
+/// Body of `POST /containers/{id}/exec`.
+struct DockerExecCreateRequest: Codable {
+    let cmd: [String]?
+    let env: [String]?
+    let workingDir: String?
+    let user: String?
+    let tty: Bool?
+    let attachStdin: Bool?
+    let attachStdout: Bool?
+    let attachStderr: Bool?
+    let detachKeys: String?
+    let privileged: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case cmd = "Cmd"
+        case env = "Env"
+        case workingDir = "WorkingDir"
+        case user = "User"
+        case tty = "Tty"
+        case attachStdin = "AttachStdin"
+        case attachStdout = "AttachStdout"
+        case attachStderr = "AttachStderr"
+        case detachKeys = "DetachKeys"
+        case privileged = "Privileged"
+    }
+
+    var effectiveTTY: Bool { tty ?? false }
+}
+
+/// Response of `POST /containers/{id}/exec`.
+struct DockerExecCreateResponse: Codable {
+    let id: String
+
+    enum CodingKeys: String, CodingKey {
+        case id = "Id"
+    }
+}
+
+/// Body of `POST /exec/{id}/start`.
+struct DockerExecStartRequest: Codable {
+    let detach: Bool?
+    let tty: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case detach = "Detach"
+        case tty = "Tty"
+    }
+}
+
+/// Response of `GET /exec/{id}/json`. The docker CLI reads `ExitCode` and
+/// `Running` from here after the attach stream closes to learn how the
+/// exec'd command terminated.
+struct DockerExecInspect: Codable {
+    let id: String
+    let running: Bool
+    let exitCode: Int?
+    let processConfig: DockerExecProcessConfig?
+
+    enum CodingKeys: String, CodingKey {
+        case id = "ID"
+        case running = "Running"
+        case exitCode = "ExitCode"
+        case processConfig = "ProcessConfig"
+    }
+}
+
+struct DockerExecProcessConfig: Codable {
+    let tty: Bool
+    let entrypoint: String
+    let arguments: [String]?
+    let privileged: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case tty = "tty"
+        case entrypoint = "entrypoint"
+        case arguments = "arguments"
+        case privileged = "privileged"
+    }
+}
+
+// MARK: - Stats Types
+
+/// Shape of `GET /containers/{id}/stats`. Field names match the Docker
+/// Engine API exactly; the CLI computes CPU% from these deltas and renders
+/// id/name from the top-level fields.
+struct DockerContainerStats: Codable {
+    let read: String
+    let preread: String
+    let id: String?
+    let name: String?
+    let pidsStats: DockerPidsStats
+    let cpuStats: DockerCPUStats
+    let precpuStats: DockerCPUStats
+    let memoryStats: DockerMemoryStats
+    let networks: [String: DockerNetworkStats]?
+
+    enum CodingKeys: String, CodingKey {
+        case read = "read"
+        case preread = "preread"
+        case id = "id"
+        case name = "name"
+        case pidsStats = "pids_stats"
+        case cpuStats = "cpu_stats"
+        case precpuStats = "precpu_stats"
+        case memoryStats = "memory_stats"
+        case networks = "networks"
+    }
+}
+
+struct DockerPidsStats: Codable {
+    let current: UInt64?
+
+    enum CodingKeys: String, CodingKey {
+        case current = "current"
+    }
+}
+
+struct DockerCPUStats: Codable {
+    let cpuUsage: DockerCPUUsage
+    let systemCpuUsage: UInt64?
+    let onlineCpus: UInt64?
+
+    enum CodingKeys: String, CodingKey {
+        case cpuUsage = "cpu_usage"
+        case systemCpuUsage = "system_cpu_usage"
+        case onlineCpus = "online_cpus"
+    }
+}
+
+struct DockerCPUUsage: Codable {
+    let totalUsage: UInt64
+    let usageInKernelmode: UInt64?
+    let usageInUsermode: UInt64?
+
+    enum CodingKeys: String, CodingKey {
+        case totalUsage = "total_usage"
+        case usageInKernelmode = "usage_in_kernelmode"
+        case usageInUsermode = "usage_in_usermode"
+    }
+}
+
+struct DockerMemoryStats: Codable {
+    let usage: UInt64?
+    let limit: UInt64?
+    let stats: [String: UInt64]?
+
+    enum CodingKeys: String, CodingKey {
+        case usage = "usage"
+        case limit = "limit"
+        case stats = "stats"
+    }
+}
+
+struct DockerNetworkStats: Codable {
+    let rxBytes: UInt64
+    let txBytes: UInt64
+
+    enum CodingKeys: String, CodingKey {
+        case rxBytes = "rx_bytes"
+        case txBytes = "tx_bytes"
+    }
+}
+
+// MARK: - Event Types
+
+/// Shape of a `GET /events` JSON line. `Type`/`Action`/`Actor` is the
+/// modern format the docker CLI renders.
+struct DockerEvent: Codable {
+    let status: String?
+    let id: String
+    let from: String?
+    let type: String
+    let action: String
+    let actor: DockerEventActor
+    let scope: String?
+    let time: Int64
+    let timeNano: Int64
+
+    enum CodingKeys: String, CodingKey {
+        case status = "status"
+        case id = "id"
+        case from = "from"
+        case type = "Type"
+        case action = "Action"
+        case actor = "Actor"
+        case scope = "scope"
+        case time = "time"
+        case timeNano = "timeNano"
+    }
+}
+
+struct DockerEventActor: Codable {
+    let id: String
+    let attributes: [String: String]?
+
+    enum CodingKeys: String, CodingKey {
+        case id = "ID"
+        case attributes = "Attributes"
+    }
+}
+
+// MARK: - Image Progress Types
+
+/// One JSON line of a `POST /images/create` (pull) progress stream. Docker
+/// clients tolerate a sparse subset; `status` + optional `id` is the minimum
+/// the CLI needs to render layer progress.
+struct DockerImageProgressMessage: Codable {
+    var status: String
+    var id: String?
+    var progressDetail: DockerProgressDetail?
+    var progress: String?
+    var error: String?
+    var errorDetail: DockerErrorDetail?
+
+    enum CodingKeys: String, CodingKey {
+        case status = "status"
+        case id = "id"
+        case progressDetail = "progressDetail"
+        case progress = "progress"
+        case error = "error"
+        case errorDetail = "errorDetail"
+    }
+}
+
+struct DockerProgressDetail: Codable {
+    var current: Int64?
+    var total: Int64?
+}
+
+struct DockerErrorDetail: Codable {
+    var message: String?
+}
+
+// MARK: - System DF Types
+
+/// Shape of `GET /system/df` used by `docker system df`.
+struct DockerSystemDF: Codable {
+    let layersSize: Int64
+    let images: [DockerDFImage]?
+    let containers: [DockerDFContainer]?
+    let volumes: [DockerVolume]?
+    let buildCache: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case layersSize = "LayersSize"
+        case images = "Images"
+        case containers = "Containers"
+        case volumes = "Volumes"
+        case buildCache = "BuildCache"
+    }
+}
+
+struct DockerDFImage: Codable {
+    let size: Int64
+    let containers: Int64
+
+    enum CodingKeys: String, CodingKey {
+        case size = "Size"
+        case containers = "Containers"
+    }
+}
+
+struct DockerDFContainer: Codable {
+    let id: String
+    let image: String
+    let sizeRw: Int64?
+    let sizeRootFs: Int64?
+
+    enum CodingKeys: String, CodingKey {
+        case id = "Id"
+        case image = "Image"
+        case sizeRw = "SizeRw"
+        case sizeRootFs = "SizeRootFs"
+    }
+}
+
+// MARK: - Volume Create Types
+
+struct DockerVolumeCreateRequest: Codable {
+    let name: String?
+    let driver: String?
+    let labels: [String: String]?
+
+    enum CodingKeys: String, CodingKey {
+        case name = "Name"
+        case driver = "Driver"
+        case labels = "Labels"
     }
 }
 

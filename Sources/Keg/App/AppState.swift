@@ -284,10 +284,17 @@ final class AppState {
     }
 
     func stopDockerAPI() {
+        // Capture the bound path before tearing down: once the server task
+        // is cancelled the socket file may linger, and a stale socket makes
+        // clients hang instead of failing fast.
+        let socketPath = dockerServer?.resolvedSocketPath ?? DockerAPIServer.socketPath()
         dockerServerTask?.cancel()
         dockerServerTask = nil
         dockerServer = nil
         isDockerAPIRunning = false
+        if !DockerAPIServer.socketRespondsToPing(at: socketPath) {
+            try? FileManager.default.removeItem(atPath: socketPath)
+        }
     }
 
     func startRefreshing() {

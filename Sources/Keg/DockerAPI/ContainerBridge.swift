@@ -9,7 +9,25 @@ actor ContainerBridge {
     /// unpacks EVERY platform variant in the index — each becomes a 512 GiB-capacity
     /// ext4 snapshot (~1.1 GB allocated metadata even for alpine). Keg targets
     /// Apple Silicon only, so linux/arm64 is always the host platform.
-    private static let hostPlatform = "linux/arm64"
+    static let hostPlatform = "linux/arm64"
+
+    /// Shared XPC connection to container-apiserver. Used for operations the
+    /// CLI can't express: real exit codes, exec process control, stats.
+    static let xpc = ContainerClient()
+
+    /// Exit-code futures for containers started through the Docker API, so
+    /// `POST /wait` can report the actual exit code. Stored as a task (not
+    /// the process) so exactly one XPC wait happens per container — the
+    /// pump's EOF handler and the wait route both await the same future.
+    var startedProcesses: [String: Task<Int32, Never>] = [:]
+
+    /// Stdio pumps for containers a client attached to (hijacked) before
+    /// start; consumed by `startContainerWithExitTracking`.
+    var attachIntents: [String: ExecPump] = [:]
+
+    /// Live exec pumps, keyed by exec id — resize routes look processes up
+    /// here; entries are removed when the pump completes.
+    var activeExecPumps: [String: ExecPump] = [:]
 
     /// Cache of on-disk image sizes keyed by index digest ("sha256:…").
     /// Computing these walks the content + snapshot stores, so keep a short TTL.
@@ -388,6 +406,70 @@ actor ContainerBridge {
         return DockerVolumeListResponse(volumes: [], warnings: nil)
     }
 
+    /// Creates a real runtime volume via the CLI.
+    func createVolume(name: String) async throws -> DockerVolume {
+        let (code, output) = try await runCLI(["container", "volume", "create", name])
+        guard code == 0 else {
+            throw DockerAPIError.badRequest("volume create failed: \(output)")
+        }
+        let created = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        return DockerVolume(
+            name: created.isEmpty ? name : created,
+            driver: "local",
+            mountpoint: "",
+            createdAt: ISO8601DateFormatter().string(from: Date()),
+            scope: "local",
+            labels: nil,
+            options: nil
+        )
+    }
+
+    func removeVolume(name: String) async throws {
+        let (code, output) = try await runCLI(["container", "volume", "delete", name])
+        guard code == 0 else {
+            throw DockerAPIError.badRequest("volume delete failed: \(output)")
+        }
+    }
+
+    // MARK: - System
+
+    /// Disk usage for `docker system df`, translated from
+    /// `container system df --format json`.
+    func systemDiskUsage() async throws -> DockerSystemDF {
+        let (code, output) = try await runCLI(["container", "system", "df", "--format", "json"])
+        guard code == 0, let data = output.data(using: .utf8),
+              let raw = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return DockerSystemDF(layersSize: 0, images: nil, containers: nil, volumes: nil, buildCache: nil)
+        }
+
+        let images = (raw["images"] as? [[String: Any]])?.map { entry in
+            DockerDFImage(
+                size: (entry["size"] as? Int64) ?? (entry["size"] as? Int).map(Int64.init) ?? 0,
+                containers: (entry["containers"] as? Int64) ?? 0
+            )
+        }
+        let containers = (raw["containers"] as? [[String: Any]])?.map { entry in
+            DockerDFContainer(
+                id: (entry["id"] as? String) ?? "",
+                image: (entry["image"] as? String) ?? "",
+                sizeRw: nil,
+                sizeRootFs: nil
+            )
+        }
+        let layersSize = images?.reduce(Int64(0)) { $0 + $1.size } ?? 0
+        let volumes = (try? await listVolumes())?.volumes
+        return DockerSystemDF(layersSize: layersSize, images: images, containers: containers, volumes: volumes, buildCache: nil)
+    }
+
+    /// Stops and deletes every stopped container; returns what was removed.
+    func pruneContainers() async throws -> [DockerContainer] {
+        let stopped = try await listContainers(all: true).filter { $0.state != "running" }
+        for container in stopped {
+            let _ = try? await runCLI(["container", "delete", "-f", container.id])
+        }
+        return stopped
+    }
+
     // MARK: - System
 
     func systemInfo() async throws -> DockerInfo {
@@ -616,6 +698,7 @@ private struct ContainerListEntry: Codable {
             imageID: "",
             command: command,
             created: created,
+            startedAt: started,
             state: running ? "running" : "exited",
             status: statusText,
             ports: ports,
@@ -709,18 +792,25 @@ private struct NetworkListEntry: Codable {
 }
 
 private struct VolumeListEntry: Codable {
-    let name: String?
-    let driver: String?
-    let mountpoint: String?
+    let id: String?
+    let configuration: Configuration?
+
+    struct Configuration: Codable {
+        let name: String?
+        let driver: String?
+        let source: String?
+        let creationDate: String?
+        let labels: [String: String]?
+    }
 
     func toDocker() -> DockerVolume {
         DockerVolume(
-            name: name ?? "unknown",
-            driver: driver ?? "local",
-            mountpoint: mountpoint ?? "",
-            createdAt: nil,
+            name: configuration?.name ?? id ?? "unknown",
+            driver: configuration?.driver ?? "local",
+            mountpoint: configuration?.source ?? "",
+            createdAt: configuration?.creationDate,
             scope: "local",
-            labels: nil,
+            labels: configuration?.labels,
             options: nil
         )
     }
