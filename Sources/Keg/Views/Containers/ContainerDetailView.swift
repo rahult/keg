@@ -271,7 +271,11 @@ private struct OverviewTab: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 // Statistics row
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
+                // Fixed two columns: an adaptive grid's column count changes
+                // with the proposed width, which makes the inspector's
+                // reported minimum size oscillate during live window resizes
+                // and trips AppKit's update-constraints loop guard (crash).
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                     StatCard(
                         icon: "memorychip",
                         value: memoryValue,
