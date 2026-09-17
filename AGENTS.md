@@ -78,4 +78,6 @@ swift build -c release  # Build binary only
 |---------|---------|---------|
 | apple/container | 1.3.1 | ContainerAPIClient, ContainerResource |
 | hummingbird | 2.22+ | HTTP server for Docker API |
-| Yams | 5.4+ | YAML parsing for Compose |
+| Yams | 6.2+ | YAML parsing for Compose |
+| Sparkle | 2.10+ | Auto-update feed |
+| SwiftTerm | 1.11.2 | Embedded terminal emulator (PTY + VT100) |

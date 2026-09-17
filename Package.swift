@@ -12,6 +12,9 @@ let package = Package(
         .package(url: "https://github.com/hummingbird-project/hummingbird.git", from: "2.0.0"),
         .package(url: "https://github.com/jpsim/Yams.git", from: "6.2.1"),
         .package(url: "https://github.com/sparkle-project/Sparkle.git", from: "2.10.0"),
+        // Pinned pre-GPU-backend: 1.12+ ships Metal shaders that don't
+        // compile under SwiftPM's bare `metal` invocation.
+        .package(url: "https://github.com/migueldeicaza/SwiftTerm.git", exact: "1.11.2"),
     ],
     targets: [
         .executableTarget(
@@ -23,6 +26,7 @@ let package = Package(
                 .product(name: "Hummingbird", package: "hummingbird"),
                 .product(name: "Yams", package: "Yams"),
                 .product(name: "Sparkle", package: "Sparkle"),
+                .product(name: "SwiftTerm", package: "SwiftTerm"),
             ],
             path: "Sources/Keg",
             swiftSettings: [

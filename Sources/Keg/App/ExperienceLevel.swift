@@ -199,8 +199,8 @@ enum SectionHelpGuide {
         case .terminal:
             return SectionHelpContent(
                 title: "Terminal",
-                beginner: "A command line with the container tools ready to go — handy if you prefer typing commands or are following a tutorial.",
-                technical: "Terminal window with PATH configured for the container CLI and DOCKER_HOST pointed at Keg's socket.",
+                beginner: "A real command line with the container tools ready to go — handy if you prefer typing commands or are following a tutorial.",
+                technical: "SwiftTerm terminal emulator running your login shell in a pseudo-terminal (full VT100/xterm support: colors, curses apps, line editing). PATH includes Homebrew, and DOCKER_HOST/KUBECONFIG point at Keg.",
                 firstSteps: [
                     "Try container system status to check the backend",
                     "Try docker ps — Keg answers the Docker CLI too",
