@@ -2,18 +2,9 @@
 
 ## [Unreleased]
 
-### Added (0.4.0)
-- **`keg exec`**: full docker-exec semantics in the companion CLI — the client side of the connection hijack. `keg exec [-i] [-t] [-e K=V]… [-w dir] [-u user] <id> cmd…` streams stdout/stderr live (stdcopy demuxed to the right descriptors), forwards stdin (`-i`, with half-close on EOF), puts the terminal into raw mode for `-t` and sends PTY resizes on window changes, and propagates the command's real exit code. Verified against the running app: multi-frame streams, stderr routing, env/workdir, exit codes, TTY sessions, and clean 404s for unknown containers.
-- **`keg` companion CLI, installed from the app**: a Foundation-only terminal client for Keg — no docker CLI required. Ships inside Keg.app (`Contents/SharedSupport/bin/keg`) and installs onto PATH with one click from Settings → Keg CLI (or `keg install` itself): first writable of `/usr/local/bin`, `/opt/homebrew/bin`, `~/.keg/bin`, the last with a copyable PATH line. Commands: `status`, `doctor` (pass/fail stack checks with hints), `version`, `env` (DOCKER_HOST exports), `ps [-a]`, `images`, `logs [-f] [-n N]` (stdcopy demuxed, follow until exit), `exec`, `start/stop/restart/rm`, `open [section]` — a `keg://` deep link that focuses the named section in the app (scheme registered in the bundle Info.plist) — and `install`/`uninstall`. Verified round-trip live: install → `keg status` from PATH → uninstall. Built as target `kegcli` (the build dir is case-insensitive; a `keg` artifact would clobber the `Keg` app binary) and symlinked as `keg` on PATH.
+## [0.5.0] — 2026-09-18
 
-### Fixed (0.4.0)
-- **Docker API errors now carry proper statuses**: typed Keg errors map to Docker's HTTP semantics (404 for missing containers/images/webhooks, 400 for bad requests) instead of blanket 500s — `keg exec` and the docker CLI both surface real messages now; exec create validates container existence up front.
-- **Stale-socket guard hardened**: the launch-time liveness probe before unlinking `~/.keg/docker.sock` now waits 2s instead of 300ms — a slow moment on the owner's side (test hosts, heavy load) can no longer cause a live app's Docker API socket to be unlinked.
-- **Native advantages made visible (Phase 1)**:
-  - **Isolation banner** in the container inspector: every container runs in its own microVM with a dedicated kernel — the security property Docker Desktop and OrbStack (shared kernel) can't offer, now stated where operators look.
-  - **Memory honesty**: the inspector shows used-vs-limit while running and explains that freed pages stay inside the VM until stop/restart (Apple's runtime doesn't return pages to macOS mid-run) — turning the known limitation into actionable guidance.
-  - **x86 images via Rosetta**: the pull sheet picks arm64 (native) or amd64 (Rosetta); `POST /images/create` honors `?platform=`, and create requests carrying `Platform` (e.g. `"linux/amd64"`) pull and run the amd64 variant — verified `uname -m` → `x86_64`.
-  - **Real networks**: Docker API network create/delete now provisions actual runtime networks (`container network create` gets its own subnet — verified `keg-net-test → 192.168.65.0/24`), and create requests with a named `HostConfig.NetworkMode` (what compose sends) attach the container to that network via `--network`. In-memory bookkeeping remains only as an error fallback.
+### Added
 - **Docker CLI daily-driver parity**: the Docker API socket now backs the full `docker` workflow, verified end-to-end against the real docker CLI (29.x) by `Scripts/docker-cli-contract-test.sh` — all 15 checks green:
   - `docker run` streams stdout/stderr and propagates real exit codes (verified `exit 7` round-trips)
   - `docker exec` works (including `-i` stdin and exit codes) via a from-scratch HTTP connection hijack: Hummingbird has no upgrade support, so Keg runs a custom NIO child channel that answers `101 Switching Protocols` + `Upgrade: tcp` and splices the socket to the container's stdio over XPC
@@ -21,17 +12,32 @@
   - `docker stats` (XPC-backed CPU/memory/network/pids with pre/post samples for CPU%), `docker events` (poll-differed lifecycle stream that also finally dispatches the webhook manager), `docker volume create/ls/rm`, `docker system df`, `containers prune`, and the classic `POST /build` (tar context, streamed NDJSON output) used by API clients like Testcontainers
   - `docker pull`/`push` stream Docker-format JSON progress mapped from the Apple CLI's plain progress
   - API version negotiation is honest: `HEAD /_ping` (auto-generated) carries `Api-Version`, `OSType`, `Builder-Version`
+- **Native advantages made visible**:
+  - **Isolation banner** in the container inspector: every container runs in its own microVM with a dedicated kernel — the security property Docker Desktop and OrbStack (shared kernel) can't offer, now stated where operators look.
+  - **Memory honesty**: the inspector shows used-vs-limit while running and explains that freed pages stay inside the VM until stop/restart (Apple's runtime doesn't return pages to macOS mid-run) — turning the known limitation into actionable guidance.
+  - **x86 images via Rosetta**: the pull sheet picks arm64 (native) or amd64 (Rosetta); `POST /images/create` honors `?platform=`, and create requests carrying `Platform` (e.g. `"linux/amd64"`) pull and run the amd64 variant — verified `uname -m` → `x86_64`.
+  - **Real networks**: Docker API network create/delete now provisions actual runtime networks (`container network create` gets its own subnet — verified `keg-net-test → 192.168.65.0/24`), and create requests with a named `HostConfig.NetworkMode` (what compose sends) attach the container to that network via `--network`. In-memory bookkeeping remains only as an error fallback.
+- **`keg` companion CLI, installed from the app**: a Foundation-only terminal client for Keg — no docker CLI required. Ships inside Keg.app (`Contents/SharedSupport/bin/keg`) and installs onto PATH with one click from Settings → Keg CLI (or `keg install` itself): first writable of `/usr/local/bin`, `/opt/homebrew/bin`, `~/.keg/bin`, the last with a copyable PATH line. Commands: `status`, `doctor` (pass/fail stack checks with hints), `version`, `env` (DOCKER_HOST exports), `ps [-a]`, `images`, `logs [-f] [-n N]` (stdcopy demuxed, follow until exit), `exec`, `start/stop/restart/rm`, `open [section]` — a `keg://` deep link that focuses the named section in the app (scheme registered in the bundle Info.plist) — and `install`/`uninstall`. Verified round-trip live: install → `keg status` from PATH → uninstall. Built as target `kegcli` (the build dir is case-insensitive; a `keg` artifact would clobber the `Keg` app binary) and symlinked as `keg` on PATH.
+- **`keg exec`**: full docker-exec semantics in the companion CLI — the client side of the connection hijack. `keg exec [-i] [-t] [-e K=V]… [-w dir] [-u user] <id> cmd…` streams stdout/stderr live (stdcopy demuxed to the right descriptors), forwards stdin (`-i`, with half-close on EOF), puts the terminal into raw mode for `-t` and sends PTY resizes on window changes, and propagates the command's real exit code. Verified against the running app: multi-frame streams, stderr routing, env/workdir, exit codes, TTY sessions, and clean 404s for unknown containers.
 - **Launch at login** (Settings → Docker API) via SMAppService, with socket cleanup on quit — a stale bound socket makes every Docker client hang instead of failing fast.
+- New dependencies: NIOHTTPTypesHTTP1 (swift-nio-extras) and ContainerizationOS (containerization 0.42.0, matching apple/container 1.3.1) for the hijack channel and exec resize.
+
+### Fixed
+- **Docker API errors now carry proper statuses**: typed Keg errors map to Docker's HTTP semantics (404 for missing containers/images/webhooks, 400 for bad requests) instead of blanket 500s — `keg exec` and the docker CLI both surface real messages now; exec create validates container existence up front.
+- **Stale-socket guard hardened**: the launch-time liveness probe before unlinking `~/.keg/docker.sock` now waits 2s instead of 300ms — a slow moment on the owner's side (test hosts, heavy load) can no longer cause a live app's Docker API socket to be unlinked.
+
+### Known limitations
+- `docker build` from the docker CLI requires the BuildKit protocol (docker 29 dropped the classic builder client-side); the classic `POST /build` works for API clients. BuildKit session support is future work.
+- Attaching to an already-running container (`docker attach`) is unsupported — init-process stdio is fixed at start (same limitation as Apple's own CLI).
+
+## [0.4.0] — 2026-09-17
+
+### Added
 - **Compose Topology**: the Compose screen renders an interactive dependency graph of the file's services — nodes show service, image and live state; arrows point at dependencies, reading left to right like request flow. Click a node to trace its edges; right-click for logs, restart, or copy. Derived from the same parsed plan as "What Will Run".
 - **Real embedded terminal**: the Terminal section is now a genuine pseudo-terminal (SwiftTerm) running your login shell with full VT100/xterm support — colors, line editing, full-screen apps like vim. `DOCKER_HOST`, `KUBECONFIG` and Homebrew `PATH` are pre-wired; presets type into the live session instead of restarting it.
 - **Welcome screen with live sidebar preview**: picking an experience level shows exactly what the sidebar will look like before you commit.
 - **Sidebar reoriented per experience level**: Getting Started groups tasks in plain language (My Apps, Essentials); the full operator surface appears at Comfortable/Full Control. New sidebar footer switches levels in place — no Settings trip.
-- New dependencies: SwiftTerm 1.11.2 (MIT) for the terminal emulator; NIOHTTPTypesHTTP1 (swift-nio-extras) and ContainerizationOS (containerization 0.42.0, matching apple/container 1.3.1) for the hijack channel and exec resize.
-
-### Known limitations (0.4.0)
-- `docker build` from the docker CLI requires the BuildKit protocol (docker 29 dropped the classic builder client-side); the classic `POST /build` works for API clients. BuildKit session support is future work.
-- Attaching to an already-running container (`docker attach`) is unsupported — init-process stdio is fixed at start (same limitation as Apple's own CLI).
-- Networks remain bookkeeping on the Docker API side; all containers share the runtime's NAT (real networks planned).
+- New dependency: SwiftTerm 1.11.2 (MIT) for the terminal emulator.
 
 ### Fixed (0.3.1)
 - **Window-resize crash with the container inspector open**: resizing the window with a container selected aborted with `NSGenericException` ("more Update Constraints in Window passes than there are views in the window"). The inspector's Overview tab used an adaptive-column `LazyVGrid` for its stat cards; the column count changed with the proposed width, so the inspector's reported minimum size oscillated during live resizes until AppKit's update-constraints loop guard fired. Replaced with a fixed two-column grid.
