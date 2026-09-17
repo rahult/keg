@@ -6,6 +6,7 @@ struct ContainerListView: View {
     @State private var vm = ContainersVM()
     @State private var selectedContainerIDs: Set<String> = []
     @State private var showRunSheet = false
+    @State private var runImage: String?
     @State private var showingDeleteConfirmation = false
     @State private var searchText = ""
     @State private var recreateContainer: IdentifiableContainer?
@@ -21,13 +22,17 @@ struct ContainerListView: View {
                 ProgressView("Loading containers...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if wrappedContainers.isEmpty {
-                ContentUnavailableView(
-                    vm.showOnlyRunning ? "No Running Containers" : "No Containers",
-                    systemImage: "cube.box",
-                    description: Text(vm.showOnlyRunning ? "Run a container to get started" : "Containers will appear here")
-                )
-                .accessibilityLabel(vm.showOnlyRunning ? "No running containers" : "No containers")
-                .accessibilityHint(vm.showOnlyRunning ? "Turn off the running-only filter or run a container" : "Run a container to populate the list")
+                if vm.containers.isEmpty && !vm.showOnlyRunning {
+                    containersQuickStart
+                } else {
+                    ContentUnavailableView(
+                        vm.showOnlyRunning ? "No Running Containers" : "No Containers",
+                        systemImage: "cube.box",
+                        description: Text(vm.showOnlyRunning ? "Run a container to get started" : "Containers will appear here")
+                    )
+                    .accessibilityLabel(vm.showOnlyRunning ? "No running containers" : "No containers")
+                    .accessibilityHint(vm.showOnlyRunning ? "Turn off the running-only filter or run a container" : "Run a container to populate the list")
+                }
             } else {
                 Table(wrappedContainers, selection: $selectedContainerIDs) {
                     TableColumn("Name") { item in
@@ -159,11 +164,16 @@ struct ContainerListView: View {
         .toolbar {
             ToolbarItem(id: "run", placement: .primaryAction) {
                 Button {
-                    showRunSheet = true
+                    openRunSheet(with: nil)
                 } label: {
                     Label("Run…", systemImage: "plus")
                 }
+                .help("Run a new container from an image")
                 .accessibilityHint("Open the run container sheet")
+            }
+
+            ToolbarItem(id: "help", placement: .automatic) {
+                SectionHelpButton(section: .containers)
             }
 
             ToolbarItem(id: "filter", placement: .automatic) {
@@ -176,6 +186,7 @@ struct ContainerListView: View {
                         systemImage: vm.showOnlyRunning ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle"
                     )
                 }
+                .help(vm.showOnlyRunning ? "Show stopped containers too" : "Only show containers that are currently running")
                 .accessibilityHint(vm.showOnlyRunning ? "Show stopped containers too" : "Limit the list to running containers")
             }
 
@@ -186,16 +197,27 @@ struct ContainerListView: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .keyboardShortcut("r", modifiers: .command)
+                .help("Reload the containers list (⌘R)")
                 .accessibilityHint("Reload the containers list")
             }
         }
         .toolbarRole(.editor)
         .task {
+            if let pending = appState.pendingRunImage {
+                appState.pendingRunImage = nil
+                openRunSheet(with: pending)
+            }
             await vm.refresh()
             vm.startLiveStats()
         }
         .onReceive(NotificationCenter.default.publisher(for: .kegRunContainer)) { _ in
-            showRunSheet = true
+            openRunSheet(with: nil)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .kegRunImage)) { note in
+            guard appState.currentArea == .keg,
+                  appState.selectedKegSection == .containers,
+                  let image = note.object as? String else { return }
+            openRunSheet(with: image)
         }
         .onReceive(NotificationCenter.default.publisher(for: .kegRefresh)) { _ in
             Task { await vm.refresh() }
@@ -217,8 +239,8 @@ struct ContainerListView: View {
             appState.selectedContainerID = nil
             vm.stopLiveStats()
         }
-        .sheet(isPresented: $showRunSheet) {
-            RunContainerView()
+        .sheet(isPresented: $showRunSheet, onDismiss: { runImage = nil }) {
+            RunContainerView(initialImage: runImage)
         }
         .sheet(item: $recreateContainer) { wrapped in
             RecreateContainerView(container: wrapped.snapshot) {
@@ -243,6 +265,48 @@ struct ContainerListView: View {
                     .inspectorColumnWidth(min: 320, ideal: 380, max: 520)
             }
         }
+    }
+
+    private var containersQuickStart: some View {
+        VStack(spacing: 14) {
+            ContentUnavailableView(
+                "No Containers Yet",
+                systemImage: "cube.box",
+                description: Text("A container is one isolated app. Pick a quick start below — it's safe, nothing touches your Mac.")
+            )
+
+            HStack(spacing: 10) {
+                Button {
+                    openRunSheet(with: "hello-world")
+                } label: {
+                    Label("Try a 5-second demo", systemImage: "play.circle")
+                }
+                .help("Download hello-world and run it once to prove everything works")
+
+                Button {
+                    openRunSheet(with: "nginx")
+                } label: {
+                    Label("Run a web server", systemImage: "globe")
+                }
+                .help("Run nginx, then open http://localhost:8080 in your browser")
+
+                Button {
+                    openRunSheet(with: nil)
+                } label: {
+                    Label("Run something else…", systemImage: "ellipsis")
+                }
+                .help("Choose any image from Docker Hub or your registries")
+            }
+            .controlSize(.large)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityLabel("No containers")
+        .accessibilityHint("Try a quick start to run your first container")
+    }
+
+    private func openRunSheet(with image: String?) {
+        runImage = image
+        showRunSheet = true
     }
 
     private func containerName(_ snapshot: ContainerSnapshot) -> String {

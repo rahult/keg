@@ -92,6 +92,10 @@ struct NetworkListView: View {
         .navigationTitle("Networks")
         .toolbar {
             ToolbarItem(placement: .automatic) {
+                SectionHelpButton(section: .networks)
+            }
+
+            ToolbarItem(placement: .automatic) {
                 Button {
                     Task { await vm.refresh() }
                 } label: {

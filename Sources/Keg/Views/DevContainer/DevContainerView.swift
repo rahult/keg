@@ -19,6 +19,10 @@ struct DevContainerView: View {
         .errorBanner($vm.errorMessage)
         .navigationTitle("Dev Containers")
         .toolbar {
+            ToolbarItem(placement: .automatic) {
+                SectionHelpButton(section: .devcontainers)
+            }
+
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     showFilePicker = true

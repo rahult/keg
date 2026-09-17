@@ -193,6 +193,10 @@ struct QuickTerminalView: View {
             .id(selectedCommand.id)
             .navigationTitle("Terminal")
             .toolbar {
+                ToolbarItem(id: "help", placement: .automatic) {
+                    SectionHelpButton(section: .terminal)
+                }
+
                 ToolbarItem(id: "presets", placement: .primaryAction) {
                     Menu {
                         Button("Shell") { selectedCommand = .shell }

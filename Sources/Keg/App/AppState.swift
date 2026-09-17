@@ -13,6 +13,7 @@ enum SystemStatus: Sendable {
 final class AppState {
     private static let agentPermissionModeDefaultsKey = "agents.permission-mode"
     private static let dockerAPIAutoStartDefaultsKey = "dockerAPI.autoStart"
+    private static let experienceLevelDefaultsKey = "keg.experience-level"
 
     // Docker API server
     private var dockerServerTask: Task<Void, Never>?
@@ -45,8 +46,26 @@ final class AppState {
         }
     }
 
+    /// How much of the UI to show. Defaults to Getting Started so first-run
+    /// users land in the simplest possible surface; experts can opt into
+    /// Full Control from the welcome sheet or Settings.
+    var experienceLevel: ExperienceLevel {
+        didSet {
+            UserDefaults.standard.set(experienceLevel.rawValue, forKey: Self.experienceLevelDefaultsKey)
+            // Never leave the user parked on a section the new level hides.
+            if !experienceLevel.showsAdvancedSections,
+               Self.advancedKegSections.contains(selectedKegSection) {
+                selectedKegSection = .containers
+            }
+        }
+    }
+
     var selectedContainerID: String?
     var selectedImageReference: String?
+    /// Quick-start image waiting for the Containers screen to appear; consumed
+    /// on appear so a fast section switch can't drop the welcome sheet's
+    /// "Try a demo" action.
+    var pendingRunImage: String?
     var selectedAgentID: String?
     var selectedSessionID: String?
     var agentServiceReachability: AgentServiceReachability = .unknown
@@ -73,6 +92,7 @@ final class AppState {
 
         self.agentPermissionMode = Self.loadAgentPermissionMode()
         self.dockerAPIAutoStart = UserDefaults.standard.bool(forKey: Self.dockerAPIAutoStartDefaultsKey)
+        self.experienceLevel = Self.loadExperienceLevel()
 
         // A stale socket file from a previous Keg run makes `docker info` return EOF
         // because the kernel accepts the connect() and then immediately closes it.
@@ -349,6 +369,21 @@ final class AppState {
         } catch {
             // Keep existing counts on failure
         }
+    }
+
+    /// Sections hidden in Getting Started mode. Everything stays reachable
+    /// by switching levels — this is density control, not a gate.
+    static let advancedKegSections: Set<KegSection> = [
+        .kubernetes, .builds, .networks, .ports,
+        .volumes, .registries, .health, .devcontainers,
+    ]
+
+    private static func loadExperienceLevel() -> ExperienceLevel {
+        guard let rawValue = UserDefaults.standard.string(forKey: experienceLevelDefaultsKey),
+              let level = ExperienceLevel(rawValue: rawValue) else {
+            return .gettingStarted
+        }
+        return level
     }
 
     private static func loadAgentPermissionMode() -> AgentPermissionMode {

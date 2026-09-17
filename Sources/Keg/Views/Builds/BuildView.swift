@@ -140,6 +140,10 @@ struct BuildView: View {
             focusedField = nil
         }
         .toolbar {
+            ToolbarItem(id: "help", placement: .automatic) {
+                SectionHelpButton(section: .builds)
+            }
+
             ToolbarItem(id: "build", placement: .primaryAction) {
                 if isBuilding {
                     Button("Cancel Build") {

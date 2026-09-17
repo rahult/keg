@@ -44,6 +44,11 @@ struct SystemDashboardDetailView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
+        .toolbar {
+            ToolbarItem(id: "help", placement: .automatic) {
+                SectionHelpButton(section: KegSection.dashboard)
+            }
+        }
         .task {
             await refreshMetrics()
         }

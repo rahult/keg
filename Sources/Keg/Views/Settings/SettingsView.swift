@@ -21,6 +21,35 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            Section("Experience") {
+                Picker("Level", selection: Binding(
+                    get: { appState.experienceLevel },
+                    set: { appState.experienceLevel = $0 }
+                )) {
+                    ForEach(ExperienceLevel.allCases) { level in
+                        Label(level.rawValue, systemImage: level.iconName)
+                            .tag(level)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .help("Controls how many sections Keg shows and how much help you get")
+
+                Text(appState.experienceLevel.detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                HStack {
+                    Text("Not sure? Replay the welcome quick select.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Show Welcome…") {
+                        NotificationCenter.default.post(name: .kegShowWelcome, object: nil)
+                    }
+                    .controlSize(.small)
+                }
+            }
+
             Section("Container CLI") {
                 ContainerCLIStatusRow()
                 if !ContainerCLI.isInstalled {

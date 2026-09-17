@@ -10,6 +10,7 @@ struct ImageListView: View {
     @State private var runImageReference: String?
     @State private var tagSourceReference: String?
     @State private var showingPruneConfirmation = false
+    @State private var pullingReference: String?
     @State private var searchText = ""
     @FocusState private var isSearchFocused: Bool
 
@@ -23,13 +24,17 @@ struct ImageListView: View {
                 ProgressView("Loading images...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if wrappedImages.isEmpty {
-                ContentUnavailableView(
-                    "No Images",
-                    systemImage: "photo.stack",
-                    description: Text("Pull an image to get started")
-                )
-                .accessibilityLabel("No images")
-                .accessibilityHint("Pull an image to populate the list")
+                if vm.images.isEmpty {
+                    imagesQuickStart
+                } else {
+                    ContentUnavailableView(
+                        "No Images",
+                        systemImage: "photo.stack",
+                        description: Text("Pull an image to get started")
+                    )
+                    .accessibilityLabel("No images")
+                    .accessibilityHint("Pull an image to populate the list")
+                }
             } else {
                 Table(wrappedImages, selection: $selectedImageRefs) {
                     TableColumn("Reference") { item in
@@ -104,7 +109,12 @@ struct ImageListView: View {
                 } label: {
                     Label("Pull…", systemImage: "arrow.down.circle")
                 }
+                .help("Download an image from Docker Hub or a registry")
                 .accessibilityHint("Open the pull image sheet")
+            }
+
+            ToolbarItem(id: "help", placement: .automatic) {
+                SectionHelpButton(section: .images)
             }
 
             ToolbarItem(id: "run", placement: .automatic) {
@@ -116,6 +126,7 @@ struct ImageListView: View {
                     Label("Run", systemImage: "play")
                 }
                 .disabled(selectedImageRefs.count != 1)
+                .help("Start a new container from the selected image")
                 .accessibilityHint("Run the selected image as a new container")
             }
 
@@ -125,6 +136,7 @@ struct ImageListView: View {
                 } label: {
                     Label("Prune…", systemImage: "scissors")
                 }
+                .help("Remove images no container is using, to free disk space")
                 .accessibilityHint("Remove unused images")
             }
 
@@ -135,6 +147,7 @@ struct ImageListView: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .keyboardShortcut("r", modifiers: .command)
+                .help("Reload the images list (⌘R)")
                 .accessibilityHint("Reload the images list")
             }
         }
@@ -207,6 +220,69 @@ struct ImageListView: View {
             return "Delete \(ref)?"
         }
         return "Delete Image"
+    }
+
+    /// Popular first images a newcomer can pull with one click.
+    private let quickStartImages: [(reference: String, blurb: String)] = [
+        ("nginx", "Web server — open http://localhost:8080 once running"),
+        ("busybox", "Tiny toolbox — the classic sandbox to learn with"),
+        ("hello-world", "The 5-second does-everything-work test"),
+        ("postgres", "A real database, ready for your app"),
+    ]
+
+    private var imagesQuickStart: some View {
+        VStack(spacing: 14) {
+            ContentUnavailableView(
+                "No Images Yet",
+                systemImage: "photo.stack",
+                description: Text("An image is the template a container runs from. Pull a popular one to get going.")
+            )
+
+            if let pulling = pullingReference {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Pulling \(pulling)… first downloads can take a minute.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                HStack(spacing: 10) {
+                    ForEach(quickStartImages, id: \.reference) { item in
+                        Button {
+                            quickPull(item.reference)
+                        } label: {
+                            VStack(spacing: 4) {
+                                Text(item.reference)
+                                    .font(.subheadline.weight(.medium))
+                                Text(item.blurb)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                                    .lineLimit(2)
+                            }
+                            .frame(width: 130)
+                            .padding(.vertical, 8)
+                        }
+                        .help("Pull \(item.reference) from Docker Hub")
+                    }
+                }
+                Button("Pull a different image…") {
+                    showPullSheet = true
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityLabel("No images")
+        .accessibilityHint("Pull a popular image to get started")
+    }
+
+    private func quickPull(_ reference: String) {
+        pullingReference = reference
+        Task {
+            defer { pullingReference = nil }
+            try? await vm.pull(reference: reference)
+        }
     }
 
     private func handleEscape() {

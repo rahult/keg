@@ -396,6 +396,10 @@ struct KubernetesView: View {
         }
         .navigationTitle("Kubernetes")
         .toolbar {
+            ToolbarItem(id: "help", placement: .automatic) {
+                SectionHelpButton(section: .kubernetes)
+            }
+
             ToolbarItem(id: "cluster-action", placement: .primaryAction) {
                 HStack(spacing: 8) {
                     switch vm.clusterStatus {

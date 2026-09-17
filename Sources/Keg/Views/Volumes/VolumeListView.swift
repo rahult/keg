@@ -78,6 +78,10 @@ struct VolumeListView: View {
         .navigationTitle("Volumes")
         .toolbar {
             ToolbarItem(placement: .automatic) {
+                SectionHelpButton(section: .volumes)
+            }
+
+            ToolbarItem(placement: .automatic) {
                 Button {
                     Task { await vm.refresh() }
                 } label: {

@@ -28,6 +28,10 @@ struct HealthDashboardView: View {
         .accessibilityHint("Overview of container health scores and resource usage")
         .navigationTitle("Health")
         .toolbar {
+            ToolbarItem(id: "help", placement: .automatic) {
+                SectionHelpButton(section: .health)
+            }
+
             ToolbarItem(id: "refresh", placement: .automatic) {
                 Button {
                     Task { await vm.refresh() }

@@ -205,6 +205,7 @@ struct KegApp: App {
 
 extension Notification.Name {
     static let kegRunContainer = Notification.Name("keg.runContainer")
+    static let kegRunImage = Notification.Name("keg.runImage")
     static let kegStopContainer = Notification.Name("keg.stopContainer")
     static let kegDeleteContainer = Notification.Name("keg.deleteContainer")
     static let kegRefresh = Notification.Name("keg.refresh")
@@ -212,6 +213,7 @@ extension Notification.Name {
     static let kegToggleSidebar = Notification.Name("keg.toggleSidebar")
     static let kegNewAgent = Notification.Name("keg.newAgent")
     static let kegFocusSearch = Notification.Name("keg.focusSearch")
+    static let kegShowWelcome = Notification.Name("keg.showWelcome")
 }
 
 // MARK: - Icons
@@ -236,6 +238,8 @@ private enum KegIcon {
 struct MainView: View {
     @Environment(AppState.self) private var appState
     @SceneStorage("main.sidebar-visible") private var isSidebarVisible = true
+    @AppStorage("keg.welcomeSeen") private var hasSeenWelcome = false
+    @State private var showWelcome = false
 
     private var columnVisibility: Binding<NavigationSplitViewVisibility> {
         Binding(
@@ -256,6 +260,17 @@ struct MainView: View {
         .task {
             await appState.ensureReady()
             appState.startRefreshing()
+            if !hasSeenWelcome {
+                showWelcome = true
+            }
+        }
+        .sheet(isPresented: $showWelcome, onDismiss: { hasSeenWelcome = true }) {
+            WelcomeSheet { image in
+                quickRun(image: image)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .kegShowWelcome)) { _ in
+            showWelcome = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .kegToggleSidebar)) { _ in
             toggleSidebar()
@@ -270,6 +285,19 @@ struct MainView: View {
 
     private func toggleSidebar() {
         isSidebarVisible.toggle()
+    }
+
+    /// Navigate to Containers and open the Run sheet prefilled with the
+    /// given image (welcome-sheet quick starts).
+    private func quickRun(image: String) {
+        appState.pendingRunImage = image
+        appState.currentArea = .keg
+        appState.selectedKegSection = .containers
+        // Belt-and-braces if the list is already alive: it consumes
+        // pendingRunImage on appear, this only covers the already-visible case.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            NotificationCenter.default.post(name: .kegRunImage, object: image)
+        }
     }
 }
 

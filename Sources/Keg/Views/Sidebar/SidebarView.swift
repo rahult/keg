@@ -52,6 +52,7 @@ struct AreaPicker: View {
         }
         .pickerStyle(.segmented)
         .controlSize(.small)
+        .help("Switch between container management (Keg) and AI agents")
         .accessibilityLabel("Area picker")
         .accessibilityHint("Switch between the Keg and Agents areas")
     }
@@ -153,13 +154,25 @@ struct KegSidebarContent: View {
         let items: [KegSection]
     }
 
-    private let sections: [SidebarSection] = [
-        SidebarSection(name: "Overview", items: [.dashboard]),
-        SidebarSection(name: "Workloads", items: [.containers, .compose, .kubernetes, .logs]),
-        SidebarSection(name: "Content", items: [.images, .builds]),
-        SidebarSection(name: "System", items: [.networks, .ports, .volumes, .registries]),
-        SidebarSection(name: "Tools", items: [.terminal, .devcontainers, .health]),
-    ]
+    /// Sections visible for the current experience level. Getting Started
+    /// hides the operator-focused sections so newcomers only see what they
+    /// need; switching to Comfortable or Full Control brings them back.
+    private var sections: [SidebarSection] {
+        let all: [SidebarSection] = [
+            SidebarSection(name: "Overview", items: [.dashboard]),
+            SidebarSection(name: "Workloads", items: [.containers, .compose, .kubernetes, .logs]),
+            SidebarSection(name: "Content", items: [.images, .builds]),
+            SidebarSection(name: "System", items: [.networks, .ports, .volumes, .registries]),
+            SidebarSection(name: "Tools", items: [.terminal, .devcontainers, .health]),
+        ]
+        guard appState.experienceLevel.showsAdvancedSections else {
+            return all.compactMap { section in
+                let visible = section.items.filter { !AppState.advancedKegSections.contains($0) }
+                return visible.isEmpty ? nil : SidebarSection(name: section.name, items: visible)
+            }
+        }
+        return all
+    }
 
     var body: some View {
         List(selection: Binding<KegSection?>(
@@ -197,6 +210,38 @@ struct KegSidebarContent: View {
         .listStyle(.sidebar)
         .accessibilityLabel("Keg sections")
         .accessibilityHint("Use arrow keys to move between Keg sections")
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !appState.experienceLevel.showsAdvancedSections {
+                beginnerHint
+            }
+        }
+    }
+
+    /// Footer shown in Getting Started mode: reassure the user that the
+    /// missing sections are one toggle away, not gone.
+    private var beginnerHint: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("Getting Started mode")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            Text("Extra sections like Networks and Kubernetes are hidden. Switch anytime in Settings.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+            Button("Show everything (Full Control)") {
+                appState.experienceLevel = .fullControl
+            }
+            .buttonStyle(.link)
+            .controlSize(.small)
+            .font(.caption)
+        }
+        .padding(10)
+        .background(Color(nsColor: .controlBackgroundColor))
     }
 
     @ViewBuilder

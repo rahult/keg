@@ -91,6 +91,10 @@ struct PortDashboardView: View {
         .navigationTitle("Ports")
         .searchable(text: $searchText, prompt: "Search by container, port, or URL")
         .toolbar {
+            ToolbarItem(id: "help", placement: .automatic) {
+                SectionHelpButton(section: .ports)
+            }
+
             ToolbarItem(id: "refresh", placement: .automatic) {
                 Button {
                     Task { await vm.refresh() }

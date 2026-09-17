@@ -41,6 +41,10 @@ struct RegistryListView: View {
         .accessibilityHint("Manage container registry logins")
         .navigationTitle("Registries")
         .toolbar {
+            ToolbarItem(placement: .automatic) {
+                SectionHelpButton(section: .registries)
+            }
+
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     showLoginSheet = true

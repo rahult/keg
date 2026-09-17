@@ -378,6 +378,10 @@ struct ComposeView: View {
         .accessibilityHint("Manage Docker Compose services")
         .navigationTitle("Compose")
         .toolbar {
+            ToolbarItem(id: "help", placement: .automatic) {
+                SectionHelpButton(section: .compose)
+            }
+
             ToolbarItem(id: "up", placement: .primaryAction) {
                 Button {
                     Task { await vm.up() }
