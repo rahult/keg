@@ -143,35 +143,51 @@ struct AgentAccountStatusCard: View {
     }
 }
 
+// MARK: - Sidebar Structure
+
+/// What the sidebar shows at each experience level. Shared by the real
+/// sidebar and the welcome sheet's live preview so the two can never drift.
+enum KegSidebarStructure {
+    struct Section: Identifiable {
+        let name: String
+        let items: [KegSection]
+        var id: String { name }
+    }
+
+    /// Getting Started groups tasks, not internals: "My Apps" instead of
+    /// "Workloads", and only the screens a newcomer needs. The operator
+    /// levels share the full surface.
+    static func sections(for level: ExperienceLevel) -> [Section] {
+        switch level {
+        case .gettingStarted:
+            return [
+                Section(name: "Overview", items: [.dashboard]),
+                Section(name: "My Apps", items: [.containers, .compose, .logs]),
+                Section(name: "Essentials", items: [.images, .terminal]),
+            ]
+        case .comfortable, .fullControl:
+            return [
+                Section(name: "Overview", items: [.dashboard]),
+                Section(name: "Workloads", items: [.containers, .compose, .kubernetes, .logs]),
+                Section(name: "Content", items: [.images, .builds]),
+                Section(name: "System", items: [.networks, .ports, .volumes, .registries]),
+                Section(name: "Tools", items: [.terminal, .devcontainers, .health]),
+            ]
+        }
+    }
+}
+
 // MARK: - Keg Sidebar Content
 
 struct KegSidebarContent: View {
     @Environment(AppState.self) private var appState
     var compact: Bool = false
 
-    private struct SidebarSection {
-        let name: String
-        let items: [KegSection]
-    }
-
     /// Sections visible for the current experience level. Getting Started
-    /// hides the operator-focused sections so newcomers only see what they
-    /// need; switching to Comfortable or Full Control brings them back.
-    private var sections: [SidebarSection] {
-        let all: [SidebarSection] = [
-            SidebarSection(name: "Overview", items: [.dashboard]),
-            SidebarSection(name: "Workloads", items: [.containers, .compose, .kubernetes, .logs]),
-            SidebarSection(name: "Content", items: [.images, .builds]),
-            SidebarSection(name: "System", items: [.networks, .ports, .volumes, .registries]),
-            SidebarSection(name: "Tools", items: [.terminal, .devcontainers, .health]),
-        ]
-        guard appState.experienceLevel.showsAdvancedSections else {
-            return all.compactMap { section in
-                let visible = section.items.filter { !AppState.advancedKegSections.contains($0) }
-                return visible.isEmpty ? nil : SidebarSection(name: section.name, items: visible)
-            }
-        }
-        return all
+    /// shows a task-oriented subset; Comfortable and Full Control show the
+    /// full operator surface.
+    private var sections: [KegSidebarStructure.Section] {
+        KegSidebarStructure.sections(for: appState.experienceLevel)
     }
 
     var body: some View {
@@ -179,7 +195,7 @@ struct KegSidebarContent: View {
             get: { appState.selectedKegSection },
             set: { if let section = $0 { appState.selectedKegSection = section } }
         )) {
-            ForEach(sections, id: \.name) { section in
+            ForEach(sections) { section in
                 if compact {
                     Section {
                         sectionRows(section.items)
@@ -211,37 +227,10 @@ struct KegSidebarContent: View {
         .accessibilityLabel("Keg sections")
         .accessibilityHint("Use arrow keys to move between Keg sections")
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !appState.experienceLevel.showsAdvancedSections {
-                beginnerHint
+            if !compact {
+                ExperienceFooter()
             }
         }
-    }
-
-    /// Footer shown in Getting Started mode: reassure the user that the
-    /// missing sections are one toggle away, not gone.
-    private var beginnerHint: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Image(systemName: "sparkles")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("Getting Started mode")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-                Spacer()
-            }
-            Text("Extra sections like Networks and Kubernetes are hidden. Switch anytime in Settings.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-            Button("Show everything (Full Control)") {
-                appState.experienceLevel = .fullControl
-            }
-            .buttonStyle(.link)
-            .controlSize(.small)
-            .font(.caption)
-        }
-        .padding(10)
-        .background(Color(nsColor: .controlBackgroundColor))
     }
 
     @ViewBuilder
@@ -275,6 +264,77 @@ struct KegSidebarContent: View {
                 .badge(appState.unhealthyContainerCount)
         default:
             sidebarRowLabel(item.rawValue, systemImage: item.iconName)
+        }
+    }
+}
+
+// MARK: - Experience Footer
+
+/// Footer pinned to the bottom of the sidebar: names the current experience
+/// level and switches between them in place, so casual users are always one
+/// click from the full surface and experts can simplify just as fast — no
+/// trip to Settings required.
+struct ExperienceFooter: View {
+    @Environment(AppState.self) private var appState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: appState.experienceLevel.iconName)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("\(appState.experienceLevel.rawValue) mode")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Menu {
+                    ForEach(ExperienceLevel.allCases) { level in
+                        Button {
+                            appState.experienceLevel = level
+                        } label: {
+                            if level == appState.experienceLevel {
+                                Label(level.rawValue, systemImage: "checkmark")
+                            } else {
+                                Text(level.rawValue)
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.caption)
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.visible)
+                .fixedSize()
+                .accessibilityLabel("Change experience level")
+                .accessibilityHint("Switch between Getting Started, Comfortable, and Full Control")
+            }
+            Text(footerCaption)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+            if appState.experienceLevel == .gettingStarted {
+                Button("Show everything (Full Control)") {
+                    appState.experienceLevel = .fullControl
+                }
+                .buttonStyle(.link)
+                .controlSize(.small)
+                .font(.caption)
+            }
+        }
+        .padding(10)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Experience level: \(appState.experienceLevel.rawValue)")
+    }
+
+    private var footerCaption: String {
+        switch appState.experienceLevel {
+        case .gettingStarted:
+            return "Extra sections like Kubernetes and Ports are hidden."
+        case .comfortable:
+            return "Every section is visible."
+        case .fullControl:
+            return "Every section is visible, with full detail everywhere."
         }
     }
 }
