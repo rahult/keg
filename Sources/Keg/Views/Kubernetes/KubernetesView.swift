@@ -409,7 +409,9 @@ struct KubernetesView: View {
                         } label: {
                             Label("Create Cluster", systemImage: "plus")
                         }
+                        .labelStyle(.titleAndIcon)
                         .buttonStyle(.borderedProminent)
+                        .help("Create a single-node Kubernetes cluster on this Mac")
 
                     case .running:
                         Button {
@@ -417,6 +419,8 @@ struct KubernetesView: View {
                         } label: {
                             Label("Stop", systemImage: "stop.fill")
                         }
+                        .labelStyle(.titleAndIcon)
+                        .help("Stop the Kubernetes cluster (data is kept)")
 
                     case .stopped:
                         Button {
@@ -424,7 +428,9 @@ struct KubernetesView: View {
                         } label: {
                             Label("Start", systemImage: "play.fill")
                         }
+                        .labelStyle(.titleAndIcon)
                         .buttonStyle(.borderedProminent)
+                        .help("Start the Kubernetes cluster again")
 
                     case .creating, .starting, .stopping:
                         ProgressView().controlSize(.small)
@@ -435,6 +441,8 @@ struct KubernetesView: View {
                         } label: {
                             Label("Retry", systemImage: "arrow.clockwise")
                         }
+                        .labelStyle(.titleAndIcon)
+                        .help("Check the cluster status again")
                     }
                 }
                 .disabled(vm.clusterStatus.isBusy || vm.isDeleting)

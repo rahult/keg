@@ -204,6 +204,8 @@ struct MultiContainerLogsView: View {
                     Label(vm.isPaused ? "Resume" : "Pause",
                           systemImage: vm.isPaused ? "play.fill" : "pause.fill")
                 }
+                .labelStyle(.titleAndIcon)
+                .help(vm.isPaused ? "Resume streaming new log lines" : "Pause streaming new log lines")
                 .accessibilityHint("Pause or resume incoming log lines")
             }
             ToolbarItem(id: "clear", placement: .automatic) {
@@ -212,6 +214,8 @@ struct MultiContainerLogsView: View {
                 } label: {
                     Label("Clear", systemImage: "trash")
                 }
+                .labelStyle(.titleAndIcon)
+                .help("Clear the merged log buffer")
                 .accessibilityHint("Clear the merged log buffer")
             }
             ToolbarItem(id: "refresh", placement: .automatic) {
@@ -221,6 +225,7 @@ struct MultiContainerLogsView: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .keyboardShortcut("r", modifiers: .command)
+                .help("Reload the container list for log streaming (⌘R)")
             }
         }
         .toolbarRole(.editor)

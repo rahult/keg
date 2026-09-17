@@ -192,6 +192,41 @@ struct ComposeView: View {
         vm.services.map { ComposeServiceRow(id: $0.name, name: $0.name, service: $0.service, state: $0.state) }
     }
 
+    private var isUp: Bool { !composeServices.isEmpty }
+
+    private var runningCount: Int {
+        composeServices.filter { $0.state.lowercased() == "running" }.count
+    }
+
+    /// Disabled tooltips state the blocking condition (DESIGN.md §2.1).
+    private var startButtonHelp: String {
+        if vm.composeFilePath.isEmpty { return "Choose a compose file first" }
+        if vm.isRunning { return "Waiting for the current operation to finish" }
+        if runningCount > 0 { return "Services are already running — stop them first" }
+        return "Start all services defined in the compose file"
+    }
+
+    private var stopButtonHelp: String {
+        if vm.composeFilePath.isEmpty { return "Choose a compose file first" }
+        if vm.isRunning { return "Waiting for the current operation to finish" }
+        if !isUp { return "No services are defined" }
+        return "Stop and remove all services defined in the compose file"
+    }
+
+    private var statusText: String {
+        if vm.isRunning { return "Working…" }
+        if composeServices.isEmpty { return "Stopped" }
+        if runningCount > 0 {
+            return "\(runningCount) of \(composeServices.count) service\(composeServices.count == 1 ? "" : "s") running"
+        }
+        return "Stopped — \(composeServices.count) service\(composeServices.count == 1 ? "" : "s") defined"
+    }
+
+    private var statusColor: Color {
+        if vm.isRunning { return .secondary }
+        return runningCount > 0 ? .green : .gray
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -222,23 +257,21 @@ struct ComposeView: View {
                         GridRow {
                             Text("Status")
                                 .foregroundStyle(.secondary)
-                            if vm.isRunning {
-                                Label("Running…", systemImage: "arrow.triangle.2.circlepath")
-                                    .foregroundStyle(.secondary)
-                            } else if composeServices.isEmpty {
-                                Text("No services running")
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                Text("\(composeServices.count) services")
+                            HStack(spacing: 6) {
+                                Circle()
+                                    .fill(statusColor)
+                                    .frame(width: 8, height: 8)
+                                Text(statusText)
                                     .foregroundStyle(.secondary)
                             }
+                            .accessibilityLabel("Status: \(statusText)")
                         }
                     }
                     .padding(.top, 4)
                 }
 
                 if let plan = vm.plan {
-                    GroupBox("Import Preview") {
+                    GroupBox("What Will Run") {
                         VStack(alignment: .leading, spacing: 12) {
                             if !plan.warnings.isEmpty {
                                 VStack(alignment: .leading, spacing: 4) {
@@ -255,17 +288,22 @@ struct ComposeView: View {
                             }
 
                             VStack(alignment: .leading, spacing: 8) {
-                                Text("Services in dependency order")
+                                Text("Startup order")
                                     .font(.subheadline)
                                     .fontWeight(.semibold)
                                 ForEach(Array(plan.services.enumerated()), id: \.offset) { index, service in
                                     DisclosureGroup {
-                                        Text(service.command)
-                                            .font(.system(.caption, design: .monospaced))
-                                            .textSelection(.enabled)
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                            .padding(6)
-                                            .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 4))
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Equivalent command")
+                                                .font(.caption2)
+                                                .foregroundStyle(.tertiary)
+                                            Text(service.command)
+                                                .font(.system(.caption, design: .monospaced))
+                                                .textSelection(.enabled)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .padding(6)
+                                                .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 4))
+                                        }
                                     } label: {
                                         HStack(spacing: 8) {
                                             Text("\(index + 1).")
@@ -305,9 +343,9 @@ struct ComposeView: View {
                 GroupBox("Services") {
                     if composeServices.isEmpty {
                         ContentUnavailableView(
-                            "No Compose Project",
+                            "No Services Running",
                             systemImage: "doc.text",
-                            description: Text("Choose a compose file and run Up from toolbar.")
+                            description: Text("Choose a compose file above, then choose Start Services in the toolbar.")
                         )
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 24)
@@ -364,7 +402,7 @@ struct ComposeView: View {
                         ContentUnavailableView(
                             "No Output",
                             systemImage: "text.alignleft",
-                            description: Text("Compose command output appears here.")
+                            description: Text("Output from Start Services and Stop Services appears here.")
                         )
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 24)
@@ -378,19 +416,17 @@ struct ComposeView: View {
         .accessibilityHint("Manage Docker Compose services")
         .navigationTitle("Compose")
         .toolbar {
-            ToolbarItem(id: "help", placement: .automatic) {
-                SectionHelpButton(section: .compose)
-            }
-
             ToolbarItem(id: "up", placement: .primaryAction) {
                 Button {
                     Task { await vm.up() }
                 } label: {
-                    Label("Up", systemImage: "arrow.up")
+                    Label("Start Services", systemImage: "play.fill")
                 }
+                .labelStyle(.titleAndIcon)
                 .buttonStyle(.borderedProminent)
-                .disabled(vm.composeFilePath.isEmpty || vm.isRunning)
-                .accessibilityLabel("Compose Up")
+                .disabled(vm.composeFilePath.isEmpty || vm.isRunning || runningCount > 0)
+                .help(startButtonHelp)
+                .accessibilityLabel("Start Services")
                 .accessibilityHint("Start all services defined in the compose file")
             }
 
@@ -398,11 +434,13 @@ struct ComposeView: View {
                 Button {
                     Task { await vm.down() }
                 } label: {
-                    Label("Down", systemImage: "arrow.down")
+                    Label("Stop Services", systemImage: "stop.fill")
                 }
-                .disabled(vm.composeFilePath.isEmpty || vm.isRunning)
-                .accessibilityLabel("Compose Down")
-                .accessibilityHint("Stop and remove all compose services")
+                .labelStyle(.titleAndIcon)
+                .disabled(vm.composeFilePath.isEmpty || vm.isRunning || !isUp)
+                .help(stopButtonHelp)
+                .accessibilityLabel("Stop Services")
+                .accessibilityHint("Stop and remove all services defined in the compose file")
             }
 
             ToolbarItem(id: "refresh", placement: .automatic) {
@@ -413,7 +451,12 @@ struct ComposeView: View {
                 }
                 .disabled(vm.composeFilePath.isEmpty || vm.isRunning)
                 .keyboardShortcut("r", modifiers: .command)
+                .help("Reload the services list (⌘R)")
                 .accessibilityLabel("Refresh services")
+            }
+
+            ToolbarItem(id: "help", placement: .automatic) {
+                SectionHelpButton(section: .compose)
             }
         }
         .toolbarRole(.editor)

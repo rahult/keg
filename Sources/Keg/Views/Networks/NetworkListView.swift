@@ -102,6 +102,7 @@ struct NetworkListView: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .keyboardShortcut("r", modifiers: .command)
+                .help("Reload the networks list (⌘R)")
                 .accessibilityLabel("Refresh networks")
             }
         }

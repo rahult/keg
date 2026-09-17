@@ -150,12 +150,14 @@ struct BuildView: View {
                         cancelBuild()
                     }
                     .keyboardShortcut(.cancelAction)
+                    .help("Stop the active container build")
                     .accessibilityHint("Stop the active container build")
                 } else {
                     Button("Build") {
                         startBuild()
                     }
                     .disabled(contextDir.isEmpty)
+                    .help(contextDir.isEmpty ? "Choose the folder containing your Dockerfile first" : "Build an image from the Dockerfile in the chosen folder")
                     .buttonStyle(.borderedProminent)
                     .accessibilityHint("Start building the selected container image")
                 }

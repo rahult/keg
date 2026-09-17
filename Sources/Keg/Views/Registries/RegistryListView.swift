@@ -51,6 +51,8 @@ struct RegistryListView: View {
                 } label: {
                     Label("Login…", systemImage: "person.badge.key")
                 }
+                .labelStyle(.titleAndIcon)
+                .help("Log in to a registry (like Docker Hub) to pull private images")
                 .accessibilityLabel("Login to registry")
                 .accessibilityHint("Opens a form to log in to a container registry")
             }
@@ -62,6 +64,7 @@ struct RegistryListView: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .keyboardShortcut("r", modifiers: .command)
+                .help("Reload the registry list (⌘R)")
                 .accessibilityLabel("Refresh registries")
             }
         }

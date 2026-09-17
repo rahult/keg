@@ -139,7 +139,7 @@ enum SectionHelpGuide {
                 technical: "docker-compose.yml parsed with Yams; services are dependency-sorted and run as linked containers with a shared network.",
                 firstSteps: [
                     "Open the folder that contains docker-compose.yml",
-                    "Click Up to start everything, Down to stop",
+                    "Choose Start Services to launch everything, Stop Services to shut it down",
                 ],
                 tip: "Most open-source projects you download include a compose file — look for it in the project root."
             )

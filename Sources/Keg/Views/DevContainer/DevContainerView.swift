@@ -29,6 +29,8 @@ struct DevContainerView: View {
                 } label: {
                     Label("Browse Project…", systemImage: "folder")
                 }
+                .labelStyle(.titleAndIcon)
+                .help("Pick a folder containing a .devcontainer configuration")
             }
         }
         .fileImporter(isPresented: $showFilePicker, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in

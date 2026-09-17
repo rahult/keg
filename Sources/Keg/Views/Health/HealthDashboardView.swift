@@ -39,6 +39,7 @@ struct HealthDashboardView: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .keyboardShortcut("r", modifiers: .command)
+                .help("Reload the health data (⌘R)")
                 .accessibilityLabel("Refresh health data")
             }
         }

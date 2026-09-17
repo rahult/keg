@@ -109,6 +109,7 @@ struct ImageListView: View {
                 } label: {
                     Label("Pull…", systemImage: "arrow.down.circle")
                 }
+                .labelStyle(.titleAndIcon)
                 .help("Download an image from Docker Hub or a registry")
                 .accessibilityHint("Open the pull image sheet")
             }
@@ -125,6 +126,7 @@ struct ImageListView: View {
                 } label: {
                     Label("Run", systemImage: "play")
                 }
+                .labelStyle(.titleAndIcon)
                 .disabled(selectedImageRefs.count != 1)
                 .help("Start a new container from the selected image")
                 .accessibilityHint("Run the selected image as a new container")
@@ -136,6 +138,7 @@ struct ImageListView: View {
                 } label: {
                     Label("Prune…", systemImage: "scissors")
                 }
+                .labelStyle(.titleAndIcon)
                 .help("Remove images no container is using, to free disk space")
                 .accessibilityHint("Remove unused images")
             }

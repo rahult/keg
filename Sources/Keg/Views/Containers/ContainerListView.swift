@@ -168,6 +168,7 @@ struct ContainerListView: View {
                 } label: {
                     Label("Run…", systemImage: "plus")
                 }
+                .labelStyle(.titleAndIcon)
                 .help("Run a new container from an image")
                 .accessibilityHint("Open the run container sheet")
             }

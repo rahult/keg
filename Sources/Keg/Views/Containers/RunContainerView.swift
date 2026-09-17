@@ -81,6 +81,7 @@ struct RunContainerView: View {
                 Button("Run") { runContainer() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(imageName.isEmpty || isRunning)
+                    .help(imageName.isEmpty ? "Enter an image name first" : "Download the image if needed and start the container")
                     .buttonStyle(.borderedProminent)
             }
         }

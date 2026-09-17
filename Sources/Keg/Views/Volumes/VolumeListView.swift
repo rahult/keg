@@ -88,6 +88,7 @@ struct VolumeListView: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .keyboardShortcut("r", modifiers: .command)
+                .help("Reload the volumes list (⌘R)")
             }
         }
         .errorBanner($vm.errorMessage)

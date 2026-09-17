@@ -208,6 +208,8 @@ struct QuickTerminalView: View {
                     } label: {
                         Label("Presets", systemImage: "terminal")
                     }
+                    .labelStyle(.titleAndIcon)
+                    .help("Run a preset command in a fresh terminal")
                     .accessibilityHint("Run a preset command in a fresh terminal")
                 }
             }

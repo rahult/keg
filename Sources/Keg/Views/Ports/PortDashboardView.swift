@@ -102,6 +102,7 @@ struct PortDashboardView: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .keyboardShortcut("r", modifiers: .command)
+                .help("Reload the published ports list (⌘R)")
             }
         }
         .toolbarRole(.editor)
