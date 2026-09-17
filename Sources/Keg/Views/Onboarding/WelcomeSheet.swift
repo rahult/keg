@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// First-launch quick select: pick how you want to use Keg and optionally
-/// jump straight into a guided first action. Shown once; replayable from
-/// Settings.
+/// First-launch quick select: pick how you want to use Keg, see exactly
+/// what the sidebar will look like, and optionally jump straight into a
+/// guided first action. Shown once; replayable from Settings.
 struct WelcomeSheet: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
@@ -26,16 +26,19 @@ struct WelcomeSheet: View {
                     .multilineTextAlignment(.center)
             }
             .padding(.top, 28)
-            .padding(.bottom, 20)
+            .padding(.bottom, 18)
 
-            Text("How do you want to use Keg?")
-                .font(.headline)
-                .padding(.bottom, 10)
-
-            VStack(spacing: 10) {
-                ForEach(ExperienceLevel.allCases) { level in
-                    levelCard(level)
+            HStack(alignment: .top, spacing: 20) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("How do you want to use Keg?")
+                        .font(.headline)
+                    ForEach(ExperienceLevel.allCases) { level in
+                        levelCard(level)
+                    }
                 }
+                .frame(width: 330)
+
+                sidebarPreview
             }
             .padding(.horizontal, 24)
 
@@ -72,14 +75,16 @@ struct WelcomeSheet: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 20)
 
-            Text("You can change this anytime in Settings → Experience.")
+            Text("You can change this anytime — the switch lives at the bottom of the sidebar.")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .padding(.bottom, 16)
         }
-        .frame(width: 560, height: selectedLevel == .gettingStarted ? 640 : 480)
+        .frame(width: 660, height: selectedLevel == .gettingStarted ? 660 : 580)
         .onAppear { selectedLevel = appState.experienceLevel }
     }
+
+    // MARK: - Level cards
 
     private func levelCard(_ level: ExperienceLevel) -> some View {
         Button {
@@ -89,9 +94,9 @@ struct WelcomeSheet: View {
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: level.iconName)
-                    .font(.title2)
+                    .font(.title3)
                     .foregroundStyle(selectedLevel == level ? Color.accentColor : .secondary)
-                    .frame(width: 30)
+                    .frame(width: 26)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(level.rawValue)
@@ -101,6 +106,7 @@ struct WelcomeSheet: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
+                        .multilineTextAlignment(.leading)
                 }
 
                 Spacer()
@@ -108,8 +114,8 @@ struct WelcomeSheet: View {
                 Image(systemName: selectedLevel == level ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(selectedLevel == level ? Color.accentColor : .secondary)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 11)
             .background(
                 RoundedRectangle(cornerRadius: 10)
                     .fill(selectedLevel == level ? Color.accentColor.opacity(0.08) : Color(nsColor: .controlBackgroundColor))
@@ -122,6 +128,54 @@ struct WelcomeSheet: View {
         .buttonStyle(.plain)
         .accessibilityLabel(level.rawValue)
         .accessibilityHint(level.summary)
+    }
+
+    // MARK: - Live sidebar preview
+
+    /// Shows the actual sidebar the chosen level produces, using the same
+    /// structure the app renders — the preview can't drift from reality.
+    private var sidebarPreview: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Your sidebar")
+                .font(.headline)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(KegSidebarStructure.sections(for: selectedLevel)) { section in
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(section.name.uppercased())
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                            ForEach(section.items) { item in
+                                Label(item.rawValue, systemImage: item.iconName)
+                                    .font(.callout)
+                            }
+                        }
+                    }
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("APP".uppercased())
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                        Label("Settings", systemImage: "gearshape")
+                            .font(.callout)
+                    }
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+            )
+            .frame(height: 280)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Sidebar preview for \(selectedLevel.rawValue)")
+        }
+        .frame(width: 250)
+        .animation(.snappy(duration: 0.2), value: selectedLevel)
     }
 
     private func quickStartRow(icon: String, title: String, detail: String, action: @escaping () -> Void) -> some View {
