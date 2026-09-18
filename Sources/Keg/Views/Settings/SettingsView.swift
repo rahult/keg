@@ -98,6 +98,26 @@ struct SettingsView: View {
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
 
+                    case .unresponsive:
+                        Circle()
+                            .fill(Color.orange)
+                            .frame(width: 10, height: 10)
+                        VStack(alignment: .leading) {
+                            Text("Unresponsive")
+                                .font(.headline)
+                            Text("Services are running but not answering. Lists will stay empty until it recovers.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button("Restart Services") {
+                            Task {
+                                await appState.stopSystem()
+                                await appState.startSystem()
+                            }
+                        }
+                        .controlSize(.small)
+
                     case .error(let message):
                         Circle()
                             .fill(Color.orange)
@@ -116,6 +136,8 @@ struct SettingsView: View {
                         .controlSize(.small)
                     }
                 }
+
+                ContainerDataLocationRow()
             }
 
             Section("Platform") {
@@ -438,6 +460,51 @@ struct SettingsView: View {
 
 /// Detection + install flow for Apple's `container` CLI. Refreshes whenever the
 /// Settings pane becomes active so users see the updated state after an install.
+/// Configures where the container runtime stores its data (the app-root
+/// passed to `container system start`). Machine-specific: most installs stay
+/// on the default `~/.container`, others keep it on a dedicated volume.
+private struct ContainerDataLocationRow: View {
+    @Environment(AppState.self) private var appState
+    @AppStorage(ContainerCLI.appRootDefaultsKey) private var path = ""
+    @State private var problem: String? = ContainerCLI.appRootProblem()
+
+    /// The runtime answering with a different root than configured means the
+    /// setting won't take effect until services restart.
+    private var runningRootMismatch: String? {
+        guard let configured = ContainerCLI.configuredAppRoot,
+              let running = appState.lastKnownRuntimeAppRoot,
+              running != configured else { return nil }
+        return "Running runtime uses \(running) — restart services to apply \(configured)."
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Data Location")
+                .font(.headline)
+            Text("Where the runtime keeps containers, images, and volumes. Leave empty for the default (~/.container). Change it while the system is stopped, then use Start System.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            TextField("empty = ~/.container", text: $path, prompt: Text("empty = ~/.container"))
+                .textFieldStyle(.roundedBorder)
+                .font(.system(.caption, design: .monospaced))
+                .onChange(of: path) { _, _ in
+                    problem = ContainerCLI.appRootProblem()
+                }
+            if let problem {
+                Text(problem)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+            if let runningRootMismatch {
+                Text(runningRootMismatch)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+}
+
 private struct ContainerCLIStatusRow: View {    @State private var resolvedPath: String? = ContainerCLI.resolve()
 
     private let brewCommand = "brew install container"

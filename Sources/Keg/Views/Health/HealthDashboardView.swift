@@ -2,9 +2,15 @@ import SwiftUI
 
 struct HealthDashboardView: View {
     @State private var vm = HealthScoreVM()
+    @Environment(AppState.self) private var appState
 
     var body: some View {
-        Group {
+        VStack(spacing: 0) {
+            // Runtime facts are shown unconditionally: when the runtime is
+            // wedged, this panel is the only thing on the page that can
+            // explain why everything else is stuck.
+            runtimeSection
+            Divider()
             if vm.isLoading && vm.containerHealths.isEmpty {
                 ProgressView("Loading health data...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -14,14 +20,13 @@ struct HealthDashboardView: View {
                     systemImage: "heart.circle",
                     description: Text("Running containers will show health scores")
                 )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                VStack(spacing: 0) {
-                    // Overall health gauge
-                    overallSection
-                    Divider()
-                    // Per-container table
-                    containerTable
-                }
+                // Overall health gauge
+                overallSection
+                Divider()
+                // Per-container table
+                containerTable
             }
         }
         .accessibilityLabel("Health Dashboard")
@@ -81,6 +86,77 @@ struct HealthDashboardView: View {
         case 80...100: return "All systems healthy"
         case 50...79: return "Some containers need attention"
         default: return "Critical issues detected"
+        }
+    }
+
+    /// Runtime facts you need when things look wrong: which status the
+    /// runtime is in, where its data lives, and what the CLI actually did
+    /// recently (commands, durations, timeouts).
+    private var runtimeSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Runtime")
+                    .font(.headline)
+                Spacer()
+                CopyDiagnosticsButton()
+            }
+
+            HStack(spacing: 16) {
+                Label(systemStatusText, systemImage: systemStatusIcon)
+                    .foregroundStyle(appState.isRuntimeUnresponsive ? Color.orange : Color.primary)
+                Label(appState.effectiveDataRootDescription, systemImage: "internaldrive")
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption)
+
+            let calls = ContainerCLI.recentCalls.suffix(6).reversed()
+            if calls.isEmpty {
+                Text("No CLI activity recorded yet.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(calls) { call in
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(call.startedAt.formatted(date: .omitted, time: .standard))
+                                .foregroundStyle(.tertiary)
+                            Text(call.command)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            Spacer()
+                            Text(call.outcome)
+                                .foregroundStyle(call.outcome.contains("timed out") ? Color.orange : .secondary)
+                            if let duration = call.duration {
+                                Text(String(format: "%.1fs", duration))
+                                    .monospacedDigit()
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                        .font(.system(.caption2, design: .monospaced))
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var systemStatusText: String {
+        switch appState.systemStatus {
+        case .running: return "Runtime answering"
+        case .stopped: return "Runtime stopped"
+        case .unresponsive: return "Runtime unresponsive"
+        case .error: return "Runtime error"
+        }
+    }
+
+    private var systemStatusIcon: String {
+        switch appState.systemStatus {
+        case .running: return "checkmark.circle"
+        case .unresponsive: return "exclamationmark.triangle"
+        case .stopped: return "stop.circle"
+        case .error: return "xmark.circle"
         }
     }
 

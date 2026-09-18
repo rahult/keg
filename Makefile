@@ -183,15 +183,22 @@ release: release-app notarize zip dmg-only
 	@cp $(DMG_NAME) $(DMG_LATEST)
 	@echo "✅ Release artifacts ready: $(DMG_NAME), $(DMG_LATEST), $(ZIP_NAME)"
 
+# Relaunch target for development: quit any running Keg and wait for it to
+# actually exit before opening. (The old 1s blind sleep plus `open -n` lost
+# that race and spawned a second full instance — the "two Keg windows" bug.)
+# Plain `open`, no -n: LaunchServices then can never start a duplicate.
 open: app
 	@osascript -e 'tell application id "$(BUNDLE_ID)" to quit' >/dev/null 2>&1 || true
-	@sleep 1
+	@for i in $$(seq 1 50); do pgrep -x Keg >/dev/null || break; sleep 0.1; done
+	@if pgrep -x Keg >/dev/null; then killall -TERM Keg 2>/dev/null || true; sleep 1; fi
 	@touch $(APP_NAME)
 	@$(LSREGISTER) -f $(APP_NAME) >/dev/null 2>&1 || true
-	open -n $(APP_NAME)
+	open $(APP_NAME)
 
+# Activate-or-launch: focuses the running instance instead of starting a
+# second one. Use `make open` to relaunch a rebuilt bundle over a running Keg.
 run: app
-	@open -n $(APP_NAME)
+	@open $(APP_NAME)
 	@echo "✅ Running signed $(APP_NAME)"
 
 test:

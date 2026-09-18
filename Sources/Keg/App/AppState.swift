@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import ContainerAPIClient
 import ContainerResource
@@ -5,6 +6,9 @@ import ContainerResource
 enum SystemStatus: Sendable {
     case running(SystemHealth)
     case stopped
+    /// Services are alive but not answering within bounds — distinct from
+    /// `.stopped` so the UI can offer diagnostics instead of just Start.
+    case unresponsive
     case error(String)
 }
 
@@ -35,6 +39,11 @@ final class AppState {
             }
         }
     }
+
+    /// Weak handle on the app's single main window, captured by the SwiftUI
+    /// scene so the dock-click reopen path can re-order it front after the
+    /// user closes it (a `Window` scene never recreates its window).
+    weak var mainWindow: NSWindow?
 
     // Area navigation
     var currentArea: AppArea = .keg
@@ -146,6 +155,27 @@ final class AppState {
         return false
     }
 
+    /// The runtime's services are alive but ignoring us — drives the
+    /// diagnostics banner and the slowed refresh cadence.
+    var isRuntimeUnresponsive: Bool {
+        if case .unresponsive = systemStatus { return true }
+        return false
+    }
+
+    /// The app-root the running apiserver reports, when one answered recently.
+    var lastKnownRuntimeAppRoot: String?
+
+    /// Effective data location for display: prefers the appRoot reported by
+    /// the live runtime (ground truth), falling back to the configured
+    /// override, then the default.
+    var effectiveDataRootDescription: String {
+        if let lastKnownRuntimeAppRoot {
+            return lastKnownRuntimeAppRoot
+        }
+        return ContainerCLI.configuredAppRoot ?? "~/.container (default)"
+    }
+
+
     // DISABLED: reading keychain state at launch triggers repeated prompts
     // (see note in init). Treat the agents feature as signed out until the
     // user connects explicitly from Settings.
@@ -212,44 +242,117 @@ final class AppState {
         await refreshDashboardCounts()
     }
 
+    /// Bounds any async call — most importantly the XPC API-client calls,
+    /// whose timeout argument does not bound connection establishment against
+    /// a wedged apiserver (observed: `ClientHealthCheck.ping(timeout: 5s)`
+    /// hanging for minutes). When the deadline wins, the abandoned task is
+    /// left in the background — XPC work can't be truly cancelled, but the
+    /// caller stops caring and the UI recovers.
+    private static func withTimeout<T: Sendable>(
+        _ timeout: Duration,
+        operation: @escaping @Sendable () async throws -> T
+    ) async throws -> T {
+        try await withCheckedThrowingContinuation { continuation in
+            let once = ResumeOnce(continuation: continuation)
+            Task.detached(priority: .userInitiated) {
+                do {
+                    let value = try await operation()
+                    once.resume(returning: value)
+                } catch {
+                    once.resume(throwing: error)
+                }
+            }
+            Task.detached(priority: .utility) {
+                try? await Task.sleep(for: timeout)
+                once.resume(throwing: ContainerCLIError.unresponsive(command: "runtime API call"))
+            }
+        }
+    }
+
+    /// Ensures the wrapped continuation resumes exactly once.
+    private final class ResumeOnce<T: Sendable>: @unchecked Sendable {
+        private let lock = NSLock()
+        private var resumed = false
+        private let continuation: CheckedContinuation<T, Error>
+
+        init(continuation: CheckedContinuation<T, Error>) {
+            self.continuation = continuation
+        }
+
+        func resume(returning value: T) {
+            lock.lock()
+            guard !resumed else { lock.unlock(); return }
+            resumed = true
+            lock.unlock()
+            continuation.resume(returning: value)
+        }
+
+        func resume(throwing error: Error) {
+            lock.lock()
+            guard !resumed else { lock.unlock(); return }
+            resumed = true
+            lock.unlock()
+            continuation.resume(throwing: error)
+        }
+    }
+
     func checkSystemStatus() async {
         do {
-            let health = try await ClientHealthCheck.ping(timeout: .seconds(5))
+            let health = try await Self.withTimeout(.seconds(8)) {
+                try await ClientHealthCheck.ping(timeout: .seconds(5))
+            }
+            lastKnownRuntimeAppRoot = health.appRoot.path
             systemStatus = .running(health)
         } catch {
-            systemStatus = .stopped
+            // The launchd service having a live process means the runtime
+            // started; if it still won't answer, it's wedged, not stopped.
+            if ContainerCLI.isAPIServerProcessRunning() {
+                systemStatus = .unresponsive
+            } else {
+                systemStatus = .stopped
+            }
         }
     }
 
     func startSystem() async {
         systemStatus = .stopped
+        if let problem = ContainerCLI.appRootProblem() {
+            systemStatus = .error(problem)
+            return
+        }
         do {
-            let process = Process()
-            let pipe = Pipe()
-            process.executableURL = URL(filePath: "/usr/bin/env")
-            process.arguments = ["container", "system", "start"]
-            process.standardOutput = pipe
-            process.standardError = pipe
-            try process.run()
-            process.waitUntilExit()
-
-            if process.terminationStatus != 0 {
-                let errorData = pipe.fileHandleForReading.readDataToEndOfFile()
-                let errorMessage = String(data: errorData, encoding: .utf8) ?? "Unknown error"
-                systemStatus = .error(errorMessage)
+            let arguments = ["container", "system", "start"] + ContainerCLI.appRootArguments
+            // Bounded: a wedged runtime used to hang this call forever. On
+            // timeout the child is killed and .unresponsive (or the error)
+            // is surfaced instead of the app silently stalling.
+            let (code, output) = try await ContainerCLI.run(arguments, timeout: .seconds(120))
+            if code != 0 {
+                systemStatus = .error(output.isEmpty ? "container system start failed" : output)
                 return
             }
-
             for _ in 0..<30 {
                 do {
-                    let health = try await ClientHealthCheck.ping(timeout: .seconds(2))
+                    let health = try await Self.withTimeout(.seconds(3)) {
+                        try await ClientHealthCheck.ping(timeout: .seconds(2))
+                    }
+                    lastKnownRuntimeAppRoot = health.appRoot.path
                     systemStatus = .running(health)
                     return
                 } catch {
                     try? await Task.sleep(for: .seconds(1))
                 }
             }
-            systemStatus = .error("API server did not start within timeout")
+            if ContainerCLI.isAPIServerProcessRunning() {
+                systemStatus = .unresponsive
+            } else {
+                systemStatus = .error("API server did not start within timeout")
+            }
+        } catch let error as ContainerCLIError {
+            if case .unresponsive = error {
+                systemStatus = .unresponsive
+            } else {
+                systemStatus = .error(error.localizedDescription)
+            }
         } catch {
             systemStatus = .error(error.localizedDescription)
         }
@@ -257,12 +360,14 @@ final class AppState {
 
     func stopSystem() async {
         do {
-            let process = Process()
-            process.executableURL = URL(filePath: "/usr/bin/env")
-            process.arguments = ["container", "system", "stop"]
-            try process.run()
-            process.waitUntilExit()
+            let (code, output) = try await ContainerCLI.run(["container", "system", "stop"], timeout: .seconds(30))
+            if code != 0 {
+                systemStatus = .error(output.isEmpty ? "container system stop failed" : output)
+                return
+            }
             systemStatus = .stopped
+        } catch is ContainerCLIError {
+            systemStatus = .unresponsive
         } catch {
             systemStatus = .error(error.localizedDescription)
         }
@@ -314,9 +419,17 @@ final class AppState {
     }
 
     /// Schedule the next refresh timer tick with an adaptive interval:
-    /// 2 seconds when containers are running, 10 seconds when idle.
+    /// 2 seconds when containers are running, 10 seconds when idle, and a
+    /// minute when the runtime is unresponsive — hammering a wedged runtime
+    /// every 2s just piles up dead calls (each status check alone costs its
+    /// 5s ping timeout).
     private func scheduleRefreshTimer() {
-        let interval: TimeInterval = runningContainerCount > 0 ? 2.0 : 10.0
+        let interval: TimeInterval
+        if isRuntimeUnresponsive {
+            interval = 60.0
+        } else {
+            interval = runningContainerCount > 0 ? 2.0 : 10.0
+        }
         refreshTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -344,12 +457,16 @@ final class AppState {
 
     private func refreshDashboardCounts() async {
         do {
-            let containers = try await containerClient.list(filters: .all)
+            let containers = try await Self.withTimeout(.seconds(20)) {
+                try await self.containerClient.list(filters: .all)
+            }
             runningContainerCount = containers.filter { $0.status == .running }.count
 
             var warnings = 0
             for container in containers where container.status == .running {
-                if let stats = try? await containerClient.stats(id: container.id),
+                if let stats = try? await Self.withTimeout(.seconds(10), operation: {
+                    try await self.containerClient.stats(id: container.id)
+                }),
                    let used = stats.memoryUsageBytes,
                    let limit = stats.memoryLimitBytes,
                    limit > 0 {

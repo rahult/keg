@@ -28,7 +28,7 @@ actor SupaglueContainer {
     /// Pinned to the host platform — an unpinned pull unpacks every platform
     /// variant in the index (~1.1 GB of disk per ext4 snapshot).
     func pull() async throws -> (code: Int32, stdout: String, stderr: String) {
-        try await runCLI(["container", "pull", "--platform", "linux/arm64", Self.imageName])
+        try await runCLI(["container", "pull", "--platform", "linux/arm64", Self.imageName], timeout: .seconds(1200))
     }
 
     /// Start the Supaglue container in detached mode using `container run`.
@@ -122,25 +122,11 @@ actor SupaglueContainer {
     // MARK: - CLI Helper
 
     /// Run an arbitrary CLI command and return exit code + combined output.
-    private func runCLI(_ args: [String]) async throws -> (code: Int32, stdout: String, stderr: String) {
-        try await withCheckedThrowingContinuation { continuation in
-            let process = Process()
-            let pipe = Pipe()
-            process.executableURL = URL(filePath: "/usr/bin/env")
-            process.arguments = args
-            process.standardOutput = pipe
-            process.standardError = pipe
-
-            do {
-                try process.run()
-                process.waitUntilExit()
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: data, encoding: .utf8) ?? ""
-                continuation.resume(returning: (process.terminationStatus, output, ""))
-            } catch {
-                continuation.resume(throwing: error)
-            }
-        }
+    /// Routed through ContainerCLI so wedged runtime calls are killed at the
+    /// deadline instead of hanging this actor forever.
+    private func runCLI(_ args: [String], timeout: Duration = .seconds(300)) async throws -> (code: Int32, stdout: String, stderr: String) {
+        let (code, output) = try await ContainerCLI.run(args, timeout: timeout)
+        return (code, output, "")
     }
 }
 

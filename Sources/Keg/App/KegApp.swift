@@ -8,10 +8,13 @@ import SwiftUI
 /// `docker` CLI dead until the user opened the window.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    let appState: AppState
+    /// Owned here so the `@NSApplicationDelegateAdaptor` (which requires a
+    /// no-argument init) can create it; the App struct injects the same
+    /// instance into the scene environment.
+    let appState = AppState()
 
-    init(appState: AppState) {
-        self.appState = appState
+    override init() {
+        super.init()
         Self.installExceptionLogger()
     }
 
@@ -41,6 +44,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Only one Keg may ever run. LaunchServices dedupes ordinary launches,
+    /// but `open -n` (dev targets, user commands) forces a second process,
+    /// and stray bare binaries (a `.build/debug/Keg` left over from a dev
+    /// session) aren't even visible to NSWorkspace's app list — so detect
+    /// rivals at the process level by executable path instead. The lowest
+    /// pid always survives a simultaneous race, and both racers compute the
+    /// same winner. Zombies have no executable path and never match.
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        let myPid = ProcessInfo.processInfo.processIdentifier
+        guard let rival = Self.otherKegProcesses(excluding: myPid).min(), rival < myPid else {
+            return
+        }
+        NSWorkspace.shared.runningApplications
+            .first { $0.processIdentifier == rival }?
+            .activate()
+        exit(0)
+    }
+
+    /// Pids of other live processes whose executable file is named `Keg`
+    /// (case-sensitive, so the `keg` CLI never matches).
+    private static func otherKegProcesses(excluding myPid: pid_t) -> [pid_t] {
+        let hint = proc_listallpids(nil, 0)
+        guard hint > 0 else { return [] }
+        var pids = [pid_t](repeating: 0, count: Int(hint) + 1)
+        let bufferSize = Int32(pids.count * MemoryLayout<pid_t>.stride)
+        let count = proc_listallpids(&pids, bufferSize)
+        guard count > 0 else { return [] }
+        // PROC_PIDPATHINFO_MAXSIZE (= 4 * MAXPATHLEN) isn't exposed to Swift.
+        var path = [CChar](repeating: 0, count: 4 * Int(MAXPATHLEN))
+        return pids.prefix(Int(count)).compactMap { pid in
+            guard pid != myPid,
+                  proc_pidpath(pid, &path, UInt32(path.count)) > 0,
+                  String(cString: path).hasSuffix("/Keg") else {
+                return nil
+            }
+            return pid
+        }
+    }
+
+    /// Dock-icon clicks with no visible window come here. A `Window` scene
+    /// keeps exactly one window but doesn't recreate it after the user closes
+    /// it, so re-order the tracked window front ourselves. Returning true
+    /// lets AppKit finish its normal activation.
+    func applicationShouldHandleReopen(_ application: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag, let window = appState.mainWindow {
+            window.makeKeyAndOrderFront(nil)
+        }
+        return true
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         Task { @MainActor [appState] in
             await appState.ensureReady()
@@ -59,21 +112,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 @main
 struct KegApp: App {
-    @State private var appState: AppState
+    /// The adaptor (not `NSApplication.shared.delegate = …`) is load-bearing:
+    /// SwiftUI installs its own app delegate during setup, which silently
+    /// overwrote a manual assignment, so none of our delegate callbacks —
+    /// including the single-instance guard and the socket bring-up — ran.
+    @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
+    /// Same instance for the app's lifetime — the delegate owns it.
+    private var appState: AppState { appDelegate.appState }
     @State private var updater = SoftwareUpdater()
-    /// Keeps the launch delegate alive for the app's lifetime. (NSApplication
-    /// only weakly references its delegate.)
-    private let appDelegate: AppDelegate
 
     init() {
         if let icon = KegIcon.image {
             NSApplication.shared.applicationIconImage = icon
         }
-        let state = AppState()
-        _appState = State(initialValue: state)
-        let delegate = AppDelegate(appState: state)
-        appDelegate = delegate
-        NSApplication.shared.delegate = delegate
     }
 
     private func presentRunContainer() {
@@ -116,8 +167,12 @@ struct KegApp: App {
     }
 
     var body: some Scene {
-        // Main window
-        WindowGroup(id: "main") {
+        // Main window. A `Window` scene (not `WindowGroup`) is the whole
+        // point: the system enforces exactly one instance of this window, so
+        // there is no New Window menu item and every `openWindow(id:)` /
+        // `keg://` deep link resolves to the same window instead of spawning
+        // a second one.
+        Window("Keg", id: "main") {
             MainView()
                 .environment(appState)
                 .environment(updater)
@@ -265,8 +320,17 @@ struct MainView: View {
             SidebarView()
                 .environment(appState)
         } detail: {
-            DetailView()
-                .environment(appState)
+            VStack(spacing: 0) {
+                // Banner lives in a plain VStack: safeAreaInset(.top) on the
+                // split view overlaps content on macOS 26 instead of insetting.
+                if appState.isRuntimeUnresponsive {
+                    RuntimeUnresponsiveBanner()
+                        .environment(appState)
+                    Divider()
+                }
+                DetailView()
+            }
+            .environment(appState)
         }
         .navigationSplitViewStyle(.balanced)
         .task {
@@ -290,6 +354,7 @@ struct MainView: View {
         .onReceive(NotificationCenter.default.publisher(for: .kegPlatformInstalled)) { _ in
             Task { await appState.ensureReady() }
         }
+        .background(MainWindowAccessor(appState: appState))
         .onDisappear {
             appState.stopRefreshing()
         }
@@ -310,6 +375,25 @@ struct MainView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
             NotificationCenter.default.post(name: .kegRunImage, object: image)
         }
+    }
+}
+
+// MARK: - Window Tracking
+
+/// Records the scene's NSWindow on the app state so the application delegate
+/// can re-show it after close (dock icon / `keg open`). SwiftUI owns the
+/// window; we only keep a weak reference.
+private struct MainWindowAccessor: NSViewRepresentable {
+    let appState: AppState
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async { appState.mainWindow = view.window }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        appState.mainWindow = nsView.window
     }
 }
 

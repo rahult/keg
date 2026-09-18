@@ -45,8 +45,8 @@ actor ContainerBridge {
     private var imageSizeCache: (timestamp: Date, sizes: [String: Int64])?
     private let imageSizeCacheTTL: TimeInterval = 30
 
-    func runCLI(_ args: [String]) async throws -> (exitCode: Int32, output: String) {
-        let (code, output) = try await ContainerCLI.run(args)
+    func runCLI(_ args: [String], timeout: Duration = .seconds(30)) async throws -> (exitCode: Int32, output: String) {
+        let (code, output) = try await ContainerCLI.run(args, timeout: timeout)
         return (code, output)
     }
 
@@ -80,7 +80,7 @@ actor ContainerBridge {
         // to the host — an unpinned pull unpacks all variants, ~1.1 GB each)
         if let image = request.image, !image.isEmpty {
             let platform = (request.platform?.isEmpty == false) ? request.platform! : Self.hostPlatform
-            let _ = try await runCLI(["container", "image", "pull", "--platform", platform, image])
+            let _ = try await runCLI(["container", "image", "pull", "--platform", platform, image], timeout: .seconds(1200))
         }
 
         // Real `container create` so the container exists before start —
@@ -299,7 +299,7 @@ actor ContainerBridge {
             imageRef = String(input.dropFirst("fromImage=".count))
         }
 
-        let (code, output) = try await runCLI(["container", "image", "pull", "--platform", Self.hostPlatform, imageRef])
+        let (code, output) = try await runCLI(["container", "image", "pull", "--platform", Self.hostPlatform, imageRef], timeout: .seconds(1200))
         if code != 0 {
             throw DockerAPIError.imagePullFailed(output)
         }

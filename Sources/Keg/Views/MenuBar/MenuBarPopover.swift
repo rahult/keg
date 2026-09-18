@@ -85,8 +85,16 @@ struct MenuBarPopover: View {
 
     private var statusCircle: some View {
         Circle()
-            .fill(appState.isSystemRunning ? Color.green : Color.red)
+            .fill(statusColor)
             .frame(width: 10, height: 10)
+    }
+
+    private var statusColor: Color {
+        switch appState.systemStatus {
+        case .running: return .green
+        case .unresponsive: return .orange
+        case .stopped, .error: return .red
+        }
     }
 
     private var statusText: String {
@@ -95,6 +103,8 @@ struct MenuBarPopover: View {
             return "Container System Running"
         case .stopped:
             return "Container System Stopped"
+        case .unresponsive:
+            return "Container System Unresponsive"
         case .error(let msg):
             return msg
         }

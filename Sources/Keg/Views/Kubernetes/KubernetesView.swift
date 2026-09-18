@@ -281,8 +281,8 @@ final class KubernetesVM {
         )
     }
 
-    private func runCLI(_ args: [String]) async throws -> (Int32, String) {
-        try await ContainerCLI.run(args)
+    private func runCLI(_ args: [String], timeout: Duration = .seconds(300)) async throws -> (Int32, String) {
+        try await ContainerCLI.run(args, timeout: timeout)
     }
 }
 

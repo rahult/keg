@@ -71,7 +71,7 @@ final class ImagesVM {
             // amd64 images translated when the runtime has Rosetta enabled.
             let (code, output) = try await ContainerCLI.run([
                 "container", "image", "pull", "--platform", "linux/\(architecture)", normalized,
-            ])
+            ], timeout: .seconds(1200))
             guard code == 0 else {
                 throw ContainerCLIFailure(message: output.isEmpty ? "Pull failed" : output)
             }
