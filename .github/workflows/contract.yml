@@ -1,0 +1,49 @@
+name: Contract
+
+# The Docker CLI contract suite needs Apple's container runtime, which only
+# exists on a real Mac. Attach a self-hosted runner with the
+# `macos-container-runtime` label (macOS 26+, arm64, container CLI
+# installed, Keg's Docker API NOT auto-started — the suite runs against a
+# Keg instance this workflow launches):
+#
+#   brew install gh act  # or download from https://github.com/actions/runner
+#   ./config.sh --url https://github.com/rahult/keg --token <token> \
+#     --labels macos-container-runtime
+#   ./run.sh
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  contract:
+    runs-on: [self-hosted, macos-container-runtime]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: swift build
+
+      - name: Unit tests
+        run: swift test
+
+      - name: Launch Keg
+        run: |
+          nohup .build/debug/Keg > /tmp/keg-ci.log 2>&1 &
+          for i in $(seq 1 60); do
+            [ -S "$HOME/.keg/docker.sock" ] && break
+            sleep 0.5
+          done
+          [ -S "$HOME/.keg/docker.sock" ] || { echo "Keg failed to bind its Docker API socket"; cat /tmp/keg-ci.log; exit 1; }
+
+      - name: Docker CLI contract suite
+        run: ./Scripts/docker-cli-contract-test.sh
+
+      - name: Cleanup
+        if: always()
+        run: |
+          pkill -f ".build/debug/Keg" || true
+          rm -f "$HOME/.keg/docker.sock"
+          docker rm -f $(docker ps -aq) 2>/dev/null || true

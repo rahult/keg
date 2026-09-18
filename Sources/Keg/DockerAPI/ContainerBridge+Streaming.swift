@@ -17,51 +17,163 @@ extension ContainerBridge {
     /// attach hijack registered pipes for this container (docker run), the
     /// bootstrap uses them as the container's stdio instead. Falls back to
     /// the `container start` CLI when the XPC service is unavailable.
+    /// Starts `id` via XPC with retained stdio pipes (an `AttachBuffer`),
+    /// keeping the process handle so `/wait` can report the real exit code
+    /// and making `docker attach` / `keg attach` work at any time. Falls
+    /// back to the `container start` CLI (no retained stdio) if XPC fails.
     func startContainerWithExitTracking(id: String) async throws {
-        if let pump = attachIntents.removeValue(forKey: id) {
-            if let process = try? await Self.xpc.bootstrap(id: id, stdio: pump.stdioHandles) {
-                do {
-                    try await process.start()
-                    pump.setProcess(process)
-                    // Attach readers after the process handle exists — the
-                    // reap task captures it. Pipe buffers hold any output
-                    // produced in between.
-                    pump.beginStreaming()
-                    // The stored task lets /wait share the pump's single
-                    // authoritative wait.
-                    startedProcesses[id] = Task { await pump.completion() }
-                    return
-                } catch {
-                    startedProcesses[id] = nil
-                    pump.closePipes()
-                    // Fall through to a detached start; the attached client
-                    // will see the connection close.
+        userStoppedIDs.remove(id)
+        let tty = await containerIsTTY(id: id)
+        let pump = ExecPump(execID: "stdio-\(id)", tty: tty, interactive: true)
+        guard let process = try? await Self.xpc.bootstrap(id: id, stdio: pump.stdioHandles) else {
+            pump.closePipes()
+            let (code, output) = try await runCLI(["container", "start", id])
+            if code != 0 {
+                throw DockerAPIError.containerStartFailed(output)
+            }
+            return
+        }
+        do {
+            pump.releaseWriteEndsToRuntime()
+            try await process.start()
+            pump.setProcess(process)
+            pump.beginStreaming()
+            startedProcesses[id] = Task { await pump.completion() }
+
+            if let (connection, wantsStdin) = pendingAttaches.removeValue(forKey: id)?.first {
+                // docker run: hand the retained pump straight to the
+                // waiting attached connection (proven direct wiring).
+                if wantsStdin {
+                    connection.setReadHandler(
+                        { data in pump.writeStdin(data) },
+                        eof: { pump.closeStdin() }
+                    )
+                }
+                Task.detached {
+                    for try await chunk in pump.makeOutputStream() {
+                        if pump.tty {
+                            connection.write(chunk.data)
+                        } else {
+                            connection.write(DockerAPIServer.stdcopyFrame(chunk))
+                        }
+                    }
+                    _ = await pump.completion()
+                    connection.close()
                 }
             } else {
-                pump.closePipes()
+                // No one is attached yet: retain stdio for late attach.
+                let buffer = AttachBuffer(pump: pump, tty: tty)
+                buffer.start()
+                attachBuffers[id] = buffer
+                pruneAttachBuffers()
             }
-        }
-        if let process = try? await Self.xpc.bootstrap(id: id, stdio: [nil, nil, nil]) {
-            do {
-                try await process.start()
-                startedProcesses[id] = Task { (try? await process.wait()) ?? 0 }
-                return
-            } catch {
-                startedProcesses[id] = nil
-                // The start failed over XPC; surface via the CLI path so the
-                // error message matches what users saw before.
-            }
-        }
-        let (code, output) = try await runCLI(["container", "start", id])
-        if code != 0 {
-            throw DockerAPIError.containerStartFailed(output)
+        } catch {
+            pump.closePipes()
+            throw DockerAPIError.containerStartFailed("\(error)")
         }
     }
 
-    /// Registers stdio pipes for a container that a client attached to
-    /// before starting (the `docker run` flow).
-    func registerAttachIntent(id: String, pump: ExecPump) {
-        attachIntents[id] = pump
+    private func containerIsTTY(id: String) async -> Bool {
+        let (_, output) = (try? await runCLI(["container", "inspect", id])) ?? (1, "")
+        guard let data = output.data(using: .utf8),
+              let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+              let entry = entries.first else { return false }
+        let initProc = (entry["configuration"] as? [String: Any])?["initProcess"] as? [String: Any]
+        return (initProc?["terminal"] as? Bool) ?? false
+    }
+
+    // MARK: - Attach buffers (retained container stdio)
+
+    /// Retained-stdio buffer for a container, if Keg started it.
+    func attachBuffer(id: String) -> AttachBuffer? {
+        attachBuffers[id]
+    }
+
+    func registerPendingAttach(id: String, connection: HijackedConnection, wantsStdin: Bool) {
+        pendingAttaches[id, default: []].append((connection, wantsStdin))
+    }
+
+    private func drainPendingAttaches(id: String) {
+        guard let buffer = attachBuffers[id] else { return }
+        for (connection, wantsStdin) in pendingAttaches.removeValue(forKey: id) ?? [] {
+            if wantsStdin {
+                connection.setReadHandler(
+                    { data in buffer.pump.writeStdin(data) },
+                    eof: { buffer.pump.closeStdin() }
+                )
+            }
+            buffer.attach(connection)
+        }
+    }
+
+    /// Bounded memory: drop the oldest finished buffers past 64 entries.
+    private func pruneAttachBuffers() {
+        guard attachBuffers.count > 64 else { return }
+        let finished = attachBuffers
+            .filter { $0.value.isFinished }
+            .sorted { $0.value.finishedAt ?? Date.distantPast < $1.value.finishedAt ?? .distantPast }
+        for (id, _) in finished.prefix(attachBuffers.count - 64) {
+            attachBuffers.removeValue(forKey: id)
+        }
+    }
+
+    /// Called when a container is destroyed so its buffer dies with it.
+    func discardAttachBuffer(id: String) {
+        attachBuffers.removeValue(forKey: id)
+        pendingAttaches.removeValue(forKey: id)
+    }
+
+    // MARK: - Restart policies
+
+    /// The restart policy recorded on a container's labels, if any.
+    func restartPolicy(container: DockerContainer) -> String? {
+        container.labels?["keg.restart-policy"]
+    }
+
+    /// Called by the event bus when a container exits: restarts it if its
+    /// policy says so. Caps consecutive restarts so a crash-looping
+    /// container can't spin forever; a successful long run resets the cap
+    /// (approximated by elapsed time since the last restart).
+    func handleContainerExited(_ container: DockerContainer) async {
+        guard let policy = restartPolicy(container: container),
+              ["always", "unless-stopped", "on-failure"].contains(policy),
+              !userStoppedIDs.contains(container.id) else {
+            return
+        }
+
+        let attempts = restartAttempts[container.id] ?? 0
+        guard attempts < 5 else { return }
+        restartAttempts[container.id] = attempts + 1
+
+        // Give a fast-failing process a beat before restarting, and the
+        // runtime a moment to settle the stopped state.
+        try? await Task.sleep(nanoseconds: 1_000_000_000)
+        // The container may have been removed meanwhile.
+        let inspect = try? await runCLI(["container", "inspect", container.id])
+        guard inspect?.0 == 0 else {
+            restartAttempts.removeValue(forKey: container.id)
+            return
+        }
+        userStoppedIDs.remove(container.id)
+        _ = try? await startContainerWithExitTracking(id: container.id)
+    }
+
+    /// Marks a container as deliberately stopped (API stop/kill/rm).
+    func markUserStopped(_ id: String) {
+        userStoppedIDs.insert(id)
+    }
+
+    /// Starts every stopped container labeled restart=always — docker
+    /// restarts those when the daemon comes up. `unless-stopped` and
+    /// `on-failure` containers stay down across daemon restarts.
+    func restartAlwaysContainersOnLaunch() async {
+        guard let containers = try? await listContainers(all: true) else { return }
+        for container in containers where container.state != "running" {
+            if restartPolicy(container: container) == "always" {
+                userStoppedIDs.remove(container.id)
+                _ = try? await startContainerWithExitTracking(id: container.id)
+            }
+        }
     }
 
     /// Waits for `id` to stop and returns its exit code. Blocks while the
@@ -95,21 +207,6 @@ extension ContainerBridge {
         // Phase 2: resolve the exit code.
         if let exitTask = startedProcesses.removeValue(forKey: id) {
             return await exitTask.value
-        }
-        // A pending attach means the start route owns the bootstrap; poll
-        // for the exit instead of stealing stdio.
-        if attachIntents[id] != nil {
-            while true {
-                let (_, output) = try await runCLI(["container", "inspect", id])
-                if let data = output.data(using: .utf8),
-                   let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
-                   let entry = entries.first,
-                   let state = (entry["status"] as? [String: Any])?["state"] as? String,
-                   state != "running" {
-                    return 0
-                }
-                try await Task.sleep(nanoseconds: 250_000_000)
-            }
         }
         if let process = try? await Self.xpc.bootstrap(id: id, stdio: [nil, nil, nil]) {
             if let code = try? await process.wait() {
@@ -175,6 +272,7 @@ extension ContainerBridge {
                 configuration: configuration,
                 stdio: pump.stdioHandles
             )
+            pump.releaseWriteEndsToRuntime()
             try await process.start()
             pump.setProcess(process)
             pump.beginStreaming()
@@ -267,6 +365,212 @@ extension ContainerBridge {
         let total = ticks.reduce(0, +)
         // CLK_TCK is 100 on Darwin: one tick = 10 ms = 10_000 µs.
         return UInt64(clamping: total) * 10_000
+    }
+
+    // MARK: - docker cp (archive endpoints)
+
+    /// `PUT /containers/{id}/archive?path=…`: extracts the uploaded tar to
+    /// a temp dir and XPC-copies each top-level entry into the container.
+    func copyIntoContainer(id: String, tarData: Data, destination: String) async throws {
+        let workDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keg-cp-in-\(UUID().uuidString.prefix(8))")
+        let tarPath = workDir.appendingPathComponent("in.tar").path
+        try FileManager.default.createDirectory(at: workDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: workDir) }
+
+        FileManager.default.createFile(atPath: tarPath, contents: nil)
+        let handle = try FileHandle(forWritingTo: URL(filePath: tarPath))
+        try handle.write(contentsOf: tarData)
+        try handle.close()
+
+        let extract = Process()
+        extract.executableURL = URL(filePath: "/usr/bin/tar")
+        extract.arguments = ["-xf", tarPath, "-C", workDir.path]
+        extract.standardOutput = FileHandle.nullDevice
+        extract.standardError = FileHandle.nullDevice
+        try extract.run()
+        extract.waitUntilExit()
+        guard extract.terminationStatus == 0 else {
+            throw DockerAPIError.badRequest("uploaded archive is not a valid tar")
+        }
+
+        let entries = (try? FileManager.default.contentsOfDirectory(atPath: workDir.path)) ?? []
+        let topLevel = entries.filter { $0 != "in.tar" }
+        guard !topLevel.isEmpty else {
+            throw DockerAPIError.badRequest("uploaded archive is empty")
+        }
+
+        // docker cp semantics: when the destination is an existing
+        // directory, entries land INSIDE it under their own names.
+        let destinationIsDirectory = await self.pathIsDirectory(id: id, path: destination)
+        for entry in topLevel {
+            let target = destinationIsDirectory
+                ? (destination as NSString).appendingPathComponent(entry)
+                : destination
+            try await Self.xpc.copyIn(
+                id: id,
+                source: workDir.appendingPathComponent(entry).path,
+                destination: target
+            )
+        }
+    }
+
+    private func pathIsDirectory(id: String, path: String) async -> Bool {
+        let (code, output) = (try? await runCLI(["container", "exec", id, "stat", "-c", "%F", path])) ?? (1, "")
+        guard code == 0 else { return false }
+        return output.trimmingCharacters(in: .whitespacesAndNewlines).contains("directory")
+    }
+
+    /// `GET /containers/{id}/archive?path=…`: XPC-copies the path out and
+    /// returns it as a tar stream (single top-level entry, like docker cp).
+    func copyOutOfContainer(id: String, source: String) async throws -> Data {
+        let workDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keg-cp-out-\(UUID().uuidString.prefix(8))")
+        try FileManager.default.createDirectory(at: workDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: workDir) }
+
+        // XPC copyOut expects the exact destination path (file or dir),
+        // unlike cp semantics — hand it <tmp>/<basename>.
+        let baseName = (source as NSString).lastPathComponent
+        let destination = workDir.appendingPathComponent(baseName.isEmpty ? "payload" : baseName).path
+        try await Self.xpc.copyOut(id: id, source: source, destination: destination)
+
+        let entries = (try? FileManager.default.contentsOfDirectory(atPath: workDir.path)) ?? []
+        guard let first = entries.first else {
+            throw DockerAPIError.badRequest("no such path in container: \(source)")
+        }
+
+        let tar = Process()
+        let pipe = Pipe()
+        tar.executableURL = URL(filePath: "/usr/bin/tar")
+        tar.arguments = ["-cf", "-", "-C", workDir.path, first]
+        tar.standardOutput = pipe
+        tar.standardError = FileHandle.nullDevice
+        try tar.run()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        tar.waitUntilExit()
+        guard tar.terminationStatus == 0, !data.isEmpty else {
+            throw DockerAPIError.badRequest("failed to archive path \(source)")
+        }
+        return data
+    }
+
+    // MARK: - Attach buffer
+
+/// Retained stdio for one API-started container. Output is framed (non-TTY)
+/// or raw (TTY) into a bounded ring so a client attaching later still sees
+/// recent history, while a live attached connection receives bytes as they
+/// arrive. Lives in ContainerBridge's `attachBuffers`.
+final class AttachBuffer: @unchecked Sendable {
+    let pump: ExecPump
+    let tty: Bool
+    private let lock = NSLock()
+    private var ring = Data()
+    private static let ringCap = 256 * 1024
+    private var liveConnection: HijackedConnection?
+    private(set) var isFinished = false
+    private(set) var finishedAt: Date?
+    private var consumer: Task<Void, Never>?
+
+    init(pump: ExecPump, tty: Bool) {
+        self.pump = pump
+        self.tty = tty
+    }
+
+    /// Starts consuming the pump's output into the ring (and any live
+    /// connection). Called once, right after the container starts.
+    func start() {
+        consumer = Task<Void, Never> { [weak self] in
+            guard let self else { return }
+            do {
+                for try await chunk in self.pump.makeOutputStream() {
+                    self.ingest(chunk)
+                }
+            } catch {
+                // Stream cancelled — keep whatever the ring captured.
+            }
+            self.finish()
+        }
+    }
+
+    private func ingest(_ chunk: ExecPump.TaggedChunk) {
+        let bytes = tty ? chunk.data : DockerAPIServer.stdcopyFrame(chunk)
+        lock.lock()
+        ring.append(bytes)
+        if ring.count > Self.ringCap {
+            ring.removeFirst(ring.count - Self.ringCap)
+        }
+        let connection = liveConnection
+        lock.unlock()
+        connection?.write(bytes)
+    }
+
+    /// Attaches a hijacked connection: replays recent history, then streams
+    /// live until the container exits (or the client goes away).
+    func attach(_ connection: HijackedConnection) {
+        lock.lock()
+        let replay = ring
+        let finished = isFinished
+        liveConnection = connection
+        lock.unlock()
+
+        connection.onClosed = { [weak self] in
+            guard let self else { return }
+            self.lock.lock()
+            self.liveConnection = nil
+            self.lock.unlock()
+        }
+
+        if !replay.isEmpty {
+            connection.write(replay)
+        }
+        if finished {
+            // Container already exited; the client sees history, then EOF.
+            connection.close()
+        }
+    }
+
+    private func finish() {
+        lock.lock()
+        isFinished = true
+        finishedAt = Date()
+        let connection = liveConnection
+        liveConnection = nil
+        lock.unlock()
+        connection?.close()
+    }
+}
+
+    /// The base64 `X-Docker-Container-Path-Stat` payload docker cp requires
+    /// on both HEAD and GET /archive: {name, size, mode, mTime}. Computed
+    /// with a stat(1) inside the container (busybox-compatible).
+    func containerPathStat(id: String, path: String) async throws -> String {
+        let (code, output) = try await runCLI([
+            "container", "exec", id,
+            "stat", "-c", "%F|%s|%Y", path,
+        ])
+        guard code == 0 else {
+            throw DockerAPIError.containerNotFound("no such path: \(path)")
+        }
+        let parts = output.trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(separator: "|").map(String.init)
+        let kind = parts.count > 0 ? parts[0] : ""
+        let size = parts.count > 1 ? Int64(parts[1]) ?? 0 : 0
+        let mtime = parts.count > 2 ? Int64(parts[2]) ?? 0 : 0
+
+        // Go FileMode: os.ModeDir is bit 31; permission bits ride along.
+        let mode: Int64 = kind.contains("directory") ? ((1 << 31) | 0o755) : 0o644
+        let name = (path as NSString).lastPathComponent
+        // docker's PathStat decodes mTime as a Go time.Time — RFC 3339.
+        let mtimeDate = Date(timeIntervalSince1970: TimeInterval(mtime))
+        let payload: [String: Any] = [
+            "name": name.isEmpty ? "/" : name,
+            "size": size,
+            "mode": mode,
+            "mTime": ISO8601DateFormatter().string(from: mtimeDate),
+        ]
+        let json = try JSONSerialization.data(withJSONObject: payload)
+        return json.base64EncodedString()
     }
 
     // MARK: - Streaming image operations
@@ -376,6 +680,8 @@ final class ExecPump: @unchecked Sendable {
     private var exitCode: Int32?
     private var exitWaiters: [CheckedContinuation<Int32, Never>] = []
     private let lock = NSLock()
+    /// Guards closePipes against closing write ends twice (double EOF).
+    private var pipesClosed = false
 
     /// Created in init so no output is lost between XPC start and the
     /// consumer's subscription, and so subscription is race-free.
@@ -396,10 +702,34 @@ final class ExecPump: @unchecked Sendable {
         self.outputContinuation = continuation
     }
 
-    /// File handles to hand to the XPC `createProcess` call. The write ends
-    /// belong to the runtime; we read the read ends.
+    /// File handles to hand to the XPC `createProcess`/`bootstrap` calls.
+    /// CRITICAL: XPC's `set(key:value: FileHandle)` closes the fd locally
+    /// after transferring it — handing it our Pipe's own handles would
+    /// leave them owning dead fd numbers whose later close() (by us or by
+    /// FileHandle deinit) lands on whatever recycled the number (CLI pipe
+    /// reads, NIO sockets) and crashes the app. We pass dup'ed fds wrapped
+    /// in non-owning FileHandles so XPC's close hits only the dup.
     var stdioHandles: [FileHandle?] {
-        [stdinPipe?.fileHandleForReading, stdoutPipe.fileHandleForWriting, stderrPipe?.fileHandleForWriting]
+        func transferredCopy(_ handle: FileHandle?) -> FileHandle? {
+            guard let handle else { return nil }
+            let duplicate = dup(handle.fileDescriptor)
+            guard duplicate >= 0 else { return nil }
+            // FileHandle(fileDescriptor:) does not close on deinit.
+            return FileHandle(fileDescriptor: duplicate)
+        }
+        return [
+            transferredCopy(stdinPipe?.fileHandleForReading),
+            transferredCopy(stdoutPipe.fileHandleForWriting),
+            transferredCopy(stderrPipe?.fileHandleForWriting),
+        ]
+    }
+
+    /// Close OUR stdout/stderr write-end originals after XPC has taken
+    /// dups — otherwise our copies keep the pipe open and EOF never
+    /// reaches the readers when the process exits.
+    func releaseWriteEndsToRuntime() {
+        try? stdoutPipe.fileHandleForWriting.close()
+        try? stderrPipe?.fileHandleForWriting.close()
     }
 
     func setProcess(_ process: any ClientProcess) {
@@ -416,9 +746,13 @@ final class ExecPump: @unchecked Sendable {
     }
 
     /// Called after XPC start succeeded; drives the read ends and reaps the
-    /// process. The exit code comes from `process.wait()` (the single
-    /// authoritative waiter) — pipes can EOF slightly after the process is
-    /// reaped, at which point a second wait would fail.
+    /// process. Read ends are closed ONLY inside their own EOF handler —
+    /// Foundation's `availableData` raises an NSException when invoked on a
+    /// closed handle, and a readability handler can't throw, so closing a
+    /// read end from elsewhere races the dispatch queue and kills the app.
+    /// The exit code comes from `process.wait()` (the single authoritative
+    /// waiter) — pipes can EOF slightly after the process is reaped, at
+    /// which point a second wait would fail.
     func beginStreaming() {
         let continuation = outputContinuation
         stdoutPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
@@ -510,8 +844,15 @@ final class ExecPump: @unchecked Sendable {
     }
 
     func closePipes() {
-        stdoutPipe.fileHandleForReading.readabilityHandler = nil
-        stderrPipe?.fileHandleForReading.readabilityHandler = nil
+        // WRITE ends only: closing them delivers EOF to our readers, whose
+        // handlers then close their own read ends safely. Never close a
+        // read end here — an in-flight availableData on a closed handle
+        // throws an uncatchable NSException.
+        lock.lock()
+        let alreadyClosed = pipesClosed
+        pipesClosed = true
+        lock.unlock()
+        guard !alreadyClosed else { return }
         try? stdinPipe?.fileHandleForWriting.close()
         try? stdoutPipe.fileHandleForWriting.close()
         try? stderrPipe?.fileHandleForWriting.close()

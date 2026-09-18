@@ -38,16 +38,17 @@ actor ContainerEventBus {
         return stream
     }
 
+    /// Keeps the poller running regardless of subscribers — restart
+    /// policies and webhook dispatch depend on transitions even when no
+    /// one is listening to /events. Called once at server startup.
+    func startBackgroundPolling() {
+        startPollingIfNeeded()
+    }
+
     func unsubscribe(id: UUID) {
         subscribers.removeValue(forKey: id)
-        if subscribers.isEmpty {
-            pollTask?.cancel()
-            pollTask = nil
-            // Forget state so the next subscriber doesn't get a burst of
-            // synthetic transitions from a stale snapshot.
-            didFirstSnapshot = false
-            lastStates = [:]
-        }
+        // The poller now runs permanently (restart policies), so there is
+        // nothing to tear down when the last /events subscriber leaves.
     }
 
     private func startPollingIfNeeded() {
@@ -104,6 +105,13 @@ actor ContainerEventBus {
                     emit(containerID: container.id, image: image, action: "start", status: "start", name: container.names.first)
                 case "exited", "dead":
                     emit(containerID: container.id, image: image, action: "die", status: "die", name: container.names.first)
+                    // Restart policies ride the same transition (docker's
+                    // restart=always / unless-stopped semantics).
+                    if let policy = container.labels?["keg.restart-policy"],
+                       ["always", "unless-stopped", "on-failure"].contains(policy) {
+                        let snapshot = container
+                        Task { await bridge.handleContainerExited(snapshot) }
+                    }
                 default:
                     break
                 }
@@ -117,6 +125,8 @@ actor ContainerEventBus {
             for (id, info) in lastStates where !seen.contains(id) {
                 emit(containerID: id, image: info.image, action: "destroy", status: "destroy", name: nil)
                 lastStates.removeValue(forKey: id)
+                // Release the retained stdio buffer with the container.
+                await bridge.discardAttachBuffer(id: id)
             }
         }
 
