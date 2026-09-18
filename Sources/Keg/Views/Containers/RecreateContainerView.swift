@@ -76,9 +76,7 @@ struct RecreateContainerView: View {
                     .textFieldStyle(.roundedBorder)
                     .accessibilityLabel("Port mappings")
 
-                TextField("Volumes", text: $volumes, prompt: Text("host-path:/container-path"))
-                    .textFieldStyle(.roundedBorder)
-                    .accessibilityLabel("Volume mounts")
+                VolumeMountField(text: $volumes)
 
                 HStack {
                     Stepper("CPUs: \(cpus)", value: $cpus, in: 1...32)
@@ -107,7 +105,7 @@ struct RecreateContainerView: View {
                     recreate()
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(imageName.isEmpty || isRunning)
+                .disabled(imageName.isEmpty || isRunning || !ContainerRunArguments.volumeMountProblems(volumes).isEmpty)
                 .buttonStyle(.borderedProminent)
             }
         }
@@ -138,7 +136,7 @@ struct RecreateContainerView: View {
                 name: containerName.trimmingCharacters(in: .whitespaces),
                 env: ContainerRunArguments.splitList(envVars),
                 ports: ContainerRunArguments.splitList(ports),
-                volumes: ContainerRunArguments.splitList(volumes),
+                volumes: ContainerRunArguments.splitVolumes(volumes),
                 cpus: cpus,
                 memory: memory.trimmingCharacters(in: .whitespaces),
                 detached: true,

@@ -289,7 +289,7 @@ struct ContainerListView: View {
                 } label: {
                     Label("Run a web server", systemImage: "globe")
                 }
-                .help("Run nginx, then open http://localhost:8080 in your browser")
+                .help("Run nginx with port 8080 already forwarded — open http://localhost:8080 once it's up")
 
                 Button {
                     openRunSheet(with: nil)

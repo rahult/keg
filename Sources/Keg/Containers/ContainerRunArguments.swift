@@ -52,6 +52,45 @@ enum ContainerRunArguments {
             .filter { !$0.isEmpty }
     }
 
+    /// Splits a volumes text field into run-ready entries: `~` is expanded to
+    /// the user's home folder because the `container` CLI rejects relative
+    /// and tilde paths silently confusingly (it just fails the run).
+    static func splitVolumes(_ text: String) -> [String] {
+        splitList(text).map(expandTilde)
+    }
+
+    static func expandTilde(_ path: String) -> String {
+        (path as NSString).expandingTildeInPath
+    }
+
+    /// Plain-language problems with a volumes text field, worst first. Empty
+    /// array = fine to run. Apple's `container` CLI only supports bind mounts
+    /// of real Mac folders (no Docker-style named volumes), and its own error
+    /// for a bad `-v` is a raw failure — so validate here in human terms.
+    static func volumeMountProblems(_ text: String) -> [String] {
+        splitList(text).compactMap { problem(forVolume: $0) }
+    }
+
+    private static func problem(forVolume entry: String) -> String? {
+        let parts = entry.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
+        guard parts.count >= 2 else {
+            return "Volumes: “\(entry)” needs two paths — a folder on your Mac, then where it lands in the container (e.g. \(NSHomeDirectory())/site:/usr/share/nginx/html)."
+        }
+        let host = parts[0]
+        let container = parts[1]
+
+        if !host.hasPrefix("/") && !host.hasPrefix("~") {
+            if !host.contains("/") {
+                return "Volumes: “\(host)” looks like a Docker named volume. Keg shares real folders from your Mac instead — use a path like \(NSHomeDirectory())/\(host):\(container)."
+            }
+            return "Volumes: “\(host)” should be an absolute Mac path (start with / or ~), or use Choose Folder."
+        }
+        if !container.hasPrefix("/") {
+            return "Volumes: the container path “\(container)” must be absolute — e.g. \(host):/data."
+        }
+        return nil
+    }
+
     /// Human memory string ("1G", "512M") for a byte count, matching the
     /// units the `container` CLI accepts.
     static func formatMemory(_ bytes: UInt64) -> String {
