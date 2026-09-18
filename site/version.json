@@ -1,8 +1,8 @@
 {
-  "version": "0.5.0",
-  "build": "9",
-  "published": "2026-09-17T22:01:44Z",
+  "version": "0.6.0",
+  "build": "10",
+  "published": "2026-09-18T06:55:17Z",
   "dmg": "https://github.com/rahult/keg/releases/latest/download/Keg.dmg",
-  "notes": "https://github.com/rahult/keg/releases/tag/v0.5.0",
+  "notes": "https://github.com/rahult/keg/releases/tag/v0.6.0",
   "minimumSystemVersion": "26.0"
 }
