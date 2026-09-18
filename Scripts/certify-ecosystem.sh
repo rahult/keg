@@ -36,12 +36,19 @@ services:
     image: docker.io/library/busybox:latest
     command: ["sleep", "120"]
 EOF
-    if (cd "$DIR" && timeout 180 docker compose up -d -q >/dev/null 2>&1) \
-       && sleep 5 \
-       && curl -sf -m 5 http://localhost:18080/ >/dev/null 2>&1; then
+    UP_OK=0
+    (cd "$DIR" && timeout 180 docker compose up -d >/tmp/keg-cert-compose.log 2>&1) && UP_OK=1
+    SERVED=0
+    if [ "$UP_OK" = "1" ]; then
+        for _ in $(seq 1 20); do
+            if curl -sf -m 3 http://localhost:18080/ >/dev/null 2>&1; then SERVED=1; break; fi
+            sleep 1
+        done
+    fi
+    if [ "$SERVED" = "1" ]; then
         record "compose: up + depends_on + published port" PASS "nginx served via host port"
     else
-        record "compose: up + depends_on + published port" FAIL "stack did not serve http://localhost:18080"
+        record "compose: up + depends_on + published port" FAIL "$(tail -1 /tmp/keg-cert-compose.log 2>/dev/null | cut -c1-80)"
     fi
     (cd "$DIR" && docker compose down -v >/dev/null 2>&1); rm -rf "$DIR"
 }

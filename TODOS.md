@@ -8,8 +8,9 @@ Write integration tests that start DockerAPIServer on a Unix socket, connect wit
 **Added:** 2026-04-16 (eng review)
 
 ### BuildKit session support for `docker build`
-docker 29 dropped the classic builder client-side; the CLI now always negotiates BuildKit (`GET /containers/buildx_buildkit_default/json` probe, then `/session` + `/build` with session forwarding). Classic `POST /build` still works for API clients (Testcontainers, docker-java). Full CLI build support means implementing the session attach protocol.
-**Status:** not started
+docker 29 dropped the classic builder client-side; the CLI now always negotiates BuildKit (`GET /containers/buildx_buildkit_default/json` probe, then `/session` + `/build` with session forwarding). Classic `POST /build` still works for API clients (Testcontainers, docker-java). Full CLI build support means implementing the session attach protocol (gRPC over the hijack channel).
+**Scope decision (2026-09-18):** deferred. The certification suite shows `docker build` is the only CLI gap, the API path serves Testcontainers-class clients, and the effort is better spent on the Phase 3 agents split. Revisit if user demand surfaces. The probe endpoint already returns an honest 404, so `docker build` fails with a clear "no builder" message instead of a protocol error.
+**Status:** not started (deliberate)
 **Added:** 2026-09-18
 
 ## P1: Ship polish

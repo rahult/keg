@@ -34,6 +34,7 @@ extension ContainerBridge {
             return
         }
         do {
+            pump.releaseWriteEndsToRuntime()
             try await process.start()
             pump.setProcess(process)
             pump.beginStreaming()
@@ -271,6 +272,7 @@ extension ContainerBridge {
                 configuration: configuration,
                 stdio: pump.stdioHandles
             )
+            pump.releaseWriteEndsToRuntime()
             try await process.start()
             pump.setProcess(process)
             pump.beginStreaming()
@@ -700,10 +702,34 @@ final class ExecPump: @unchecked Sendable {
         self.outputContinuation = continuation
     }
 
-    /// File handles to hand to the XPC `createProcess` call. The write ends
-    /// belong to the runtime; we read the read ends.
+    /// File handles to hand to the XPC `createProcess`/`bootstrap` calls.
+    /// CRITICAL: XPC's `set(key:value: FileHandle)` closes the fd locally
+    /// after transferring it — handing it our Pipe's own handles would
+    /// leave them owning dead fd numbers whose later close() (by us or by
+    /// FileHandle deinit) lands on whatever recycled the number (CLI pipe
+    /// reads, NIO sockets) and crashes the app. We pass dup'ed fds wrapped
+    /// in non-owning FileHandles so XPC's close hits only the dup.
     var stdioHandles: [FileHandle?] {
-        [stdinPipe?.fileHandleForReading, stdoutPipe.fileHandleForWriting, stderrPipe?.fileHandleForWriting]
+        func transferredCopy(_ handle: FileHandle?) -> FileHandle? {
+            guard let handle else { return nil }
+            let duplicate = dup(handle.fileDescriptor)
+            guard duplicate >= 0 else { return nil }
+            // FileHandle(fileDescriptor:) does not close on deinit.
+            return FileHandle(fileDescriptor: duplicate)
+        }
+        return [
+            transferredCopy(stdinPipe?.fileHandleForReading),
+            transferredCopy(stdoutPipe.fileHandleForWriting),
+            transferredCopy(stderrPipe?.fileHandleForWriting),
+        ]
+    }
+
+    /// Close OUR stdout/stderr write-end originals after XPC has taken
+    /// dups — otherwise our copies keep the pipe open and EOF never
+    /// reaches the readers when the process exits.
+    func releaseWriteEndsToRuntime() {
+        try? stdoutPipe.fileHandleForWriting.close()
+        try? stderrPipe?.fileHandleForWriting.close()
     }
 
     func setProcess(_ process: any ClientProcess) {

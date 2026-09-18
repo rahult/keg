@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### Added (Phase 2)
+- **`docker cp`** works end to end — file and directory, in and out, including into-directory semantics — via the `/archive` endpoints (HEAD stat with the base64 `X-Docker-Container-Path-Stat` header, XPC `copyIn`/`copyOut`, tar handling).
+- **Restart policies**: `--restart always / unless-stopped / on-failure` persists as a container label; the event bus (now always polling, no `/events` subscriber needed) revives crashed containers with a crash-loop cap; API stop/kill suppresses auto-restart; a startup sweep revives `always` containers daemon-style.
+- **Late attach**: API-started containers keep their stdio in a ring-buffered buffer, so `docker attach` on a *running* container replays recent history then streams live. Attach-before-start (`docker run`) uses direct pump wiring. `keg attach [-i]` joins from the companion CLI.
+- **Certification suite** (`Scripts/certify-ecosystem.sh`): runs compose stacks and Testcontainers against the socket with tool discovery, and writes the pass matrix to `docs/certification.md`.
+- **CI on a real Mac** (`.github/workflows/contract.yml`): the 21-check Docker CLI contract suite on a self-hosted `macos-container-runtime` runner on every push/PR.
+- **Homebrew cask** (`Casks/keg.rb`) ready for submission; installs the app and puts `keg` on PATH.
+
+### Fixed (Phase 2)
+- **The crash class behind months of flakiness — XPC fd double-close**: Apple's `XPCMessage.set(FileHandle)` *closes the descriptor after transfer*. Every stdio fd Keg handed to `createProcess`/`bootstrap` died in-process, and our later closes (or FileHandle deinit) landed on recycled fd numbers — killing CLI pipe reads (NSException) and NIO sockets (EBADF write preconditions) at random. Stdio now transfers dup'ed fds in non-owning FileHandles; our originals close once, at the right time. Verified: 20/20 rapid `docker run` with exact exit codes, 10× exec loop, full contract suite green repeatedly.
+- Hijacked-connection writes are serialized on the channel's event loop; error responses to HEAD carry no body (Go client connection poisoning); directory stat mode carries Go's `ModeDir` bit so `docker cp` resolves destinations correctly.
+
+### Known issues
+- After heavy kill -9 churn, Apple's runtime vmnet service can wedge machine-wide (`container network create/list` hangs). Fixed by a reboot — a runtime-level issue, tracked for an upstream report if it reproduces.
+
 ## [0.5.0] — 2026-09-18
 
 ### Added

@@ -55,6 +55,7 @@ final class HijackedConnection: @unchecked Sendable {
         self.channel = channel
     }
 
+
     /// Bytes arriving from the client (stdin for exec) plus EOF.
     func setReadHandler(_ handler: @escaping (Data) -> Void, eof: @escaping () -> Void) {
         lock.lock()
