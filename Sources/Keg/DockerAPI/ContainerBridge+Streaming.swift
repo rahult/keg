@@ -38,7 +38,20 @@ extension ContainerBridge {
             try await process.start()
             pump.setProcess(process)
             pump.beginStreaming()
-            startedProcesses[id] = Task { await pump.completion() }
+            let exitTask = Task { await pump.completion() }
+            startedProcesses[id] = exitTask
+
+            // --rm: anchor removal to the authoritative exit signal (the
+            // pump's completion) rather than the event bus — a container
+            // whose whole life fits between two 1s bus polls never produces
+            // an observable die transition.
+            if await containerWantsAutoRemove(id: id) {
+                Task { [weak self] in
+                    _ = await exitTask.value
+                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                    await self?.finalizeAutoRemove(id: id)
+                }
+            }
 
             if let (connection, wantsStdin) = pendingAttaches.removeValue(forKey: id)?.first {
                 // docker run: hand the retained pump straight to the
@@ -161,6 +174,43 @@ extension ContainerBridge {
     /// Marks a container as deliberately stopped (API stop/kill/rm).
     func markUserStopped(_ id: String) {
         userStoppedIDs.insert(id)
+    }
+
+    /// Removes a container labeled `keg.auto-remove` once it exits —
+    /// docker's `--rm`. Runs a beat after the die transition so an
+    /// in-flight `POST /wait` can pull the exit code from the in-memory
+    /// process future before `container delete` makes it vanish. The bus's
+    /// next poll sees the vanish and emits the destroy event (plus buffer
+    /// cleanup), so nothing else is needed here.
+    func autoRemoveAfterExit(_ container: DockerContainer) async {
+        guard container.labels?["keg.auto-remove"] != nil,
+              container.labels?["keg.restart-policy"] == nil else { return }
+        try? await Task.sleep(nanoseconds: 2_000_000_000)
+        await finalizeAutoRemove(id: container.id)
+    }
+
+    /// Whether `id` carries the auto-remove label (docker --rm) without a
+    /// restart policy — the bus would fight the policy otherwise.
+    func containerWantsAutoRemove(id: String) async -> Bool {
+        let (code, output) = (try? await runCLI(["container", "inspect", id])) ?? (1, "")
+        guard code == 0,
+              let data = output.data(using: .utf8),
+              let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+              let entry = entries.first,
+              let labels = (entry["configuration"] as? [String: Any])?["labels"] as? [String: Any] else {
+            return false
+        }
+        return labels["keg.auto-remove"] != nil
+            && labels["keg.restart-policy"] == nil
+    }
+
+    /// Shared removal tail for both auto-remove paths (exit-future watcher
+    /// and event-bus backstop): idempotent bookkeeping plus the delete.
+    func finalizeAutoRemove(id: String) async {
+        startedProcesses.removeValue(forKey: id)
+        userStoppedIDs.remove(id)
+        restartAttempts.removeValue(forKey: id)
+        _ = try? await removeContainer(id: id, force: false)
     }
 
     /// Starts every stopped container labeled restart=always — docker

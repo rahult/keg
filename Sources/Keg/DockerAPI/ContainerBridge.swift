@@ -77,19 +77,28 @@ actor ContainerBridge {
         let id = name ?? "keg-\(UUID().uuidString.prefix(12).lowercased())"
 
         // Pull image if specified (pinned to the requested platform, defaulting
-        // to the host — an unpinned pull unpacks all variants, ~1.1 GB each)
+        // to the host — an unpinned pull unpacks all variants, ~1.1 GB each).
+        // Skip it when the image is already stored: an unconditional pull
+        // refetches the registry index and re-unpacks on EVERY create.
         if let image = request.image, !image.isEmpty {
-            let platform = (request.platform?.isEmpty == false) ? request.platform! : Self.hostPlatform
-            let _ = try await runCLI(["container", "image", "pull", "--platform", platform, image], timeout: .seconds(1200))
+            if try await imageExists(image) {
+                // already stored locally — nothing to fetch
+            } else {
+                let platform = (request.platform?.isEmpty == false) ? request.platform! : Self.hostPlatform
+                let _ = try await runCLI(["container", "image", "pull", "--platform", platform, image], timeout: .seconds(1200))
+            }
         }
 
         // Real `container create` so the container exists before start —
         // the docker CLI issues POST /wait?condition=next-exit BEFORE
         // /start (to avoid racing short-lived exits), and a wait on a
         // not-yet-created container must simply block, not 500.
+        // 120s: on a container's first-ever start the apiserver unpacks the
+        // image seed server-side, which can exceed the 30s default — and
+        // killing the CLI mid-create leaves a half-built container behind.
         var args = ["container", "create", "--name", id]
         args += Self.containerArgs(from: request)
-        let (code, output) = try await runCLI(args)
+        let (code, output) = try await runCLI(args, timeout: .seconds(120))
         guard code == 0 else {
             throw DockerAPIError.containerStartFailed(output)
         }
@@ -157,6 +166,13 @@ actor ContainerBridge {
         if let policy = req.hostConfig?.restartPolicy?.name,
            ["always", "unless-stopped", "on-failure"].contains(policy) {
             args += ["-l", "keg.restart-policy=\(policy)"]
+        }
+
+        // --rm: the runtime has no native auto-remove, so the container is
+        // labeled and the event bus removes it on the die transition
+        // (docker forbids combining --rm with a restart policy).
+        if req.hostConfig?.autoRemove == true {
+            args += ["-l", "keg.auto-remove=1"]
         }
 
         if let workingDir = req.workingDir {
@@ -303,6 +319,14 @@ actor ContainerBridge {
         if code != 0 {
             throw DockerAPIError.imagePullFailed(output)
         }
+    }
+
+    /// Whether the reference is already in the local image store — lets
+    /// createContainer skip the pull instead of refetching and re-unpacking
+    /// on every create.
+    func imageExists(_ ref: String) async throws -> Bool {
+        let (code, _) = try await runCLI(["container", "image", "inspect", ref])
+        return code == 0
     }
 
     func inspectImage(name: String) async throws -> DockerImageInspect {
@@ -532,6 +556,39 @@ actor ContainerBridge {
             let _ = try? await runCLI(["container", "delete", "-f", container.id])
         }
         return stopped
+    }
+
+    /// Removes dangling images, or every image unused by a container when
+    /// `all` is set — the `docker image prune` vs `docker image prune -a`
+    /// split, mapped onto the runtime's own prune flag. Returns the refs
+    /// the CLI reported removing (best-effort; its output format isn't
+    /// stable enough to parse sizes from).
+    func pruneImages(all: Bool) async throws -> [String] {
+        var args = ["image", "prune"]
+        if all { args.append("--all") }
+        let (code, output) = try await runCLI(args, timeout: .seconds(300))
+        guard code == 0 else {
+            throw ContainerCLIFailure(message: output.isEmpty ? "image prune failed" : output)
+        }
+        return Self.removedRefs(from: output)
+    }
+
+    /// Removes volumes with no container references (`docker volume prune`).
+    func pruneVolumes() async throws -> [String] {
+        let (code, output) = try await runCLI(["volume", "prune"], timeout: .seconds(300))
+        guard code == 0 else {
+            throw ContainerCLIFailure(message: output.isEmpty ? "volume prune failed" : output)
+        }
+        return Self.removedRefs(from: output)
+    }
+
+    /// One removed ref per line of prune output, minus the "Reclaimed …"
+    /// summary line the CLI always prints.
+    private static func removedRefs(from output: String) -> [String] {
+        output
+            .split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && !$0.lowercased().contains("reclaimed") }
     }
 
     // MARK: - System

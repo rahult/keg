@@ -46,6 +46,10 @@ enum ContainerCLI {
     /// in AGENTS.md.
     static let appRootDefaultsKey = "container.app-root"
 
+    /// Environment variable the CLI honors in place of `--app-root`; the
+    /// apiserver's launchd plist uses the same key.
+    static let appRootEnvKey = "CONTAINER_APP_ROOT"
+
     static var configuredAppRoot: String? {
         let raw = UserDefaults.standard.string(forKey: appRootDefaultsKey)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -79,6 +83,12 @@ enum ContainerCLI {
     /// Builds a ready-to-run `Process` pointing at the resolved `container` binary.
     /// Drops the leading "container" token if the caller included it (most
     /// existing code prepends it for use with `env`, so accept both shapes).
+    ///
+    /// Pins `CONTAINER_APP_ROOT` to the configured root: without it the CLI
+    /// resolves its root from whatever plist the last `container system
+    /// start` wrote, and a stray start against the stock root silently
+    /// split-brains every CLI-side write (image unpacks, container
+    /// scaffolding) while XPC operations keep landing on the real apiserver.
     static func makeProcess(_ args: [String]) throws -> Process {
         guard let binary = resolve() else {
             throw ContainerCLIError.notInstalled
@@ -87,6 +97,11 @@ enum ContainerCLI {
         let process = Process()
         process.executableURL = URL(filePath: binary)
         process.arguments = normalized
+        if let root = configuredAppRoot {
+            var env = ProcessInfo.processInfo.environment
+            env[appRootEnvKey] = root
+            process.environment = env
+        }
         return process
     }
 

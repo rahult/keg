@@ -27,6 +27,17 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# Sweep containers a previous interrupted run left behind (an EXIT trap
+# doesn't fire on SIGKILL or a closed terminal — this keeps the runtime
+# from accumulating stopped contract-test containers).
+sweep_stale() {
+    for prefix in keg-contract- keg-exec- keg-contract-test keg-contract-test-v; do
+        for c in $(docker ps -aq --filter "name=^/$prefix" 2>/dev/null); do
+            docker rm -f "$c" >/dev/null 2>&1
+        done
+    done
+}
+
 require() {
     if ! command -v docker >/dev/null 2>&1; then
         log "docker CLI not found"; exit 2
@@ -38,6 +49,7 @@ require() {
 
 section "system"
 require
+sweep_stale
 if docker version --format '{{.Server.Version}}' >/dev/null 2>&1; then
     pass "docker version"
 else

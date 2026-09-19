@@ -66,6 +66,8 @@ Cooper is a local agent on Apple's FoundationModels framework (`SystemLanguageMo
 
 The runtime's data location (app-root) is **per-machine and configurable**: Settings → Container System → Data Location (`UserDefaults` key `container.app-root`; empty = stock `~/.container`). `AppState.startSystem()` passes `--app-root <path>` when set, preflights that the path exists (a missing volume must surface an error, never spin up an empty runtime), and the Health dashboard shows the location the running apiserver actually reports (from the XPC health check's `appRoot`). This dev machine is configured to **`/Volumes/Atlas/Containers`** — a separate volume holding the user's real containers/images/volumes. Don't "fix" a missing-containers symptom by re-initializing `~/.container`; the data lives at the configured root.
 
+**Never invoke the bare `container` CLI un-anchored on this machine.** The CLI resolves its root from the plist the last `container system start` wrote: an un-anchored `container system start` rewrites the launchd registration to the stock root (`~/Library/Application Support/com.apple.container`) and from then on every CLI-side write (image unpacks, container scaffolding) lands there while XPC operations keep landing on the real apiserver — a silent split-brain that looks exactly like data loss. Always pass `--app-root /Volumes/Atlas/Containers` (or export `CONTAINER_APP_ROOT`); `ContainerCLI.makeProcess` pins this env for all Keg-originated calls.
+
 ## Build & Run
 
 ```bash
@@ -96,6 +98,8 @@ swift build -c release  # Build binary only
 - K8s is single-node only
 - No Intel Mac support (Apple Silicon required)
 - No CRI shim yet (K8s uses containerd inside kindest/node)
+- The runtime never GCs `snapshots/`: per-image seed blocks (~180 MB–1.4 GB each) of deleted containers/images stay behind forever. After bulk container or image deletion, remove `snapshots/<64-hex>` dirs that no remaining container references (check `containers/*/*.json` for references first)
+- `POST /wait` occasionally drops the connection (EOF) instead of returning the exit code when the runtime is contended; `docker run` then warns instead of printing the code. Exit codes propagate reliably on fast runs
 
 ## Dependencies
 

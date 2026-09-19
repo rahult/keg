@@ -85,6 +85,12 @@ actor ContainerEventBus {
                 emit(containerID: container.id, image: image, action: "create", status: "create", name: container.names.first)
                 if state == "running" {
                     emit(containerID: container.id, image: image, action: "start", status: "start", name: container.names.first)
+                } else if container.labels?["keg.auto-remove"] != nil {
+                    // Short-lived --rm container whose whole life fit between
+                    // two polls: it surfaced already-exited, so no die
+                    // transition will ever be observed — remove it here.
+                    let snapshot = container
+                    Task { await bridge.autoRemoveAfterExit(snapshot) }
                 }
                 continue
             }
@@ -111,6 +117,10 @@ actor ContainerEventBus {
                        ["always", "unless-stopped", "on-failure"].contains(policy) {
                         let snapshot = container
                         Task { await bridge.handleContainerExited(snapshot) }
+                    } else if container.labels?["keg.auto-remove"] != nil {
+                        // --rm: remove the container once it exits.
+                        let snapshot = container
+                        Task { await bridge.autoRemoveAfterExit(snapshot) }
                     }
                 default:
                     break

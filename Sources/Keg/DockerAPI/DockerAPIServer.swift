@@ -810,6 +810,33 @@ final class DockerAPIServer: Sendable {
                 return Response(status: .ok, body: .init(byteBuffer: ByteBuffer(data: data)))
             }
 
+            router.post("\(prefix)/images/prune") { request, _ in
+                // docker sends filters={"dangling":{"false":true}} for
+                // `image prune -a`; dangling=true (or absent) keeps tagged
+                // images and removes only dangling ones.
+                var all = false
+                if let spec = request.uri.queryParameters.get("filters"),
+                   let data = spec.data(using: .utf8),
+                   let filters = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let dangling = filters["dangling"] as? [String: Any] {
+                    all = (dangling["false"] as? String) == "true" || (dangling["false"] as? Bool) == true
+                }
+                let deleted = try await bridge.pruneImages(all: all)
+                let response: [String: Any] = [
+                    "ImagesDeleted": deleted.map { ["Deleted": $0] },
+                    "SpaceReclaimed": 0,
+                ]
+                let data = try JSONSerialization.data(withJSONObject: response)
+                return Response(status: .ok, body: .init(byteBuffer: ByteBuffer(data: data)))
+            }
+
+            router.post("\(prefix)/volumes/prune") { _, _ in
+                let deleted = try await bridge.pruneVolumes()
+                let response: [String: Any] = ["VolumesDeleted": deleted, "SpaceReclaimed": 0]
+                let data = try JSONSerialization.data(withJSONObject: response)
+                return Response(status: .ok, body: .init(byteBuffer: ByteBuffer(data: data)))
+            }
+
             // MARK: Events
             router.get("\(prefix)/events") { _, _ in
                 let stream = await eventBus.subscribe()

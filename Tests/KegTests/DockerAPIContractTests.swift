@@ -196,9 +196,16 @@ final class DockerAPIContractTests: XCTestCase {
         let createBody = """
         {"Image":"alpine:latest","Cmd":["echo","hello"]}
         """
-        let (status, _) = try curlSocket("POST", "/v1.41/containers/create?name=keg-contract-test-v", body: createBody)
+        let (status, body) = try curlSocket("POST", "/v1.41/containers/create?name=keg-contract-test-v", body: createBody)
         XCTAssertTrue([201, 404, 500].contains(status),
                       "Versioned POST /containers/create should return 201, 404, or 500, got \(status)")
+        // Clean up: remove the created container
+        if status == 201,
+           let data = body.data(using: .utf8),
+           let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let id = dict["Id"] as? String {
+            _ = try? curlSocket("DELETE", "/containers/\(id)?force=true")
+        }
     }
 
     func testStartContainerInvalidId() throws {
