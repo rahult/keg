@@ -21,14 +21,16 @@ enum CooperDomain: String, CaseIterable, Sendable {
 enum CooperRouter {
     private static let instructions = """
     Classify the user's request into exactly one domain.
-    - overview: general questions about Keg, overall status, volumes, networks, \
-    registries, or being navigated somewhere in the app.
-    - containers: acting on specific containers (start, stop, restart, delete), \
-    reading container logs or details.
+    - overview: general questions about Keg or Docker compatibility, overall \
+    status, volumes, networks, registries, being navigated somewhere, or \
+    having a Run form prefilled.
+    - containers: acting on specific containers (start, stop, restart, \
+    delete), running new containers, executing commands inside them, \
+    reading logs or details.
     - images: pulling, deleting, or inspecting images.
     - compose: anything about docker compose projects or services.
-    - system: the container runtime itself (start/stop/recover), disk usage, \
-    or the Kubernetes cluster.
+    - system: the container runtime itself (start/stop/recover), disk \
+    usage, or the Kubernetes cluster (status/start/stop/create/delete).
     When several domains seem plausible, choose the one the request would \
     actually operate on. Answer with the domain only.
     """
@@ -60,13 +62,16 @@ enum CooperRouter {
                 CooperOverviewTool(gateway: gateway),
                 CooperOpenSectionTool(gateway: gateway),
                 CooperListContainersTool(gateway: gateway),
+                CooperListResourcesTool(gateway: gateway),
+                CooperOpenRunSheetTool(gateway: gateway),
             ]
         case .containers:
             return [
                 CooperContainerControlTool(gateway: gateway, mode: mode),
                 CooperContainerLogsTool(gateway: gateway),
                 CooperContainerInspectTool(gateway: gateway),
-                CooperOpenSectionTool(gateway: gateway),
+                CooperRunContainerTool(gateway: gateway, mode: mode),
+                CooperExecTool(gateway: gateway, mode: mode),
             ]
         case .images:
             return [
@@ -82,6 +87,7 @@ enum CooperRouter {
         case .system:
             return [
                 CooperSystemControlTool(gateway: gateway, mode: mode),
+                CooperKubernetesTool(gateway: gateway, mode: mode),
             ]
         }
     }
@@ -91,15 +97,27 @@ enum CooperRouter {
     static func domainHint(for domain: CooperDomain) -> String {
         switch domain {
         case .overview:
-            return "You are handling an overview/general question. Tools: full snapshot, navigation, container list."
+            return """
+            You are handling a general/overview request. Tools: full snapshot, \
+            navigation, container list, volumes/networks list, and prefilled \
+            Run form.
+            """
         case .containers:
-            return "You are handling a container operation. Use container IDs from tool results only."
+            return """
+            You are handling a container operation. Use container IDs from \
+            tool results only. run_container starts a new detached container; \
+            exec_in_container runs one shell command inside a running one.
+            """
         case .images:
             return "You are handling an image operation. Quote references exactly as the user or tools gave them."
         case .compose:
             return "You are handling a compose operation on the project configured in the Compose section."
         case .system:
-            return "You are handling a runtime/Kubernetes question. Confirm real state with the tool before advising."
+            return """
+            You are handling a runtime or Kubernetes question. Confirm real \
+            state with the tool before advising; cluster changes are slow \
+            (minutes) — say so before starting them.
+            """
         }
     }
 }

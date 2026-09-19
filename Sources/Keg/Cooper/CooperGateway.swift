@@ -174,6 +174,88 @@ actor CooperGateway {
 
     // MARK: - Containers
 
+    /// Builds `container run` arguments. Static + pure so tests can pin the
+    /// CLI contract. Always detached: non-detached runs from chat are a
+    /// footgun (they block until the container exits).
+    static func runArguments(
+        image: String,
+        name: String?,
+        ports: [String],
+        env: [String]
+    ) -> [String] {
+        var arguments = ["container", "run", "-d"]
+        if let name, !name.trimmingCharacters(in: .whitespaces).isEmpty {
+            arguments += ["--name", name]
+        }
+        for port in ports where !port.trimmingCharacters(in: .whitespaces).isEmpty {
+            arguments += ["-p", port.trimmingCharacters(in: .whitespaces)]
+        }
+        for entry in env where !entry.trimmingCharacters(in: .whitespaces).isEmpty {
+            arguments += ["-e", entry.trimmingCharacters(in: .whitespaces)]
+        }
+        arguments.append(image)
+        return arguments
+    }
+
+    /// Runs a new container from chat. Mirrors `RunContainerView`'s native
+    /// path: image, optional name, `host:container` port pairs, `KEY=value`
+    /// env entries — always detached.
+    func runContainer(
+        image: String,
+        name: String?,
+        ports: [String],
+        env: [String],
+        mode: AgentPermissionMode
+    ) async throws -> String {
+        let summary = name.flatMap { $0.isEmpty ? nil : $0 } ?? image
+        try await authorize(
+            .mutating, mode: mode,
+            toolName: "run_container",
+            summary: "Run a container from “\(summary)”",
+            details: """
+            Detached run. \(ports.isEmpty ? "No published ports." : "Ports: \(ports.joined(separator: ", "))") \
+            \(env.isEmpty ? "No environment variables." : "Env: \(env.count) variable(s).")
+            """
+        )
+        let arguments = Self.runArguments(image: image, name: name, ports: ports, env: env)
+        do {
+            let (code, output) = try await ContainerCLI.run(arguments, timeout: .seconds(300))
+            if code != 0 {
+                return output.isEmpty ? "`\(arguments.joined(separator: " "))` failed (exit \(code))." : Self.clipped(output, label: "run output")
+            }
+            await postRefresh()
+            let identifier = output.trimmingCharacters(in: .whitespacesAndNewlines)
+            return identifier.isEmpty
+                ? "Container from \(image) started."
+                : "Container started with ID \(identifier)."
+        } catch let error as ContainerCLIError {
+            return "CLI error: \(error.localizedDescription)"
+        }
+    }
+
+    /// Runs a command inside a running container via `/bin/sh -c`, so pipes
+    /// and redirections work. Output is captured and clipped.
+    func execInContainer(id: String, command: String, mode: AgentPermissionMode) async throws -> String {
+        try await authorize(
+            .mutating, mode: mode,
+            toolName: "exec_in_container",
+            summary: "Run a command inside “\(id)”",
+            details: "Command runs via /bin/sh -c: \(command)"
+        )
+        do {
+            let (code, output) = try await ContainerCLI.run(
+                ["container", "exec", id, "/bin/sh", "-c", command],
+                timeout: .seconds(120)
+            )
+            let body = Self.clipped(output, label: "output of \(command)")
+            return code == 0
+                ? body.isEmpty ? "Command completed with no output." : body
+                : "Command exited \(code). \(body)"
+        } catch let error as ContainerCLIError {
+            return "CLI error: \(error.localizedDescription)"
+        }
+    }
+
     func listContainers(all: Bool) async -> String {
         guard let containers = try? await CooperBounded.withTimeout(.seconds(15), operation: {
             try await ContainerClient().list(filters: .all)
@@ -275,6 +357,21 @@ actor CooperGateway {
             if let labels = inspect.config?.labels, !labels.isEmpty {
                 let pairs = labels.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }
                 lines.append("labels: \(Self.clipped(pairs.joined(separator: " "), label: "labels"))")
+            }
+            // Live resource usage for a running container (two XPC samples).
+            if inspect.state.running {
+                let stats = try? await CooperBounded.withTimeout(.seconds(15), operation: {
+                    try await bridge.containerStats(id: id)
+                })
+                if let stats {
+                    let memoryUsed = stats.memoryStats.usage.map {
+                        ByteCountFormatter.string(fromByteCount: Int64($0), countStyle: .file)
+                    } ?? "?"
+                    let memoryLimit = stats.memoryStats.limit.map {
+                        ByteCountFormatter.string(fromByteCount: Int64($0), countStyle: .file)
+                    } ?? "?"
+                    lines.append("memory: \(memoryUsed) of \(memoryLimit)")
+                }
             }
             return lines.joined(separator: "\n")
         } catch {
@@ -442,6 +539,119 @@ actor CooperGateway {
         }
     }
 
+    // MARK: - Resources (volumes & networks)
+
+    func listResources(kind: CooperResourceKind) async -> String {
+        switch kind {
+        case .volumes:
+            guard let volumes = try? await CooperBounded.withTimeout(.seconds(15), operation: {
+                try await ClientVolume.list()
+            }) else {
+                return "Could not list volumes (runtime did not answer within 15s)."
+            }
+            guard !volumes.isEmpty else { return "No volumes exist." }
+            return volumes.map { "- \($0.name) [\($0.driver)]" }.joined(separator: "\n")
+        case .networks:
+            guard let networks = try? await CooperBounded.withTimeout(.seconds(15), operation: {
+                try await NetworkClient().list()
+            }) else {
+                return "Could not list networks (runtime did not answer within 15s)."
+            }
+            guard !networks.isEmpty else { return "No networks exist." }
+            return networks.map { network -> String in
+                let subnet = network.status.ipv4Subnet.description
+                return "- \(network.id)\(network.isBuiltin ? " (built-in)" : "") subnet \(subnet)"
+            }.joined(separator: "\n")
+        }
+    }
+
+    // MARK: - Guided UI actions from chat
+
+    /// Opens the Containers section with the Run sheet prefilled for the
+    /// given image — the same path the welcome sheet's quick starts use.
+    /// The user reviews and submits; nothing runs until they do.
+    func openRunSheet(image: String) async -> String {
+        await MainActor.run { [weak appState] in
+            appState?.pendingRunImage = image
+            appState?.currentArea = .keg
+            appState?.selectedKegSection = .containers
+            appState?.mainWindow?.makeKeyAndOrderFront(nil)
+        }
+        // Belt-and-braces, mirroring MainView.quickRun: cover the case
+        // where the Containers list is already alive and visible.
+        let reference = image
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            NotificationCenter.default.post(name: .kegRunImage, object: reference)
+        }
+        return "Opened the Run sheet prefilled with \(image). The user reviews and submits it."
+    }
+
+    // MARK: - Kubernetes
+
+    func kubernetesControl(action: CooperK8sAction, mode: AgentPermissionMode) async throws -> String {
+        let summary: String
+        let level: CooperActionLevel
+        switch action {
+        case .status:
+            summary = "Check the Kubernetes cluster status"
+            level = .read
+        case .start:
+            summary = "Start the Kubernetes cluster"
+            level = .mutating
+        case .create:
+            summary = "Create the Kubernetes cluster"
+            level = .mutating
+        case .stop:
+            summary = "Stop the Kubernetes cluster"
+            level = .mutating
+        case .delete:
+            summary = "Delete the Kubernetes cluster"
+            level = .destructive
+        }
+        try await authorize(
+            level, mode: mode,
+            toolName: "k8s_control",
+            summary: summary,
+            details: action == .delete
+                ? "Deletes the keg-k8s container and ~/.keg/kubeconfig. All cluster state is lost."
+                : ""
+        )
+
+        let vm = await MainActor.run { KubernetesVM() }
+        switch action {
+        case .status:
+            await vm.checkClusterStatus()
+        case .start:
+            await vm.startCluster()
+        case .stop:
+            await vm.stopCluster()
+        case .create:
+            await vm.createCluster()
+        case .delete:
+            await vm.deleteCluster()
+        }
+        if action != .status {
+            await vm.checkClusterStatus()
+        }
+        let description = await MainActor.run { Self.describe(vm.clusterStatus) }
+        await postRefresh()
+        return action == .status
+            ? "Kubernetes cluster status: \(description)."
+            : "\(summary) finished. Cluster status: \(description)."
+    }
+
+    private static func describe(_ status: ClusterStatus) -> String {
+        switch status {
+        case .notCreated: return "not created"
+        case .creating: return "creating"
+        case .running: return "running"
+        case .stopped: return "stopped"
+        case .starting: return "starting"
+        case .stopping: return "stopping"
+        case .error(let message): return "error: \(message)"
+        }
+    }
+
     // MARK: - Helpers
 
     private func runContainerCLI(_ arguments: [String], success: String) async throws -> String {
@@ -495,4 +705,19 @@ enum CooperSystemAction: String, Sendable {
     case status
     case start
     case stop
+}
+
+@Generable(description: "Which Keg resource kind to list")
+enum CooperResourceKind: String, Sendable {
+    case volumes
+    case networks
+}
+
+@Generable(description: "An action on the local Kubernetes cluster")
+enum CooperK8sAction: String, Sendable {
+    case status
+    case start
+    case stop
+    case create
+    case delete
 }

@@ -46,8 +46,10 @@ struct CooperSnapshotContainer: Equatable, Sendable {
 /// into the static instructions, which must stay byte-stable across a
 /// session for transcript compatibility.
 struct CooperSnapshot: Equatable, Sendable {
+    var appLine = "unknown"
     var systemLine = "unknown"
     var dockerAPILine = "unknown"
+    var uiLine = "unknown"
     var containers: [CooperSnapshotContainer] = []
     var imageReferences: [String] = []
     var volumeNames: [String] = []
@@ -62,8 +64,10 @@ struct CooperSnapshot: Equatable, Sendable {
 
     func render() -> String {
         var lines: [String] = []
+        lines.append("APP: \(appLine)")
         lines.append("RUNTIME: \(systemLine)")
         lines.append("DOCKER API: \(dockerAPILine)")
+        lines.append("UI: \(uiLine)")
 
         if containers.isEmpty {
             lines.append("CONTAINERS: none")
@@ -113,35 +117,58 @@ struct CooperSnapshot: Equatable, Sendable {
 /// model-free so the snapshot formatting is unit-testable.
 enum CooperContext {
     /// Static instructions, identical for the life of the session. Kept
-    /// deliberately tight: instructions are re-sent every request and the
+    /// dense but bounded: instructions are re-sent every request and the
     /// on-device window is small. Live state goes in the per-turn prompt.
     static let personaInstructions = """
-    You are Cooper, the built-in assistant of Keg — a native macOS app that \
-    manages application containers (Apple's container framework), Docker \
-    Compose projects, and a local Kubernetes cluster.
+    You are Cooper, the built-in assistant of Keg — a native macOS app \
+    (Apple Silicon, macOS 26+) that wraps Apple's container framework. You \
+    know the entire app:
 
-    STYLE: Concise and warm. A light brewing metaphor is welcome ("on tap", \
-    "poured", "tapped"), never more than one per reply. Under 120 words \
-    unless asked for detail.
+    SECTIONS: Dashboard (runtime health, disk usage, metrics), Containers \
+    (lifecycle, logs, stats, exec, files, recreate), Images (pull, push, \
+    tag, delete, prune), Builds (Dockerfile builds), Compose \
+    (docker-compose.yml up/down/plan/ps/logs/restart), Terminal (a shell \
+    with DOCKER_HOST already pointed at Keg's Docker socket), Ports \
+    (published port map), Networks, Volumes, Registries (docker \
+    login/logout), Health (diagnostics), Dev Containers, Kubernetes (a \
+    single-node kind cluster: kindest/node inside a container named \
+    keg-k8s, kubeconfig at ~/.keg/kubeconfig), Logs (multi-container), \
+    Settings (experience level, data location, CLI install, updates).
 
-    TOOLS: You manage containers through tools. Always check real state with \
-    tools instead of guessing names or IDs; quote IDs only as they appear in \
-    tool results. One or two actions per turn. After an action, report what \
-    the tool returned — never claim an action succeeded if the tool returned \
-    an error. When the app shows an approval card for an action you asked \
-    for, tell the user briefly what it is and why.
+    DOCKER COMPATIBILITY: Keg serves the Docker Engine API on a unix \
+    socket (path in the runtime line). The `docker` CLI works against it \
+    out of the box; `docker run/exec/logs/ps/build/compose` all operate on \
+    the same containers you manage. The `keg` companion CLI (installable \
+    from Settings) provides `keg open keg://<section>` deep links.
 
-    KEG FACTS: Container data lives at the configured app-root (shown in the \
-    runtime line). Main sections: Dashboard, Containers, Images, Builds, \
-    Compose, Terminal, Ports, Networks, Volumes, Registries, Health, \
-    Dev Containers, Kubernetes, Logs, Settings. Kubernetes is a single-node \
-    kind cluster inside a container named keg-k8s. Compose projects use \
-    labels com.docker.compose.project / .service. Known quirk: stopping a \
-    container goes through the CLI, not the API.
+    QUICK STARTS: the Containers screen offers demo presets (5-second \
+    demo, web server, custom).
 
-    LIMITS: You cannot reach the internet, run arbitrary shell commands, or \
-    see inside containers beyond their logs. If asked for any of that, say \
-    so and point at the Terminal section instead. If you don't know, say so.
+    RUNTIME QUIRKS: container data lives at the configured app-root \
+    (shown in the runtime line). Stopping containers goes through the \
+    CLI, not the API. "Unresponsive" means services are alive but not \
+    answering — suggest Retry or Restart Services on the banner, or \
+    Copy Diagnostics.
+
+    LIMITS: no multi-node Kubernetes, no swarm, no live port-forward \
+    streaming, no building images from chat (point at the Builds \
+    section), no internet access. Executed commands run inside the \
+    container's /bin/sh.
+
+    STYLE: Concise and warm. A light brewing metaphor is welcome ("on \
+    tap", "poured", "tapped"), never more than one per reply. Under 120 \
+    words unless asked for detail.
+
+    TOOLS: Always check real state with tools instead of guessing names \
+    or IDs; quote IDs only as they appear in tool results. One or two \
+    actions per turn. After an action, report what the tool returned — \
+    never claim success if the tool returned an error. When the app \
+    shows an approval card for an action you asked for, tell the user \
+    briefly what it is and why. open_run_sheet only prefills the Run \
+    form for the user to review and submit.
+
+    SAFETY: If you don't know, say so. Never invent container IDs, image \
+    references, or file paths.
     """
 
     static let sectionNames = [
@@ -156,16 +183,21 @@ enum CooperContext {
     static func loadSnapshot(appState: AppState?) async -> CooperSnapshot {
         var snapshot = CooperSnapshot()
 
-        let header = await MainActor.run { () -> (system: String, dockerAPI: String)? in
+        let header = await MainActor.run { () -> (app: String, system: String, dockerAPI: String, ui: String)? in
             guard let appState else { return nil }
+            let selection = appState.selectedContainerID.map { " | selected: \($0.prefix(12))" } ?? ""
             return (
+                "Keg \(AppVersion.displayString)",
                 appState.systemStatus.description,
-                appState.isDockerAPIRunning ? "serving at \(appState.dockerSocketPath)" : "not running"
+                appState.isDockerAPIRunning ? "serving at \(appState.dockerSocketPath)" : "not running",
+                "section: \(appState.selectedKegSection.rawValue)\(selection) | level: \(appState.experienceLevel.rawValue)"
             )
         }
         if let header {
+            snapshot.appLine = header.app
             snapshot.systemLine = header.system
             snapshot.dockerAPILine = header.dockerAPI
+            snapshot.uiLine = header.ui
         }
 
         async let containersTask = bounded { try await ContainerClient().list(filters: .all) }

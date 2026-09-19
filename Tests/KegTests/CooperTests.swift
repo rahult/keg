@@ -256,6 +256,48 @@ final class CooperTests: XCTestCase {
         let short = "all good"
         XCTAssertEqual(CooperGateway.clipped(short, label: "logs"), short)
     }
+
+    // MARK: - Run arguments contract
+
+    func testRunArgumentsBuildDetachedRunCommand() {
+        let arguments = CooperGateway.runArguments(
+            image: "docker.io/library/nginx:latest",
+            name: "web",
+            ports: ["8080:80", "  ", ""],
+            env: ["KEY=value", ""]
+        )
+        // Always detached; blanks in ports/env are dropped.
+        XCTAssertEqual(arguments, [
+            "container", "run", "-d",
+            "--name", "web",
+            "-p", "8080:80",
+            "-e", "KEY=value",
+            "docker.io/library/nginx:latest",
+        ])
+    }
+
+    func testRunArgumentsWithoutNamePortsOrEnv() {
+        let arguments = CooperGateway.runArguments(
+            image: "alpine:3", name: nil, ports: [], env: []
+        )
+        XCTAssertEqual(arguments, ["container", "run", "-d", "alpine:3"])
+    }
+
+    func testKubernetesDeleteIsDestructiveEvenInExecuteMode() async throws {
+        final class Flag: @unchecked Sendable {
+            var asked = false
+        }
+        let flag = Flag()
+        let gateway = makeGateway { _ in
+            flag.asked = true
+            return true
+        }
+        try await gateway.authorize(
+            .destructive, mode: .execute, toolName: "k8s_control",
+            summary: "Delete the Kubernetes cluster"
+        )
+        XCTAssertTrue(flag.asked, "cluster deletion must consult the approval card even in Execute mode")
+    }
 }
 
 /// Test seam for the private boundary check.
