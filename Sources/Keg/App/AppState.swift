@@ -18,6 +18,7 @@ final class AppState {
     private static let agentPermissionModeDefaultsKey = "agents.permission-mode"
     private static let dockerAPIAutoStartDefaultsKey = "dockerAPI.autoStart"
     private static let experienceLevelDefaultsKey = "keg.experience-level"
+    private static let cooperPanelVisibleDefaultsKey = "cooper.panel-visible"
 
     // Docker API server
     private var dockerServerTask: Task<Void, Never>?
@@ -87,6 +88,20 @@ final class AppState {
     var activeAgentCount = 0
     var activeSessionCount = 0
 
+    /// Whether the Cooper inspector panel is shown on the main window.
+    var isCooperPanelVisible: Bool {
+        didSet {
+            UserDefaults.standard.set(isCooperPanelVisible, forKey: Self.cooperPanelVisibleDefaultsKey)
+        }
+    }
+
+    /// Cooper, the built-in on-device agent. Constructed bare and attached
+    /// to `self` at the end of init: the controller and its gateway only
+    /// hold weak references, so this creates no retain cycle.
+    let cooper: CooperController
+    private var cooperNotedUnresponsive = false
+    private var cooperNotedStopped = false
+
     private let containerClient = ContainerClient()
     private let agentAutomationService = AgentAutomationService()
     private var refreshTimer: Timer?
@@ -96,12 +111,14 @@ final class AppState {
         // a working `docker` CLI without hunting through Settings. Existing users who
         // explicitly set the key keep their choice.
         UserDefaults.standard.register(defaults: [
-            Self.dockerAPIAutoStartDefaultsKey: true
+            Self.dockerAPIAutoStartDefaultsKey: true,
+            Self.cooperPanelVisibleDefaultsKey: false,
         ])
 
         self.agentPermissionMode = Self.loadAgentPermissionMode()
         self.dockerAPIAutoStart = UserDefaults.standard.bool(forKey: Self.dockerAPIAutoStartDefaultsKey)
         self.experienceLevel = Self.loadExperienceLevel()
+        self.cooper = CooperController()
 
         // A stale socket file from a previous Keg run makes `docker info` return EOF
         // because the kernel accepts the connect() and then immediately closes it.
@@ -113,6 +130,10 @@ final class AppState {
         if !DockerAPIServer.socketRespondsToPing(at: socketPath) {
             try? FileManager.default.removeItem(atPath: socketPath)
         }
+
+        self.isCooperPanelVisible = UserDefaults.standard.bool(forKey: Self.cooperPanelVisibleDefaultsKey)
+        // Last: captures self, legal only once every stored member exists.
+        Task { await cooper.attach(to: self) }
 
         // DISABLED (launch-stall + repeated keychain prompts): the eager
         // keychain migration/read below runs on the main actor and its
@@ -451,8 +472,37 @@ final class AppState {
         isRefreshing = true
         defer { isRefreshing = false }
         await checkSystemStatus()
+        noteCooperSystemEvent()
         await refreshDashboardCounts()
         await refreshAgentCounts()
+    }
+
+    /// Translates runtime status transitions into Cooper nudges. Plain flags
+    /// rather than Equatable on SystemStatus: the associated health value
+    /// changes on every successful check.
+    private func noteCooperSystemEvent() {
+        switch systemStatus {
+        case .unresponsive:
+            if !cooperNotedUnresponsive {
+                cooperNotedUnresponsive = true
+                cooperNotedStopped = false
+                cooper.observe(event: .runtimeUnresponsive)
+            }
+        case .stopped:
+            if !cooperNotedStopped {
+                cooperNotedStopped = true
+                cooperNotedUnresponsive = false
+                cooper.observe(event: .runtimeStopped)
+            }
+        case .running:
+            if cooperNotedUnresponsive || cooperNotedStopped {
+                cooper.observe(event: .runtimeRecovered)
+            }
+            cooperNotedUnresponsive = false
+            cooperNotedStopped = false
+        case .error:
+            break
+        }
     }
 
     private func refreshDashboardCounts() async {

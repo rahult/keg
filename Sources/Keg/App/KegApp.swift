@@ -225,6 +225,26 @@ struct KegApp: App {
                 }
             }
 
+            CommandMenu("Cooper") {
+                Button(appState.isCooperPanelVisible ? "Hide Cooper" : "Show Cooper") {
+                    appState.isCooperPanelVisible.toggle()
+                }
+                .keyboardShortcut("a", modifiers: [.command, .shift])
+
+                Button("Ask Cooper…") {
+                    appState.isCooperPanelVisible = true
+                    NotificationCenter.default.post(name: .kegCooperFocus, object: nil)
+                }
+                .keyboardShortcut("a", modifiers: [.command, .shift, .option])
+
+                Divider()
+
+                Button("Clear Conversation") {
+                    appState.cooper.clearConversation()
+                }
+                .disabled(appState.cooper.isStreaming)
+            }
+
             CommandGroup(after: .help) {
                 Divider()
 
@@ -316,21 +336,36 @@ struct MainView: View {
     }
 
     var body: some View {
-        NavigationSplitView(columnVisibility: columnVisibility) {
+        @Bindable var appState = appState
+        return NavigationSplitView(columnVisibility: columnVisibility) {
             SidebarView()
                 .environment(appState)
         } detail: {
-            VStack(spacing: 0) {
-                // Banner lives in a plain VStack: safeAreaInset(.top) on the
-                // split view overlaps content on macOS 26 instead of insetting.
-                if appState.isRuntimeUnresponsive {
-                    RuntimeUnresponsiveBanner()
-                        .environment(appState)
-                    Divider()
+            // Cooper is a hand-composed trailing column, not `.inspector`:
+            // on macOS 27 a root-level inspector on this split view triggers
+            // AppKit's "Update Constraints in Window pass" loop and aborts
+            // the window (see ~/.keg/exceptions.log). Plain HStack layout
+            // gives the same always-visible-across-sections behavior.
+            HStack(spacing: 0) {
+                VStack(spacing: 0) {
+                    // Banner lives in a plain VStack: safeAreaInset(.top) on the
+                    // split view overlaps content on macOS 26 instead of insetting.
+                    if appState.isRuntimeUnresponsive {
+                        RuntimeUnresponsiveBanner()
+                            .environment(appState)
+                        Divider()
+                    }
+                    DetailView()
                 }
-                DetailView()
+                .environment(appState)
+
+                if appState.isCooperPanelVisible {
+                    Divider()
+                    CooperPanelView()
+                        .environment(appState)
+                        .frame(width: 380)
+                }
             }
-            .environment(appState)
         }
         .navigationSplitViewStyle(.balanced)
         .task {
@@ -340,7 +375,10 @@ struct MainView: View {
                 showWelcome = true
             }
         }
-        .sheet(isPresented: $showWelcome, onDismiss: { hasSeenWelcome = true }) {
+        .sheet(isPresented: $showWelcome, onDismiss: {
+            hasSeenWelcome = true
+            openCooperForFirstRun()
+        }) {
             WelcomeSheet { image in
                 quickRun(image: image)
             }
@@ -362,6 +400,16 @@ struct MainView: View {
 
     private func toggleSidebar() {
         isSidebarVisible.toggle()
+    }
+
+    /// First-run discoverability: right after the welcome sheet, open the
+    /// Cooper panel once so new users meet the agent. Existing users reach
+    /// it through the toolbar or the Cooper menu.
+    private func openCooperForFirstRun() {
+        let key = "cooper.greetedOnce"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        appState.isCooperPanelVisible = true
     }
 
     /// Navigate to Containers and open the Run sheet prefilled with the
@@ -424,6 +472,17 @@ struct DetailView: View {
                         .help("Show Sidebar")
                         .accessibilityLabel("Show Sidebar")
                     }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        appState.isCooperPanelVisible.toggle()
+                    } label: {
+                        Image(systemName: appState.isCooperPanelVisible
+                            ? "bubble.left.and.text.bubble.right.fill"
+                            : "bubble.left.and.text.bubble.right")
+                    }
+                    .help("Toggle Cooper (⌘⇧A)")
+                    .accessibilityLabel("Toggle Cooper")
                 }
             }
     }

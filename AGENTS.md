@@ -45,6 +45,20 @@ Keg is a native macOS SwiftUI app that wraps Apple's `container` framework (gith
 | `Sources/Keg/App/KegCLIInstaller.swift` | App-side one-click CLI install (same location rules as `keg install`) |
 | `Sources/Keg/Compose/ComposeOrchestrator.swift` | YAML parsing, topological sort, compose lifecycle |
 | `Sources/Keg/Views/Kubernetes/KubernetesView.swift` | K8s cluster bootstrap (kindest/node + kubeadm) |
+| `Sources/Keg/Cooper/` | **Cooper**, the built-in on-device agent (Apple FoundationModels): `CooperController` (turns, transcript, approvals, nudges), `CooperGateway` (all agent-driven operations + permission gate), `CooperContext` (persona + compact state snapshot), `CooperRouter` (intent → specialist tool set), `CooperTools` (Tool conformances) |
+| `Sources/Keg/Views/Cooper/CooperPanelView.swift` | Cooper inspector panel: chat, approval cards, nudges, Explore/Ask/Execute picker |
+
+## Cooper (built-in agent)
+
+Cooper is a local agent on Apple's FoundationModels framework (`SystemLanguageModel.default`) — no cloud calls, no bundled models. Architecture is shaped by the on-device model's limits (~3B, 4K/8K context):
+
+- **Hierarchical routing**: each turn first classifies intent (constrained-decode enum, no tools), then runs one specialist session with ≤5 tools from `CooperRouter.tools(for:)`.
+- **Permission gate** (`CooperGateway.authorize`): reads always allowed; mutations refused in Explore, approval-carded in Ask, auto in Execute; **destructive ops (remove container/image, compose down, runtime stop) require approval in every mode**. The gate suspends inside `Tool.call` (the session blocks while awaiting tools) and resumes when the user answers the card.
+- **Context budget**: static persona instructions never change (transcript compatibility); live state goes in the per-turn prompt as a compact `CooperSnapshot`; transcripts are trimmed (`CooperController.trimmed`) on overflow and retried once; `GenerationError`/`LanguageModelError` (26/27 respectively) drive backoff on rate-limit and friendly copy on refusals.
+- **Repeat-call guard**: the 4th identical tool call in a turn is refused with change-your-approach guidance.
+- **Persistence**: `~/.keg/cooper/{transcript.json,messages.json}`; the session rehydrates from the Codable `Transcript` on next launch.
+- Sessions are always built via `LanguageModelSession(model: .default, ...)` so an alternative backend (e.g. MLX via the 27-era `LanguageModel` protocol) can be added without re-architecture.
+- The dormant cloud-agent stacks (`Sources/Keg/Agent/`, `Sources/Keg/Agents/`) are unrelated and still gated off by `keg.showAgents`; Cooper reuses only `AgentPermissionMode` from AppState.
 
 ## Container Runtime Data Location
 
@@ -70,6 +84,7 @@ swift build -c release  # Build binary only
 - Docker Compose orchestration
 - Kubernetes cluster lifecycle
 - Menu bar popover, settings
+- Cooper: on-device agent (FoundationModels) in an inspector panel — observe, guide (section navigation), and gated container/image/compose/runtime actions
 
 ## Known Limitations
 
