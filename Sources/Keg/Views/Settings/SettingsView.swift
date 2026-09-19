@@ -484,8 +484,8 @@ private struct ContainerDataLocationRow: View {
             Text("Where the runtime keeps containers, images, and volumes. Leave empty for the default (~/.container). Change it while the system is stopped, then use Start System.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            TextField("empty = ~/.container", text: $path, prompt: Text("empty = ~/.container"))
-                .textFieldStyle(.roundedBorder)
+            TextField("", text: $path, prompt: Text("empty = ~/.container"))
+                .textFieldStyle(.squareBorder)
                 .font(.system(.caption, design: .monospaced))
                 .onChange(of: path) { _, _ in
                     problem = ContainerCLI.appRootProblem()

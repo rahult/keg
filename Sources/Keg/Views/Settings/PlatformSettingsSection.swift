@@ -79,62 +79,79 @@ struct PlatformSettingsSection: View {
         }
     }
 
+    /// One settings row: fixed-width label column so every control starts at
+    /// the same x. A plain HStack — Grid centers cells in their columns and
+    /// stretches Steppers, which scattered the controls across the row.
+    private func settingRow(_ label: String, @ViewBuilder control: () -> some View) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 16) {
+            Text(label)
+                .foregroundStyle(.secondary)
+                .frame(width: 180, alignment: .leading)
+            // Fixed control column: every control starts at the same x even
+            // though the fields themselves have different natural widths.
+            HStack(spacing: 0) {
+                control()
+                Spacer(minLength: 0)
+            }
+            .frame(width: 330, alignment: .leading)
+            Spacer(minLength: 0)
+        }
+        // Full-width leading frame: the Settings form centers fixed-width
+        // rows, which offsets controls differently on every row.
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             storageLocations
 
-            Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 16, verticalSpacing: 10) {                GridRow {
-                    Text("Default CPUs")
-                        .foregroundStyle(.secondary)
-                    Stepper("\(vm.settings.containerCPUs)", value: $vm.settings.containerCPUs, in: 1...32)
+            VStack(alignment: .leading, spacing: 10) {
+                settingRow("Default CPUs") {
+                    HStack(spacing: 10) {
+                        Text("\(vm.settings.containerCPUs)").monospacedDigit()
+                        Stepper("", value: $vm.settings.containerCPUs, in: 1...32)
+                            .labelsHidden()
+                    }
                 }
-                GridRow {
-                    Text("Default Memory")
-                        .foregroundStyle(.secondary)
-                    TextField("1gb", text: $vm.settings.containerMemory)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 120)
+                settingRow("Default Memory") {
+                    TextField("", text: $vm.settings.containerMemory, prompt: Text("1gb"))
+                        .textFieldStyle(.squareBorder)
+                        .frame(width: 220)
                 }
-                GridRow {
-                    Text("Builder CPUs")
-                        .foregroundStyle(.secondary)
-                    Stepper("\(vm.settings.buildCPUs)", value: $vm.settings.buildCPUs, in: 1...16)
+                settingRow("Builder CPUs") {
+                    HStack(spacing: 10) {
+                        Text("\(vm.settings.buildCPUs)").monospacedDigit()
+                        Stepper("", value: $vm.settings.buildCPUs, in: 1...16)
+                            .labelsHidden()
+                    }
                 }
-                GridRow {
-                    Text("Builder Memory")
-                        .foregroundStyle(.secondary)
-                    TextField("2048mb", text: $vm.settings.buildMemory)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 120)
+                settingRow("Builder Memory") {
+                    TextField("", text: $vm.settings.buildMemory, prompt: Text("2048mb"))
+                        .textFieldStyle(.squareBorder)
+                        .frame(width: 220)
                 }
-                GridRow {
-                    Text("Builder Rosetta")
-                        .foregroundStyle(.secondary)
+                settingRow("Builder Rosetta") {
                     Toggle("", isOn: $vm.settings.buildRosetta)
                         .labelsHidden()
                 }
-                GridRow {
-                    Text("Builder Image")
-                        .foregroundStyle(.secondary)
-                    TextField("ghcr.io/apple/…/builder:tag", text: $vm.settings.buildImage)
-                        .textFieldStyle(.roundedBorder)
+                settingRow("Builder Image") {
+                    TextField("", text: $vm.settings.buildImage, prompt: Text("ghcr.io/apple/…/builder:tag"))
+                        .textFieldStyle(.squareBorder)
                         .frame(width: 320)
                 }
-                GridRow {
-                    Text("Machine CPUs")
-                        .foregroundStyle(.secondary)
-                    Stepper("\(vm.settings.machineCPUs)", value: $vm.settings.machineCPUs, in: 1...64)
+                settingRow("Machine CPUs") {
+                    HStack(spacing: 10) {
+                        Text("\(vm.settings.machineCPUs)").monospacedDigit()
+                        Stepper("", value: $vm.settings.machineCPUs, in: 1...64)
+                            .labelsHidden()
+                    }
                 }
-                GridRow {
-                    Text("Machine Memory")
-                        .foregroundStyle(.secondary)
-                    TextField("8gb", text: $vm.settings.machineMemory)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 120)
+                settingRow("Machine Memory") {
+                    TextField("", text: $vm.settings.machineMemory, prompt: Text("8gb"))
+                        .textFieldStyle(.squareBorder)
+                        .frame(width: 220)
                 }
-                GridRow {
-                    Text("Home Mount")
-                        .foregroundStyle(.secondary)
+                settingRow("Home Mount") {
                     Picker("", selection: $vm.settings.machineHomeMount) {
                         Text("Read-only").tag("ro")
                         Text("Read-write").tag("rw")
@@ -145,17 +162,13 @@ struct PlatformSettingsSection: View {
                     .frame(width: 240)
                     .help("Whether containers see your Mac home folder, and how")
                 }
-                GridRow {
-                    Text("Machine Virtualization")
-                        .foregroundStyle(.secondary)
+                settingRow("Machine Virtualization") {
                     Toggle("", isOn: $vm.settings.machineVirtualization)
                         .labelsHidden()
                 }
-                GridRow {
-                    Text("Registry Domain")
-                        .foregroundStyle(.secondary)
-                    TextField("docker.io", text: $vm.settings.registryDomain)
-                        .textFieldStyle(.roundedBorder)
+                settingRow("Registry Domain") {
+                    TextField("", text: $vm.settings.registryDomain, prompt: Text("docker.io"))
+                        .textFieldStyle(.squareBorder)
                         .frame(width: 220)
                 }
             }
