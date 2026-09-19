@@ -196,6 +196,12 @@ final class AppState {
         return ContainerCLI.configuredAppRoot ?? "~/.container (default)"
     }
 
+    /// The concrete data root path (configured override or ~/.container),
+    /// with ~ expanded — containers, volumes, and images all live under it.
+    var effectiveDataRootPath: String {
+        ContainerCLI.configuredAppRoot ?? NSString(string: "~/.container").expandingTildeInPath
+    }
+
 
     // DISABLED: reading keychain state at launch triggers repeated prompts
     // (see note in init). Treat the agents feature as signed out until the

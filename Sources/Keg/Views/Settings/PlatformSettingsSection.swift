@@ -1,15 +1,89 @@
+import AppKit
 import SwiftUI
 
-/// Editable platform defaults (new-container CPU/memory, builder resources,
-/// default registry) plus DNS domain listing. Values are validated by the
-/// platform's own config loader on next read; Keg writes clean TOML overrides.
+/// Editable platform defaults (new-container CPU/memory, machine resources,
+/// builder settings, default registry, home-mount policy) plus DNS domain
+/// listing. Values are validated by the platform's own config loader on next
+/// read; Keg writes clean TOML overrides.
 struct PlatformSettingsSection: View {
+    @Environment(AppState.self) private var appState
     @State private var vm = PlatformSettingsVM()
+    @State private var showAdvanced = false
+
+    /// Where persistent data lives — the volume location for containers,
+    /// named volumes, and images — derived from the configured data root.
+    private var storageLocations: some View {
+        let root = appState.effectiveDataRootPath
+        return VStack(alignment: .leading, spacing: 5) {
+            Text("Storage Locations")
+                .font(.headline)
+            storageRow("Containers", "\(root)/containers")
+            storageRow("Volumes", "\(root)/volumes")
+            storageRow("Images", "\(root)/content")
+            Text("Everything persistent lives under the data root set in Container System → Data Location. Moving it means stopping the system, copying the folder, and updating that field.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func storageRow(_ label: String, _ path: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label)
+                .frame(width: 110, alignment: .leading)
+                .foregroundStyle(.secondary)
+            Text(path)
+                .font(.system(.caption, design: .monospaced))
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .textSelection(.enabled)
+            Spacer()
+            Button("Copy") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(path, forType: .string)
+            }
+            .controlSize(.small)
+            .buttonStyle(.borderless)
+        }
+    }
+
+    /// Kernel and vminit pin the platform's boot stack. Keg shows them for
+    /// awareness but never writes them — a bad value here prevents every
+    /// container from starting.
+    private var advancedSection: some View {
+        DisclosureGroup("Advanced (read-only)", isExpanded: $showAdvanced) {
+            VStack(alignment: .leading, spacing: 5) {
+                advancedRow("Kernel", vm.settings.kernelBinaryPath)
+                advancedRow("Kernel URL", vm.settings.kernelURL)
+                advancedRow("vminit Image", vm.settings.vminitImage)
+                Text("Pinned by the container platform and updated with it. Edit the config TOML by hand only if you know why.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.top, 4)
+        }
+        .font(.subheadline)
+    }
+
+    private func advancedRow(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label)
+                .frame(width: 110, alignment: .leading)
+                .foregroundStyle(.secondary)
+            Text(value.isEmpty ? "—" : value)
+                .font(.system(.caption, design: .monospaced))
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .textSelection(.enabled)
+            Spacer()
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 16, verticalSpacing: 10) {
-                GridRow {
+            storageLocations
+
+            Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 16, verticalSpacing: 10) {                GridRow {
                     Text("Default CPUs")
                         .foregroundStyle(.secondary)
                     Stepper("\(vm.settings.containerCPUs)", value: $vm.settings.containerCPUs, in: 1...32)
@@ -40,6 +114,44 @@ struct PlatformSettingsSection: View {
                         .labelsHidden()
                 }
                 GridRow {
+                    Text("Builder Image")
+                        .foregroundStyle(.secondary)
+                    TextField("ghcr.io/apple/…/builder:tag", text: $vm.settings.buildImage)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 320)
+                }
+                GridRow {
+                    Text("Machine CPUs")
+                        .foregroundStyle(.secondary)
+                    Stepper("\(vm.settings.machineCPUs)", value: $vm.settings.machineCPUs, in: 1...64)
+                }
+                GridRow {
+                    Text("Machine Memory")
+                        .foregroundStyle(.secondary)
+                    TextField("8gb", text: $vm.settings.machineMemory)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 120)
+                }
+                GridRow {
+                    Text("Home Mount")
+                        .foregroundStyle(.secondary)
+                    Picker("", selection: $vm.settings.machineHomeMount) {
+                        Text("Read-only").tag("ro")
+                        Text("Read-write").tag("rw")
+                        Text("None").tag("none")
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .frame(width: 240)
+                    .help("Whether containers see your Mac home folder, and how")
+                }
+                GridRow {
+                    Text("Machine Virtualization")
+                        .foregroundStyle(.secondary)
+                    Toggle("", isOn: $vm.settings.machineVirtualization)
+                        .labelsHidden()
+                }
+                GridRow {
                     Text("Registry Domain")
                         .foregroundStyle(.secondary)
                     TextField("docker.io", text: $vm.settings.registryDomain)
@@ -47,6 +159,9 @@ struct PlatformSettingsSection: View {
                         .frame(width: 220)
                 }
             }
+            .disabled(vm.isLoading)
+
+            advancedSection
 
             if !vm.canEdit {
                 Label("Config is not writable at your install location — these fields are read-only.", systemImage: "lock")

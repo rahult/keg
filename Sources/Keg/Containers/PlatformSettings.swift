@@ -14,8 +14,22 @@ final class PlatformSettingsVM {
         var buildCPUs: Int = 2
         var buildMemory: String = "2048mb"
         var buildRosetta: Bool = true
+        var buildImage: String = "ghcr.io/apple/container-builder-shim/builder:0.13.1"
+        var machineCPUs: Int = 4
+        var machineMemory: String = "8gb"
+        var machineHomeMount: String = "ro"
+        var machineVirtualization: Bool = false
         var registryDomain: String = "docker.io"
+        // Advanced internals: shown read-only. A wrong kernel/vminit value
+        // prevents every container from booting, so Keg doesn't edit them.
+        var kernelBinaryPath: String = ""
+        var kernelURL: String = ""
+        var vminitImage: String = ""
     }
+
+    /// Valid values for the machine home-mount policy (HostMountOption in
+    /// the container runtime): read-only, read-write, or not mounted.
+    nonisolated static let homeMountOptions = ["ro", "rw", "none"]
 
     var settings = Settings()
     var dnsDomains: [String] = []
@@ -67,6 +81,11 @@ final class PlatformSettingsVM {
             errorMessage = "No writable config location found. Install via Homebrew to enable editing."
             return
         }
+        let homeMount = settings.machineHomeMount.lowercased()
+        guard Self.homeMountOptions.contains(homeMount) else {
+            errorMessage = "Home mount must be one of: \(Self.homeMountOptions.joined(separator: ", "))."
+            return
+        }
         isSaving = true
         errorMessage = nil
         saveNotice = nil
@@ -74,7 +93,7 @@ final class PlatformSettingsVM {
 
         let toml = """
         # Written by Keg. Overrides platform defaults; takes effect for new
-        # containers/builds. Delete this file to return to defaults.
+        # containers/builds/machines. Delete this file to return to defaults.
 
         [container]
         cpus = \(settings.containerCPUs)
@@ -84,6 +103,13 @@ final class PlatformSettingsVM {
         cpus = \(settings.buildCPUs)
         memory = "\(settings.buildMemory)"
         rosetta = \(settings.buildRosetta)
+        image = "\(settings.buildImage)"
+
+        [machine]
+        cpus = \(settings.machineCPUs)
+        memory = "\(settings.machineMemory)"
+        homeMount = "\(homeMount)"
+        virtualization = \(settings.machineVirtualization)
 
         [registry]
         domain = "\(settings.registryDomain)"
@@ -163,7 +189,19 @@ final class PlatformSettingsVM {
             case ("build", "cpus"): result.buildCPUs = Int(value) ?? result.buildCPUs
             case ("build", "memory"): result.buildMemory = value
             case ("build", "rosetta"): result.buildRosetta = (value == "true")
+            case ("build", "image"): result.buildImage = value
+            case ("machine", "cpus"): result.machineCPUs = Int(value) ?? result.machineCPUs
+            case ("machine", "memory"): result.machineMemory = value
+            case ("machine", "homeMount"):
+                // The segmented picker only knows these three; snap anything
+                // unexpected (future values, typos in a hand-edited file) to
+                // read-only, the safest policy.
+                result.machineHomeMount = Self.homeMountOptions.contains(value) ? value : "ro"
+            case ("machine", "virtualization"): result.machineVirtualization = (value == "true")
             case ("registry", "domain"): result.registryDomain = value
+            case ("kernel", "binaryPath"): result.kernelBinaryPath = value
+            case ("kernel", "url"): result.kernelURL = value
+            case ("vminit", "image"): result.vminitImage = value
             default: break
             }
         }
