@@ -14,6 +14,16 @@ enum CooperAvailability: Equatable, Sendable {
     case unavailable(String)
 
     static func from(systemModel: SystemLanguageModel) -> CooperAvailability {
+        // Debug/testing hook: force a state without touching system settings,
+        // e.g. `defaults write <bundle-id> cooper.simulateAvailability appleIntelligenceOff`.
+        // Not exposed in any UI.
+        switch UserDefaults.standard.string(forKey: "cooper.simulateAvailability") {
+        case "appleIntelligenceOff": return .appleIntelligenceOff
+        case "deviceNotEligible": return .deviceNotEligible
+        case "modelNotReady": return .modelNotReady
+        case "ready": return .ready
+        default: break
+        }
         switch systemModel.availability {
         case .available:
             return .ready

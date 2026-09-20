@@ -272,8 +272,11 @@ struct CooperPanelView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 20)
             if case .appleIntelligenceOff = cooper.availability {
-                Button("Open Apple Intelligence Settings") {
-                    if let url = URL(string: "x-apple.systempreferences:com.apple.systempreferences.AppleIntelligenceSettings") {
+                Button("Open Siri & Apple Intelligence Settings") {
+                    // The Apple-Intelligence-specific anchor lands on
+                    // General on macOS 27; the Siri pane hosts the
+                    // intelligence controls.
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.Siri-Settings.extension") {
                         NSWorkspace.shared.open(url)
                     }
                 }
