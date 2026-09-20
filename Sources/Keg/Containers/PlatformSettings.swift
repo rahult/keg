@@ -8,7 +8,7 @@ import Foundation
 @Observable
 @MainActor
 final class PlatformSettingsVM {
-    struct Settings: Sendable {
+    struct Settings: Equatable, Sendable {
         // Defaults match this machine's effective configuration (10-core /
         // 16 GB Mac16,10): sliders are additionally bounded by the live host.
         var containerCPUs: Int = 4
@@ -60,6 +60,21 @@ final class PlatformSettingsVM {
     var errorMessage: String?
     var saveNotice: String?
 
+    /// Every other control in Keg applies instantly; the Platform section
+    /// does too now — edits land in the override TOML after a short pause,
+    /// so slider drags don't cause a write per tick.
+    private var saveTask: Task<Void, Never>?
+
+    func scheduleSave() {
+        guard canEdit else { return }
+        saveTask?.cancel()
+        saveTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled else { return }
+            await self?.save(silent: true)
+        }
+    }
+
     /// Locations the `container` CLI reads config from, first writable wins.
     /// Homebrew's opt path is user-writable; the pkg/system paths usually
     /// need root, in which case editing is disabled honestly.
@@ -97,7 +112,7 @@ final class PlatformSettingsVM {
         await loadDNS()
     }
 
-    func save() async {
+    func save(silent: Bool = false) async {
         guard let path = configPath else {
             errorMessage = "No writable config location found. Install via Homebrew to enable editing."
             return
@@ -141,7 +156,16 @@ final class PlatformSettingsVM {
             let url = URL(filePath: path)
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             try toml.write(to: url, atomically: true, encoding: .utf8)
-            saveNotice = "Saved to \(path). Applies to new containers and builds."
+            if silent {
+                errorMessage = nil
+            } else {
+                saveNotice = "Saved. Applies to new containers, builds, and machines."
+                let message = saveNotice
+                Task { [weak self] in
+                    try? await Task.sleep(for: .seconds(4))
+                    if self?.saveNotice == message { self?.saveNotice = nil }
+                }
+            }
         } catch {
             errorMessage = "Failed to write config: \(error.localizedDescription)"
         }

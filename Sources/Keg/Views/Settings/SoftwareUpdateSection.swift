@@ -14,14 +14,15 @@ struct SoftwareUpdateSection: View {
         VStack(alignment: .leading, spacing: 8) {
             Toggle("Check for updates automatically", isOn: $updater.automaticallyChecksForUpdates)
 
-            Picker("Check", selection: $updater.checkFrequency) {
-                ForEach(UpdateCheckFrequency.allCases) { frequency in
-                    Text(frequency.label).tag(frequency)
+            if updater.automaticallyChecksForUpdates {
+                Picker("Check", selection: $updater.checkFrequency) {
+                    ForEach(UpdateCheckFrequency.allCases) { frequency in
+                        Text(frequency.label).tag(frequency)
+                    }
                 }
+                .pickerStyle(.menu)
+                .fixedSize()
             }
-            .pickerStyle(.menu)
-            .fixedSize()
-            .disabled(!updater.automaticallyChecksForUpdates)
 
             Toggle("Download and install updates automatically", isOn: $updater.automaticallyDownloadsUpdates)
                 .disabled(!updater.automaticallyChecksForUpdates)
