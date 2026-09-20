@@ -350,6 +350,7 @@ a:focus-visible, .btn:focus-visible {
       <a href="#compose">Compose</a>
       <a href="#k8s">Kubernetes</a>
       <a href="#compare">Compare</a>
+      <a href="https://github.com/rahult/keg/blob/main/docs/README.md">Docs</a>
     </nav>
     <a href="https://github.com/rahult/keg/releases/latest/download/Keg.dmg" class="dl">Download <span>↓</span></a>
   </div>
@@ -393,13 +394,13 @@ a:focus-visible, .btn:focus-visible {
   <div class="stat"><div class="stat-val">618<span class="unit">ms</span></div><div class="stat-label">Container Start</div></div>
   <div class="stat"><div class="stat-val">55<span class="unit">ms</span></div><div class="stat-label">Exec Latency</div></div>
   <div class="stat"><div class="stat-val">69<span class="unit">MB</span></div><div class="stat-label">Idle Memory</div></div>
-  <div class="stat"><div class="stat-val">365</div><div class="stat-label">Tests Passing</div></div>
+  <div class="stat"><div class="stat-val">437</div><div class="stat-label">Tests Passing</div></div>
 </div>
 
 <!-- 01 Features -->
 <section class="section" id="features">
   <div class="sec-head"><span class="sec-no">01</span><h2 class="sec-title">Everything you need.</h2></div>
-  <p class="sec-desc">Containers, images, networks, volumes, builds, Compose, Kubernetes — plus guided onboarding, a health score, port dashboard, embedded terminal, and dev containers. All native. All fast.</p>
+  <p class="sec-desc">Containers, images, networks, volumes, builds, Compose, Kubernetes — plus guided onboarding, a health score, port dashboard, embedded terminal, dev containers, an on-device agent, and a companion CLI. All native. All fast.</p>
   <div class="ledger">
     <div class="ledger-item">
       <div class="ledger-idx"><span>No. 01</span><span>Boot</span></div>
@@ -460,6 +461,16 @@ a:focus-visible, .btn:focus-visible {
       <div class="ledger-idx"><span>No. 12</span><span>Design</span></div>
       <h3>Plain Language, Labeled Actions</h3>
       <p>Every toolbar action carries its name, every disabled button explains itself, and status lives next to the thing it describes. You should never have to guess.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 13</span><span>Agent</span></div>
+      <h3>Cooper, On-Device Agent</h3>
+      <p>A built-in agent running entirely on your Mac via Apple's FoundationModels — no cloud calls, no account, nothing leaves the machine. Ask why a container failed, or let it pull images and bring up Compose stacks; destructive actions need your approval in every mode.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 14</span><span>CLI</span></div>
+      <h3>keg Companion CLI</h3>
+      <p>A terminal client installed straight from the app: ps, images, logs, exec, start/stop, doctor diagnostics — and keg:// deep links that open the app on the right section. No docker CLI required.</p>
     </div>
   </div>
 </section>
@@ -721,6 +732,7 @@ kubectl logs -f deploy/nginx</div>
         <tr><td>Kubernetes</td><td>✓</td><td>✓</td><td class="keg">✓</td></tr>
         <tr><td>Health score</td><td>—</td><td>—</td><td class="keg">✓</td></tr>
         <tr><td>Dev containers</td><td>✓</td><td>—</td><td class="keg">✓</td></tr>
+        <tr><td>On-device agent</td><td>—</td><td>—</td><td class="keg">✓</td></tr>
         <tr><td>Native macOS</td><td>Electron</td><td>Native-ish</td><td class="keg">SwiftUI</td></tr>
         <tr><td>License</td><td>$9/seat/mo</td><td>Paid</td><td class="keg">Apache 2.0</td></tr>
       </tbody>
@@ -746,6 +758,7 @@ kubectl logs -f deploy/nginx</div>
     Built on Apple Containerization 1.3.1
   </div>
   <div class="links">
+    <a href="https://github.com/rahult/keg/blob/main/docs/README.md">Docs</a>
     <a href="https://github.com/rahult/keg">GitHub</a>
     <a href="https://github.com/rahult/keg/issues">Issues</a>
     <a href="https://github.com/apple/container">Apple Container</a>
