@@ -79,6 +79,22 @@ struct PlatformSettingsSection: View {
         }
     }
 
+    /// A labelled group of related rows: the fastest way to tell the three
+    /// CPU/memory triples apart.
+    private func group(_ name: String, caption: String? = nil, @ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(name)
+                .font(.subheadline.weight(.semibold))
+            content()
+            if let caption {
+                Text(caption)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
     /// One settings row: fixed-width label column so every control starts at
     /// the same x. A plain HStack — Grid centers cells in their columns and
     /// stretches Steppers, which scattered the controls across the row.
@@ -101,16 +117,21 @@ struct PlatformSettingsSection: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// CPUs: slider bounded by the host's core count, with an editable text.
+    /// CPUs: slider bounded by the host's core count, with an editable text
+    /// that is clamped to the same range (typing 100 must not reach the TOML).
     private func cpuRow(_ label: String, value: Binding<Int>) -> some View {
-        settingRow(label) {
+        let clamped = Binding(
+            get: { value.wrappedValue },
+            set: { value.wrappedValue = min(max($0, 1), PlatformSettingsVM.hostCoreCount) }
+        )
+        return settingRow(label) {
             HStack(spacing: 10) {
                 Slider(value: Binding(
-                    get: { Double(value.wrappedValue) },
-                    set: { value.wrappedValue = Int($0.rounded()) }
+                    get: { Double(clamped.wrappedValue) },
+                    set: { clamped.wrappedValue = Int($0.rounded()) }
                 ), in: 1...Double(PlatformSettingsVM.hostCoreCount), step: 1)
                 .frame(width: 140)
-                TextField("", value: value, format: .number)
+                TextField("", value: clamped, format: .number)
                     .textFieldStyle(.squareBorder)
                     .font(.system(.caption, design: .monospaced))
                     .frame(width: 52)
@@ -123,10 +144,12 @@ struct PlatformSettingsSection: View {
     }
 
     /// Memory in GB (half-gig steps), backed by megabytes in the config.
+    /// Text entry is clamped to the slider range as well.
     private func memoryRow(_ label: String, mb: Binding<Int>) -> some View {
+        let limits = 512...PlatformSettingsVM.hostMemoryGB * 1024
         let gb = Binding(
             get: { Double(mb.wrappedValue) / 1024.0 },
-            set: { mb.wrappedValue = max(512, Int((($0 * 2).rounded() / 2) * 1024)) }
+            set: { mb.wrappedValue = min(max(Int((($0 * 2).rounded() / 2) * 1024), limits.lowerBound), limits.upperBound) }
         )
         return settingRow(label) {
             HStack(spacing: 10) {
@@ -148,44 +171,61 @@ struct PlatformSettingsSection: View {
         VStack(alignment: .leading, spacing: 12) {
             storageLocations
 
-            VStack(alignment: .leading, spacing: 10) {
-                cpuRow("Default CPUs", value: $vm.settings.containerCPUs)
-                memoryRow("Default Memory", mb: $vm.settings.containerMemoryMB)
-                cpuRow("Builder CPUs", value: $vm.settings.buildCPUs)
-                memoryRow("Builder Memory", mb: $vm.settings.buildMemoryMB)
-                settingRow("Builder Rosetta") {
-                    Toggle("", isOn: $vm.settings.buildRosetta)
-                        .labelsHidden()
+            VStack(alignment: .leading, spacing: 14) {
+                group("Containers", caption: "Resources for newly created containers.") {
+                    cpuRow("CPUs", value: $vm.settings.containerCPUs)
+                    memoryRow("Memory", mb: $vm.settings.containerMemoryMB)
                 }
-                settingRow("Builder Image") {
-                    TextField("", text: $vm.settings.buildImage, prompt: Text("ghcr.io/apple/…/builder:tag"))
-                        .textFieldStyle(.squareBorder)
-                        .frame(width: 320)
-                }
-                cpuRow("Machine CPUs", value: $vm.settings.machineCPUs)
-                memoryRow("Machine Memory", mb: $vm.settings.machineMemoryMB)
-                settingRow("Home Mount") {
-                    Picker("", selection: $vm.settings.machineHomeMount) {
-                        Text("Read-only").tag("ro")
-                        Text("Read-write").tag("rw")
-                        Text("None").tag("none")
+
+                group("Builds", caption: "Resources for `container build`.") {
+                    cpuRow("CPUs", value: $vm.settings.buildCPUs)
+                    memoryRow("Memory", mb: $vm.settings.buildMemoryMB)
+                    settingRow("Rosetta") {
+                        Toggle("", isOn: $vm.settings.buildRosetta)
+                            .labelsHidden()
                     }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .frame(width: 240)
-                    .help("Whether containers see your Mac home folder, and how")
+                    settingRow("Builder Image") {
+                        TextField("", text: $vm.settings.buildImage, prompt: Text("ghcr.io/apple/…/builder:tag"))
+                            .textFieldStyle(.squareBorder)
+                            .frame(width: 320)
+                    }
                 }
-                settingRow("Machine Virtualization") {
-                    Toggle("", isOn: $vm.settings.machineVirtualization)
+
+                group("Machines", caption: "Defaults for full Linux machines.") {
+                    cpuRow("CPUs", value: $vm.settings.machineCPUs)
+                    memoryRow("Memory", mb: $vm.settings.machineMemoryMB)
+                    settingRow("Home Mount") {
+                        Picker("", selection: $vm.settings.machineHomeMount) {
+                            Text("Read-only").tag("ro")
+                            Text("Read-write").tag("rw")
+                            Text("None").tag("none")
+                        }
                         .labelsHidden()
+                        .pickerStyle(.segmented)
+                        .frame(width: 240)
+                        .help("Whether containers see your Mac home folder, and how")
+                    }
+                    settingRow("Virtualization") {
+                        Toggle("", isOn: $vm.settings.machineVirtualization)
+                            .labelsHidden()
+                    }
                 }
-                settingRow("Registry Domain") {
-                    TextField("", text: $vm.settings.registryDomain, prompt: Text("docker.io"))
-                        .textFieldStyle(.squareBorder)
-                        .frame(width: 220)
+
+                group("Registry") {
+                    settingRow("Domain") {
+                        TextField("", text: $vm.settings.registryDomain, prompt: Text("docker.io"))
+                            .textFieldStyle(.squareBorder)
+                            .frame(width: 220)
+                    }
+                    Text("Where images are pulled from; docker.io covers Docker Hub.")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
             }
-            .disabled(vm.isLoading)
+            .disabled(vm.isLoading || !vm.canEdit)
+            .onChange(of: vm.settings) { _, _ in
+                vm.scheduleSave()
+            }
 
             advancedSection
 
@@ -197,23 +237,16 @@ struct PlatformSettingsSection: View {
 
             HStack(spacing: 12) {
                 Button {
-                    Task { await vm.save() }
-                } label: {
-                    HStack {
-                        if vm.isSaving { ProgressView().controlSize(.small) }
-                        Text("Save Defaults")
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!vm.canEdit || vm.isSaving || vm.isLoading)
-
-                Button {
                     Task { await vm.load() }
                 } label: {
-                    Label("Reload", systemImage: "arrow.clockwise")
+                    Label("Revert", systemImage: "arrow.counterclockwise")
                 }
                 .controlSize(.small)
                 .disabled(vm.isLoading)
+
+                Text("Changes save automatically and apply to new containers, builds, and machines.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             if let notice = vm.saveNotice {
@@ -251,7 +284,7 @@ struct PlatformSettingsSection: View {
                         .font(.system(.caption, design: .monospaced))
                 }
             }
-            Text("Creating a DNS domain requires an administrator: run `sudo container system dns create <name>` in Terminal, then set it as the default registry/domain above.")
+            Text("Creating a domain needs an administrator: `sudo container system dns create <name>`.")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }

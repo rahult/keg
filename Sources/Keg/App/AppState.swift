@@ -99,6 +99,9 @@ final class AppState {
     var activeSessionCount = 0
 
     /// Whether the Cooper inspector panel is shown on the main window.
+    /// Defaults to closed: with the panel open the primary toolbar action
+    /// truncates and list panes lose a third of their width. Users who want
+    /// it docked get it remembered here.
     var isCooperPanelVisible: Bool {
         didSet {
             UserDefaults.standard.set(isCooperPanelVisible, forKey: Self.cooperPanelVisibleDefaultsKey)

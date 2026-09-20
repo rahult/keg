@@ -97,7 +97,7 @@ struct SettingsView: View {
             }
 
 
-            Section("Startup") {
+            Section {
                 Toggle("Launch Keg at login", isOn: $loginItem.isEnabled)
                 Text("Starts Keg (and its Docker socket) when you log in")
                     .font(.caption)
@@ -116,7 +116,7 @@ struct SettingsView: View {
             }
             }
             .formStyle(.grouped)
-            .tabItem { Label("Keg", systemImage: "gearshape") }
+            .tabItem { Label("Keg", systemImage: "slider.horizontal.3") }
 
 
             Form {
@@ -293,12 +293,24 @@ struct SettingsView: View {
             .formStyle(.grouped)
             .tabItem { Label("Kubernetes", systemImage: "helm") }
 
+            Form {
+            Section("Cooper") {
+                CooperSettingsSection()
+            }
+            }
+            .formStyle(.grouped)
+            .tabItem { Label("Cooper", systemImage: "sparkle") }
+
 
             Form {
             Section("About") {
                 LabeledContent("App", value: "Keg")
                 LabeledContent("Version", value: AppVersion.displayString)
-                LabeledContent("Description", value: "Docker Desktop replacement for macOS — native containers, Docker API, Compose, and Kubernetes")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Description")
+                    Text("Docker Desktop replacement for macOS — native containers, Docker API, Compose, and Kubernetes")
+                        .foregroundStyle(.secondary)
+                }
                 LabeledContent("Runtime", value: "Apple Containerization")
                 LabeledContent("Requirements", value: "macOS 26+, Apple Silicon, Apple container CLI")
                 LabeledContent("License", value: "Apache 2.0")
@@ -570,11 +582,19 @@ private struct ContainerDataLocationRow: View {
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 10) {
-                Text(effectivePath + (isDefault ? "  (default)" : ""))
+                Text(effectivePath)
                     .font(.system(.caption, design: .monospaced))
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .textSelection(.enabled)
+                if isDefault {
+                    Text("default")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.quaternary, in: Capsule())
+                }
                 Spacer()
                 Button("Browse…") { browse() }
                     .controlSize(.small)

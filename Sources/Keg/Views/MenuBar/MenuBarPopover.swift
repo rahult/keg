@@ -100,11 +100,11 @@ struct MenuBarPopover: View {
     private var statusText: String {
         switch appState.systemStatus {
         case .running:
-            return "Container System Running"
+            return "Runtime running"
         case .stopped:
-            return "Container System Stopped"
+            return "Runtime stopped"
         case .unresponsive:
-            return "Container System Unresponsive"
+            return "Runtime unresponsive"
         case .error(let msg):
             return msg
         }

@@ -15,3 +15,4 @@ outputs/qa/
 .env
 outputs/k8s-e2e*.log
 outputs/tools/
+.zcode/

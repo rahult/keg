@@ -16,6 +16,21 @@ struct ContainerListView: View {
         vm.filteredContainers.map { IdentifiableContainer($0) }
     }
 
+    /// Tells the truth about how much of the dataset is on screen — a
+    /// running-only filter over 65 containers must never read as data loss.
+    private var subtitle: String {
+        let total = vm.containers.count
+        let shown = vm.filteredContainers.count
+        guard !vm.isLoading else { return "" }
+        if vm.showOnlyRunning, total > 0 {
+            return "Showing \(shown) running of \(total) containers"
+        }
+        if shown != total {
+            return "Showing \(shown) of \(total) containers"
+        }
+        return total == 1 ? "1 container" : "\(total) containers"
+    }
+
     var body: some View {
         Group {
             if vm.isLoading && vm.containers.isEmpty {
@@ -185,17 +200,16 @@ struct ContainerListView: View {
             }
 
             ToolbarItem(id: "filter", placement: .automatic) {
-                Button {
-                    vm.showOnlyRunning.toggle()
-                    Task { await vm.refresh() }
-                } label: {
-                    Label(
-                        vm.showOnlyRunning ? "Show All" : "Running Only",
-                        systemImage: vm.showOnlyRunning ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle"
-                    )
+                // Segmented so the active state is always visible — a lone
+                // toggle button read as a static label and hid 64 containers.
+                Picker("Filter", selection: $vm.showOnlyRunning) {
+                    Text("All").tag(false)
+                    Text("Running").tag(true)
                 }
-                .help(vm.showOnlyRunning ? "Show stopped containers too" : "Only show containers that are currently running")
-                .accessibilityHint(vm.showOnlyRunning ? "Show stopped containers too" : "Limit the list to running containers")
+                .pickerStyle(.segmented)
+                .frame(width: 150)
+                .help("Limit the list to running containers")
+                .accessibilityHint("Limit the list to running containers")
             }
 
             ToolbarItem(id: "refresh", placement: .automatic) {
@@ -209,6 +223,7 @@ struct ContainerListView: View {
                 .accessibilityHint("Reload the containers list")
             }
         }
+        .navigationSubtitle(subtitle)
         .toolbarRole(.editor)
         .task {
             if let pending = appState.pendingRunImage {

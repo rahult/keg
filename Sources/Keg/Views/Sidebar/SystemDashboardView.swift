@@ -68,7 +68,8 @@ struct SystemDashboardView: View {
 
     private var containersLabel: String {
         guard let metrics else { return "--" }
-        return "\(metrics.containerCount)/\(metrics.totalContainerCount)"
+        // Spell out which number is which: "1/1" read as a mystery ratio.
+        return "\(metrics.containerCount) running of \(metrics.totalContainerCount)"
     }
 
     private var imagesLabel: String {
