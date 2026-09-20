@@ -9,6 +9,20 @@ final class VolumesVM {
     var isLoading = false
     var errorMessage: String?
 
+    func create(named name: String) async {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        do {
+            let (code, out) = try await ContainerCLI.run(["container", "volume", "create", trimmed])
+            if code != 0 {
+                errorMessage = out.isEmpty ? "Failed to create volume" : out
+            }
+            await refresh()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func refresh() async {
         isLoading = true
         defer { isLoading = false }
@@ -32,6 +46,8 @@ final class VolumesVM {
 
 struct VolumeListView: View {
     @State private var vm = VolumesVM()
+    @State private var showingCreate = false
+    @State private var newVolumeName = ""
     @State private var selectedVolumeName: String?
     @State private var showingDeleteConfirmation = false
     @State private var volumeToDelete: String?
@@ -75,10 +91,30 @@ struct VolumeListView: View {
                 }
             }
         }
+        .alert("Create Volume", isPresented: $showingCreate) {
+            TextField("Volume name", text: $newVolumeName)
+            Button("Create") {
+                let name = newVolumeName
+                newVolumeName = ""
+                Task { await vm.create(named: name) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Named volumes persist data beyond a container's lifecycle.")
+        }
         .navigationTitle("Volumes")
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 SectionHelpButton(section: .volumes)
+            }
+
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    showingCreate = true
+                } label: {
+                    Label("Create Volume…", systemImage: "plus")
+                }
+                .help("Create a new named volume")
             }
 
             ToolbarItem(placement: .automatic) {

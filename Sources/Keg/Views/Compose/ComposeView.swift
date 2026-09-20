@@ -489,10 +489,13 @@ struct ComposeView: View {
         }
         .toolbarRole(.editor)
         .task {
-            if !vm.composeFilePath.isEmpty {
-                await vm.refreshPS()
-                await vm.refreshPlan()
-            }
+            // Only refresh for a file that still exists — a persisted path
+            // that has since disappeared must not greet the user with a
+            // stale parse error every launch.
+            guard !vm.composeFilePath.isEmpty,
+                  FileManager.default.fileExists(atPath: vm.composeFilePath) else { return }
+            await vm.refreshPS()
+            await vm.refreshPlan()
         }
         .onChange(of: vm.composeFilePath) {
             Task { await vm.refreshPlan() }

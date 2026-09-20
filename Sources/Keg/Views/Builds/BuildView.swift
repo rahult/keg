@@ -36,7 +36,7 @@ struct BuildView: View {
                                 Text("Context")
                                     .foregroundStyle(.secondary)
                                 HStack(spacing: 8) {
-                                    TextField("Project directory", text: $contextDir, prompt: Text("."))
+                                    TextField("Project directory", text: $contextDir, prompt: Text("Project folder (default: current)"))
                                         .textFieldStyle(.roundedBorder)
                                         .focused($focusedField, equals: .contextDir)
                                         .accessibilityLabel("Build context directory")

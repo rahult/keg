@@ -308,11 +308,19 @@ struct KubernetesView: View {
                         GridRow {
                             Text("Status")
                                 .foregroundStyle(.secondary)
-                            HStack(spacing: 8) {
-                                StatusBadge(status: vm.clusterStatus.badgeKind)
-                                Text(vm.clusterStatus.displayName)
-                                    .font(.caption)
+                            // "Not created" already says stopped; showing both
+                            // reads as two different states.
+                            if vm.clusterStatus == .notCreated {
+                                Text("Not created")
+                                    .font(.headline)
                                     .foregroundStyle(.secondary)
+                            } else {
+                                HStack(spacing: 8) {
+                                    StatusBadge(status: vm.clusterStatus.badgeKind)
+                                    Text(vm.clusterStatus.displayName)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
 
@@ -330,6 +338,12 @@ struct KubernetesView: View {
                             TextField("docker.io/kindest/node:v1.34.0", text: $vm.nodeImage)
                                 .textFieldStyle(.roundedBorder)
                                 .disabled(vm.clusterStatus != .notCreated)
+                        }
+                        if !vm.nodeImage.isEmpty,
+                           !(vm.nodeImage.contains("/") && vm.nodeImage.contains(":")) {
+                            Text("That doesn't look like a full image reference (registry/name:tag).")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
                         }
                     }
                     .padding(.top, 4)
