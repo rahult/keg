@@ -120,6 +120,7 @@ struct KegApp: App {
     /// Same instance for the app's lifetime — the delegate owns it.
     private var appState: AppState { appDelegate.appState }
     @State private var updater = SoftwareUpdater()
+    @Environment(\.openSettings) private var openSettingsWindow
 
     init() {
         if let icon = KegIcon.image {
@@ -190,6 +191,17 @@ struct KegApp: App {
                     updater.checkForUpdates()
                 }
                 .disabled(!updater.canCheckForUpdates)
+            }
+
+            // Opens the Settings window aligned with the main window (the
+            // frame is captured by AppState, adopted by SettingsView) instead
+            // of letting macOS drop it mid-screen.
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings…") {
+                    appState.captureSettingsFrame()
+                    openSettingsWindow()
+                }
+                .keyboardShortcut(",", modifiers: .command)
             }
 
             CommandGroup(after: .newItem) {

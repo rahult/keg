@@ -39,8 +39,7 @@ struct CooperPanelView: View {
 
     private func header(cooper: CooperController) -> some View {
         HStack(spacing: 8) {
-            Image(systemName: "bubble.left.and.text.bubble.right.fill")
-                .foregroundStyle(.tint)
+            CooperBadgeIcon()
             Text("Cooper")
                 .font(.headline)
             availabilityBadge(cooper.availability)
@@ -136,8 +135,11 @@ struct CooperPanelView: View {
                     .background(.tint.opacity(0.16), in: RoundedRectangle(cornerRadius: 10))
             }
         case .assistant:
-            HStack(alignment: .top, spacing: 0) {
-                Text(message.text + (message.isStreaming ? " ▍" : ""))
+            VStack(alignment: .leading, spacing: 6) {
+                if let chips = message.toolActivity, !chips.isEmpty {
+                    FlowChipsView(labels: chips)
+                }
+                Text(message.text + (message.isStreaming && message.text.isEmpty ? "▍" : ""))
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -248,8 +250,7 @@ struct CooperPanelView: View {
         .padding(.vertical, 10)
     }
 
-    private func submit(cooper: CooperController) {
-        let text = draft
+    private func submit(cooper: CooperController) {        let text = draft
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         draft = ""
         cooper.send(text)
@@ -310,4 +311,125 @@ struct CooperPanelView: View {
 
 extension Notification.Name {
     static let kegCooperFocus = Notification.Name("keg.cooperFocus")
+}
+
+/// Cooper's icon: a small keg/barrel wearing a chat tail — same brand
+/// family as Keg's barrel logo (rust on cream), drawn as vectors so it
+/// stays crisp at any size and in dark mode.
+struct CooperBadgeIcon: View {
+    var size: CGFloat = 22
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            // Cream chat bubble behind the barrel
+            RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
+                .fill(Color(red: 0.98, green: 0.95, blue: 0.90))
+            // Barrel body
+            BarrelShape()
+                .fill(Color(red: 0.54, green: 0.23, blue: 0.05))
+                .padding(size * 0.16)
+            // Barrel hoops
+            VStack(spacing: size * 0.10) {
+                Capsule()
+                Capsule()
+            }
+            .foregroundStyle(Color(red: 0.98, green: 0.95, blue: 0.90).opacity(0.85))
+            .frame(height: max(1, size * 0.045))
+            .padding(.horizontal, size * 0.24)
+            // Chat tail poking out bottom-left
+            Circle()
+                .fill(Color(red: 0.54, green: 0.23, blue: 0.05))
+                .frame(width: size * 0.16, height: size * 0.16)
+                .offset(x: -size * 0.06, y: size * 0.16)
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
+        .help("Cooper — Keg's on-device agent")
+    }
+}
+
+/// Slightly bulged barrel silhouette: straight stave sides with curved
+/// top and bottom.
+struct BarrelShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let bulge = rect.width * 0.16
+        path.move(to: CGPoint(x: rect.minX + rect.width * 0.20, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - rect.width * 0.20, y: rect.minY))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.maxX - rect.width * 0.20, y: rect.maxY),
+            control: CGPoint(x: rect.maxX + bulge, y: rect.midY)
+        )
+        path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.20, y: rect.maxY))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.minX + rect.width * 0.20, y: rect.minY),
+            control: CGPoint(x: rect.minX - bulge, y: rect.midY)
+        )
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// A compact wrap-line of tool-activity chips: ⚙ while a tool runs, ✓ once
+/// its result landed. Shows the user *what* Cooper is doing mid-turn
+/// instead of a bare caret.
+struct FlowChipsView: View {
+    let labels: [String]
+
+    var body: some View {
+        FlowLayout(spacing: 5) {
+            ForEach(Array(labels.enumerated()), id: \.offset) { _, label in
+                Text(label)
+                    .font(.caption2.monospaced())
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(
+                        Capsule().fill(label.hasPrefix("✓")
+                            ? Color.green.opacity(0.14)
+                            : Color.accentColor.opacity(0.12))
+                    )
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+/// Minimal wrap layout — `Layout` protocol, macOS 13+, enough for chips.
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 5
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? .infinity
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0, x + size.width > width {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+        return CGSize(width: width.isFinite ? width : x, height: y + rowHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > bounds.minX, x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+    }
 }

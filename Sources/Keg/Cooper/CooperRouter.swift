@@ -60,9 +60,9 @@ enum CooperRouter {
         case .overview:
             return [
                 CooperOverviewTool(gateway: gateway),
+                CooperDocsTool(),
                 CooperOpenSectionTool(gateway: gateway),
                 CooperListContainersTool(gateway: gateway),
-                CooperListResourcesTool(gateway: gateway),
                 CooperOpenRunSheetTool(gateway: gateway),
             ]
         case .containers:
@@ -99,8 +99,9 @@ enum CooperRouter {
         case .overview:
             return """
             You are handling a general/overview request. Tools: full snapshot, \
-            navigation, container list, volumes/networks list, and prefilled \
-            Run form.
+            internal docs (keg_docs), navigation, container list, and \
+            prefilled Run form. Reach for keg_docs when facts beat \
+            impressions.
             """
         case .containers:
             return """

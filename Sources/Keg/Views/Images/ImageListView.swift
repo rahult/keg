@@ -83,6 +83,12 @@ struct ImageListView: View {
                             onDelete: {
                                 selectedImageRefs = [ref]
                                 showingDeleteConfirmation = true
+                            },
+                            onAskCooper: {
+                                appState.askCooper(
+                                    "Tell me about the image \"\(ref)\" — what uses it, " +
+                                    "how big is it on disk, and is it safe to remove?"
+                                )
                             }
                         )
                     }
@@ -322,11 +328,15 @@ struct ImageContextMenu: View {
     let onRun: () -> Void
     let onTag: () -> Void
     let onDelete: () -> Void
+    let onAskCooper: () -> Void
 
     var body: some View {
         Button("Run…", action: onRun)
         Button("Tag…", action: onTag)
         Divider()
+        Button("Ask Cooper About This Image…") {
+            onAskCooper()
+        }
         Button("Copy Reference") {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(ref, forType: .string)

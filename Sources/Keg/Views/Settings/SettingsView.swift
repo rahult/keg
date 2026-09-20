@@ -20,8 +20,37 @@ struct SettingsView: View {
         return apiKeyValidation.message
     }
 
+    /// Moves the Settings window to the frame captured when settings was
+    /// invoked (top-left aligned with the main window, same width). The
+    /// window is skipped when this view is embedded in the main window.
+    private struct SettingsWindowFrame: NSViewRepresentable {
+        let appState: AppState
+
+        func makeNSView(context: Context) -> NSView {
+            let view = NSView()
+            DispatchQueue.main.async { applyFrame(view.window) }
+            return view
+        }
+
+        func updateNSView(_ nsView: NSView, context: Context) {
+            applyFrame(nsView.window)
+        }
+
+        private func applyFrame(_ window: NSWindow?) {
+            guard window != nil, window !== appState.mainWindow,
+                  let frame = appState.pendingSettingsFrame else { return }
+            appState.pendingSettingsFrame = nil
+            var target = window.frame
+            target.origin.x = frame.origin.x
+            target.origin.y = frame.maxY - target.height   // top edges aligned
+            target.size.width = frame.width
+            window.setFrame(target, display: true, animate: false)
+        }
+    }
+
     var body: some View {
-        Form {
+        TabView {
+            Form {
             Section("Experience") {
                 Picker("Level", selection: Binding(
                     get: { appState.experienceLevel },
@@ -51,6 +80,40 @@ struct SettingsView: View {
                 }
             }
 
+
+            Section("Terminal") {
+                TerminalPreferenceSection()
+            }
+
+
+            Section("Keg CLI") {
+                KegCLIStatusRow()
+            }
+
+
+            Section("Startup") {
+                Toggle("Launch Keg at login", isOn: $loginItem.isEnabled)
+                Text("Starts Keg (and its Docker socket) when you log in")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if AppState.isAgentsEnabled {
+                Section("Claude Agents API") {
+                    agentAPISection
+                }
+            }
+
+
+            Section("Software Update") {
+                SoftwareUpdateSection()
+            }
+            }
+            .formStyle(.grouped)
+            .tabItem { Label("Keg", systemImage: "gearshape") }
+
+
+            Form {
             Section("Container CLI") {
                 ContainerCLIStatusRow()
                 if !ContainerCLI.isInstalled {
@@ -58,9 +121,6 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Keg CLI") {
-                KegCLIStatusRow()
-            }
 
             Section("Container System") {
                 HStack {
@@ -140,14 +200,16 @@ struct SettingsView: View {
                 ContainerDataLocationRow()
             }
 
+
             Section("Platform") {
                 PlatformSettingsSection()
             }
-
-            Section("Terminal") {
-                TerminalPreferenceSection()
             }
+            .formStyle(.grouped)
+            .tabItem { Label("Apple Containers", systemImage: "shippingbox") }
 
+
+            Form {
             Section("Docker API") {
                 HStack {
                     Circle()
@@ -209,22 +271,24 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Toggle("Launch Keg at login", isOn: $loginItem.isEnabled)
-                Text("Starts Keg (and its Docker socket) when you log in")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-
-            if AppState.isAgentsEnabled {
-                Section("Claude Agents API") {
-                    agentAPISection
-                }
             }
+            .formStyle(.grouped)
+            .tabItem { Label("Docker", systemImage: "square.stack.3d.up") }
 
-            Section("Software Update") {
-                SoftwareUpdateSection()
+
+            Form {
+            Section("Kubernetes") {
+                KubernetesSettingsSection()
             }
+            }
+            .formStyle(.grouped)
+            .tabItem { Label("Kubernetes", systemImage: "helm") }
 
+
+            Form {
             Section("About") {
                 LabeledContent("App", value: "Keg")
                 LabeledContent("Version", value: AppVersion.displayString)
@@ -233,9 +297,13 @@ struct SettingsView: View {
                 LabeledContent("Requirements", value: "macOS 26+, Apple Silicon, Apple container CLI")
                 LabeledContent("License", value: "Apache 2.0")
             }
+            }
+            .formStyle(.grouped)
+            .tabItem { Label("About", systemImage: "info.circle") }
+
         }
-        .formStyle(.grouped)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(SettingsWindowFrame(appState: appState))
         .navigationTitle("Settings")
         .task {
             appState.refreshAgentAuthentication()
@@ -486,6 +554,7 @@ private struct ContainerDataLocationRow: View {
                 .foregroundStyle(.secondary)
             TextField("", text: $path, prompt: Text("empty = ~/.container"))
                 .textFieldStyle(.squareBorder)
+                .multilineTextAlignment(.leading)
                 .font(.system(.caption, design: .monospaced))
                 .onChange(of: path) { _, _ in
                     problem = ContainerCLI.appRootProblem()

@@ -539,32 +539,6 @@ actor CooperGateway {
         }
     }
 
-    // MARK: - Resources (volumes & networks)
-
-    func listResources(kind: CooperResourceKind) async -> String {
-        switch kind {
-        case .volumes:
-            guard let volumes = try? await CooperBounded.withTimeout(.seconds(15), operation: {
-                try await ClientVolume.list()
-            }) else {
-                return "Could not list volumes (runtime did not answer within 15s)."
-            }
-            guard !volumes.isEmpty else { return "No volumes exist." }
-            return volumes.map { "- \($0.name) [\($0.driver)]" }.joined(separator: "\n")
-        case .networks:
-            guard let networks = try? await CooperBounded.withTimeout(.seconds(15), operation: {
-                try await NetworkClient().list()
-            }) else {
-                return "Could not list networks (runtime did not answer within 15s)."
-            }
-            guard !networks.isEmpty else { return "No networks exist." }
-            return networks.map { network -> String in
-                let subnet = network.status.ipv4Subnet.description
-                return "- \(network.id)\(network.isBuiltin ? " (built-in)" : "") subnet \(subnet)"
-            }.joined(separator: "\n")
-        }
-    }
-
     // MARK: - Guided UI actions from chat
 
     /// Opens the Containers section with the Run sheet prefilled for the
@@ -705,12 +679,6 @@ enum CooperSystemAction: String, Sendable {
     case status
     case start
     case stop
-}
-
-@Generable(description: "Which Keg resource kind to list")
-enum CooperResourceKind: String, Sendable {
-    case volumes
-    case networks
 }
 
 @Generable(description: "An action on the local Kubernetes cluster")

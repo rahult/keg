@@ -25,6 +25,10 @@ final class CooperController {
         var role: Role
         var text: String
         var isStreaming = false
+        /// Live tool-activity chips ("⚙ container_logs", "✓ container_logs"),
+        /// recomputed from stream snapshots. Optional so transcripts saved
+        /// before this field decode cleanly.
+        var toolActivity: [String]?
     }
 
     /// One proactive suggestion. Built from a state transition without a
@@ -92,7 +96,7 @@ final class CooperController {
     /// Late binding for the app-owned instance: AppState constructs bare in
     /// its own init and attaches itself once every stored property exists.
     /// Also wires the approval-card flow, which needs a fully-initialized
-    /// `self` to capture.
+    /// `self` to capture, and starts the model warm-up.
     func attach(to appState: AppState) async {
         self.appState = appState
         await gateway.attach(appState: appState)
@@ -100,6 +104,7 @@ final class CooperController {
             guard let self else { return false }
             return await self.requestApproval(request)
         }
+        prewarmIfNeeded()
     }
 
     var permissionMode: AgentPermissionMode {
@@ -112,6 +117,7 @@ final class CooperController {
     /// to call on every panel open; real work happens once.
     func prepare() async {
         checkAvailability()
+        prewarmIfNeeded()
         guard !hasLoadedHistory else { return }
         hasLoadedHistory = true
         if let stored = Self.loadTranscript() {
@@ -225,17 +231,28 @@ final class CooperController {
             \(snapshot.render())
             User request: \(text)
             """
-        do {
-            Self.debugLog("reply: session start")
-            var lastRendered = ""
-            for try await partial in session.streamResponse(to: prompt) {
-                if Task.isCancelled { break }
-                if partial.content != lastRendered {
-                    lastRendered = partial.content
-                    replaceStreamingMessage(with: lastRendered)
+            do {
+                Self.debugLog("reply: session start")
+                var lastRendered = ""
+                var lastChips: [String] = []
+                for try await partial in session.streamResponse(to: prompt) {
+                    if Task.isCancelled { break }
+                    if partial.content != lastRendered {
+                        lastRendered = partial.content
+                        replaceStreamingMessage(with: lastRendered)
+                    }
+                    // Live tool visibility: snapshots carry the transcript
+                    // entries generated so far (macOS 27+). Recomputing from
+                    // scratch each snapshot is cheap and self-healing.
+                    if #available(macOS 27.0, *) {
+                        let chips = Self.chipLabels(from: Array(partial.transcriptEntries))
+                        if chips != lastChips {
+                            lastChips = chips
+                            updateStreamingActivity(chips)
+                        }
+                    }
                 }
-            }
-            Self.debugLog("reply: stream finished, chars=\(lastRendered.count)")
+                Self.debugLog("reply: stream finished, chars=\(lastRendered.count)")
                 // The watchdog may have cancelled us mid-stream (a wedged
                 // model daemon leaves a caret forever otherwise); only trust
                 // and persist a completed reply.
@@ -260,22 +277,28 @@ final class CooperController {
         }
     }
 
-    /// One bounded recovery pass: backoff for throttle, hard trim for
-    /// overflow, plain language for refusals and everything else. Handles
-    /// both error generations — `LanguageModelError` is macOS 27+,
+    /// One bounded recovery pass: exponential backoff for throttle, hard
+    /// trim for overflow, plain language for refusals and everything else.
+    /// Handles both error generations — `LanguageModelError` is macOS 27+,
     /// `GenerationError` is what a macOS 26 runtime throws.
     private func handleModelFailure(_ error: Error, text: String) async {
         if Self.isThrottled(error) {
-            try? await Task.sleep(for: .seconds(2))
-            do {
-                try await streamReply(text: text, domain: .overview, mode: permissionMode)
-            } catch {
-                finishAssistant(with: "The on-device model is busy. Give it a moment and ask again.")
+            // Exponential backoff: the framework throttles rapid requests,
+            // and one fixed short retry isn't always enough.
+            for delay in [2.0, 6.0] {
+                try? await Task.sleep(for: .seconds(delay))
+                Self.debugLog("retry after \(delay)s backoff")
+                do {
+                    try await streamReply(text: text, domain: .overview, mode: permissionMode)
+                    return
+                } catch {
+                    if !Self.isThrottled(error) {
+                        finishAssistant(with: Self.recoveryCopy(for: error))
+                        return
+                    }
+                }
             }
-            return
-        }
-        if Self.isRefusal(error) {
-            finishAssistant(with: "I can't help with that particular request. Try rephrasing it.")
+            finishAssistant(with: "The on-device model is busy. Give it a moment and ask again.")
             return
         }
         if Self.isContextOverflow(error) {
@@ -294,7 +317,14 @@ final class CooperController {
             """)
             return
         }
-        finishAssistant(with: "Something went sideways: \(error.localizedDescription)")
+        finishAssistant(with: Self.recoveryCopy(for: error))
+    }
+
+    private static func recoveryCopy(for error: Error) -> String {
+        if Self.isRefusal(error) {
+            return "I can't help with that particular request. Try rephrasing it."
+        }
+        return "Something went sideways: \(error.localizedDescription)"
     }
 
     private static func isContextOverflow(_ error: Error) -> Bool {
@@ -332,6 +362,11 @@ final class CooperController {
     private func replaceStreamingMessage(with text: String) {
         guard let index = messages.lastIndex(where: \.isStreaming) else { return }
         messages[index].text = text
+    }
+
+    private func updateStreamingActivity(_ chips: [String]) {
+        guard let index = messages.lastIndex(where: \.isStreaming) else { return }
+        messages[index].toolActivity = chips
     }
 
     private func finalizeStreamingMessage(with text: String) {
@@ -401,6 +436,55 @@ final class CooperController {
         nudges.removeAll { $0.id == nudge.id }
         send(nudge.followUpPrompt)
     }
+
+    /// Chip labels for the panel: one per tool call, flipped from ⚙ (running)
+    /// to ✓ (result received) when its output lands. Deterministic from the
+    /// entry list so recomputing per snapshot is stable.
+    nonisolated static func chipLabels(from entries: [Transcript.Entry]) -> [String] {
+        var chips: [String] = []
+        for entry in entries {
+            switch entry {
+            case .toolCalls(let calls):
+                for call in calls {
+                    chips.append("⚙ \(call.toolName)")
+                }
+            case .toolOutput(let output):
+                if let index = chips.firstIndex(of: "⚙ \(output.toolName)") {
+                    chips[index] = "✓ \(output.toolName)"
+                } else {
+                    chips.append("✓ \(output.toolName)")
+                }
+            case .prompt, .instructions, .response, .reasoning:
+                break
+            @unknown default:
+                break
+            }
+        }
+        return chips
+    }
+
+    // MARK: - Prewarm
+
+    /// Loads the model weights before the first question. The first-ever
+    /// generation on a machine can otherwise stall for a long time (observed
+    /// here); a prewarmed session answers in seconds. Called at attach (app
+    /// launch) and again from the panel if assets weren't ready yet.
+    func prewarmIfNeeded() {
+        guard !hasPrewarmed, availability == .ready else { return }
+        hasPrewarmed = true
+        Self.debugLog("prewarm: start")
+        Task.detached(priority: .utility) {
+            let session = LanguageModelSession(
+                model: .default,
+                tools: [],
+                instructions: CooperContext.personaInstructions
+            )
+            session.prewarm()
+            CooperController.debugLog("prewarm: done")
+        }
+    }
+
+    private var hasPrewarmed = false
 
     // MARK: - Persistence
 
