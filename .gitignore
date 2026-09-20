@@ -16,3 +16,6 @@ outputs/qa/
 outputs/k8s-e2e*.log
 outputs/tools/
 .zcode/
+
+# ZCode session scratch
+.zcode/
