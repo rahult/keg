@@ -40,3 +40,6 @@ the website's feature grid is generated from it.
   these pages so they stay reusable.
 - `AGENTS.md` in the repository root is the *internal* architecture notes for
   contributors and coding agents — user-facing claims belong here, not there.
+- The user-facing set is exactly: `README.md` (this file), `FEATURES.md`, and
+  `guide/`. Other files in this folder (ARCHITECTURE, GTM-PLAN, WASM-*, …)
+  are internal planning documents, not website content.
