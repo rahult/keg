@@ -13,7 +13,7 @@ jobs:
   test:
     # Keg targets macOS 26 and depends on apple/container, which is Apple
     # Silicon only — there is no runner other than this one that can build it.
-    runs-on: macos-26
+    runs-on: xcode-27
 
     steps:
       - uses: actions/checkout@v4

@@ -56,7 +56,7 @@ jobs:
 
   release:
     needs: tag
-    runs-on: macos-26
+    runs-on: xcode-27
     # Apple's notarization queue occasionally stalls. Fail fast so the job can
     # be re-run against the existing tag rather than burning the six-hour cap.
     timeout-minutes: 60
