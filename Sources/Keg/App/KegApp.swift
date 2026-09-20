@@ -509,6 +509,8 @@ struct KegDetailView: View {
         switch appState.selectedKegSection {
         case .dashboard:
             SystemDashboardDetailView()
+        case .apps:
+            AppsView()
         case .containers:
             ContainerListView()
         case .images:

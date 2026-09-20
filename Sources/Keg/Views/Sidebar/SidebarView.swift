@@ -162,13 +162,13 @@ enum KegSidebarStructure {
         case .gettingStarted:
             return [
                 Section(name: "Overview", items: [.dashboard]),
-                Section(name: "My Apps", items: [.containers, .compose, .logs]),
+                Section(name: "My Apps", items: [.apps, .containers, .compose, .logs]),
                 Section(name: "Essentials", items: [.images, .terminal]),
             ]
         case .comfortable, .fullControl:
             return [
                 Section(name: "Overview", items: [.dashboard]),
-                Section(name: "Workloads", items: [.containers, .compose, .kubernetes, .logs]),
+                Section(name: "Workloads", items: [.apps, .containers, .compose, .kubernetes, .logs]),
                 Section(name: "Content", items: [.images, .builds]),
                 Section(name: "System", items: [.networks, .ports, .volumes, .registries]),
                 Section(name: "Tools", items: [.terminal, .devcontainers, .health]),

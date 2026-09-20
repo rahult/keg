@@ -255,6 +255,41 @@ struct CooperComposeDownTool: Tool {
     }
 }
 
+struct CooperAppsListTool: Tool {
+    let gateway: CooperGateway
+    var name = "apps_list"
+    var description: String {
+        "List the apps installed from the Apps section with their status, web ports, and container names."
+    }
+
+    @Generable struct Arguments {}
+
+    func call(arguments: Arguments) async throws -> String {
+        await gateway.appsList()
+    }
+}
+
+struct CooperAppControlTool: Tool {
+    let gateway: CooperGateway
+    let mode: AgentPermissionMode
+    var name = "app_control"
+    var description: String {
+        "Check or change one installed app by id: status, start, stop, update, or remove it (remove requires user approval)."
+    }
+
+    @Generable struct Arguments {
+        @Guide(description: "The app id, exactly as it appeared in apps_list, e.g. \"miniflux\"")
+        var appID: String
+        @Guide(description: "The action to apply")
+        var action: CooperAppAction
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        try await gateway.recordCall(toolName: name, argumentsSummary: "\(arguments.action.rawValue) \(arguments.appID)")
+        return try await gateway.appControl(appID: arguments.appID, action: arguments.action, mode: mode)
+    }
+}
+
 // MARK: - System domain
 
 struct CooperSystemControlTool: Tool {

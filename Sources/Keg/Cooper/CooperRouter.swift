@@ -28,7 +28,9 @@ enum CooperRouter {
     delete), running new containers, executing commands inside them, \
     reading logs or details.
     - images: pulling, deleting, or inspecting images.
-    - compose: anything about docker compose projects or services.
+    - compose: anything about docker compose projects, services, or the \
+    installed apps from the Apps section (starting, stopping, updating, \
+    removing an app, or asking why one is not working).
     - system: the container runtime itself (start/stop/recover), disk \
     usage, or the Kubernetes cluster (status/start/stop/create/delete).
     When several domains seem plausible, choose the one the request would \
@@ -83,6 +85,8 @@ enum CooperRouter {
                 CooperComposePSTool(gateway: gateway),
                 CooperComposeUpTool(gateway: gateway, mode: mode),
                 CooperComposeDownTool(gateway: gateway, mode: mode),
+                CooperAppsListTool(gateway: gateway),
+                CooperAppControlTool(gateway: gateway, mode: mode),
             ]
         case .system:
             return [
@@ -112,7 +116,13 @@ enum CooperRouter {
         case .images:
             return "You are handling an image operation. Quote references exactly as the user or tools gave them."
         case .compose:
-            return "You are handling a compose operation on the project configured in the Compose section."
+            return """
+            You are handling a compose or installed-app operation. For Apps \
+            section installs, list them with apps_list first and use app ids \
+            from that output; read a service's logs with container_logs via \
+            the container names apps_list reports. Compose-file tools operate \
+            on the project configured in the Compose section.
+            """
         case .system:
             return """
             You are handling a runtime or Kubernetes question. Confirm real \

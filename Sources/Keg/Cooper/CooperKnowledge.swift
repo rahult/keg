@@ -17,6 +17,7 @@ enum CooperKnowledge {
         case kegArchitecture
         case dockerCompatibility
         case composeSupport
+        case appsStore
         case kegCLI
         case kubernetesCluster
         case runtimeStorage
@@ -30,6 +31,7 @@ enum CooperKnowledge {
         case .kegArchitecture: return kegArchitecture
         case .dockerCompatibility: return dockerCompatibility
         case .composeSupport: return composeSupport
+        case .appsStore: return appsStore
         case .kegCLI: return kegCLI
         case .kubernetesCluster: return kubernetesCluster
         case .runtimeStorage: return runtimeStorage
@@ -76,8 +78,8 @@ enum CooperKnowledge {
       the API is broken or missing.
     - Compose is orchestrated natively (parse -> plan -> topological
       up/down), not via docker-compose.
-    - Sections: Dashboard, Containers, Images, Builds, Compose, Terminal,
-      Ports, Networks, Volumes, Registries, Health, Dev Containers,
+    - Sections: Dashboard, Apps, Containers, Images, Builds, Compose,
+      Terminal, Ports, Networks, Volumes, Registries, Health, Dev Containers,
       Kubernetes, Logs, Settings. Deep links: keg://<section>.
     - Menu bar popover mirrors status; Settings holds experience level,
       data location (app-root), CLI install, and updates (Sparkle).
@@ -112,6 +114,35 @@ enum CooperKnowledge {
       section; Cooper's compose tools operate on that same configuration.
     - Build failures on DNS hiccups trigger one automatic builder reset
       and retry.
+    - The Apps section is built on the same orchestrator: each installed
+      app is a managed compose project, so installs also appear in
+      Containers and answer the Docker API.
+    """
+
+    private static let appsStore = """
+    APPS SECTION (one-click installs of open-source apps)
+    - A curated catalog (Memos, linkding, Uptime Kuma, Vaultwarden, Gitea,
+      Umami, Syncthing, NocoDB, Jellyfin) plus optional user catalogs under
+      ~/.keg/apps/catalog/*.yaml. All bundled apps are linux/arm64 images
+      and deliberately single-service: apple container 1.3.1 has no
+      inter-container name resolution, so multi-service templates (a web
+      app plus its database) cannot work yet.
+    - Installing renders the app's compose template with the wizard's
+      answers into ~/.keg/apps/<id>/app.yaml, pre-pulls images pinned to
+      linux/arm64, and brings the services up detached.
+    - Naming: compose project apps-<id>; containers are named
+      kegapp-<id>-<service> (templates set container_name explicitly).
+    - Data lives in bind mounts under ~/.keg/apps/<id> (or a folder the
+      user chose), so Start/Stop/Update keep data; Update re-pulls images
+      and recreates containers. Removing keeps data unless the user opts
+      to delete the folder in the app's detail view.
+    - Statuses: Running / Partial / Stopped, refreshed from one container
+      listing. "Start when Keg opens" recreates the app after the runtime
+      is up; stopping by hand turns that off ("unless stopped").
+    - Cooper tools: apps_list (installed apps + container names) and
+      app_control (status/start/stop/update/remove; remove needs approval
+      and never deletes data). To debug a broken app, list it, then read
+      the failing service's container logs.
     """
 
     private static let kegCLI = """

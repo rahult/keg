@@ -508,6 +508,61 @@ actor CooperGateway {
         }
     }
 
+    // MARK: - Apps (one-click installs)
+
+    func appsList() async -> String {
+        guard let state = appState else {
+            return "Apps are unavailable in this context."
+        }
+        return await state.cooperAppsSummary()
+    }
+
+    func appControl(appID: String, action: CooperAppAction, mode: AgentPermissionMode) async throws -> String {
+        guard let state = appState else {
+            return "App control is unavailable in this context."
+        }
+        guard let name = await state.cooperAppName(appID) else {
+            return "No installed app with id '\(appID)'. Use apps_list to see installed apps."
+        }
+        switch action {
+        case .status:
+            let label = await state.cooperAppStatusLabel(appID)
+            return "\(name) is \(label). If it should be running, app_control start recreates its services; read a service's logs with container_logs using the container names from apps_list."
+        case .start:
+            try await authorize(
+                .mutating, mode: mode,
+                toolName: "app_control",
+                summary: "Start the app “\(name)”",
+                details: "Pulls missing images if needed and recreates the app's services in dependency order. Data is kept."
+            )
+            return await state.cooperAppStart(appID)
+        case .stop:
+            try await authorize(
+                .mutating, mode: mode,
+                toolName: "app_control",
+                summary: "Stop the app “\(name)”",
+                details: "Removes the app's containers. Data is kept, and the app will not auto-start with Keg until started again."
+            )
+            return await state.cooperAppStop(appID)
+        case .update:
+            try await authorize(
+                .mutating, mode: mode,
+                toolName: "app_control",
+                summary: "Update the app “\(name)”",
+                details: "Re-pulls the app's images and recreates its containers. App data is preserved."
+            )
+            return await state.cooperAppUpdate(appID)
+        case .remove:
+            try await authorize(
+                .destructive, mode: mode,
+                toolName: "app_control",
+                summary: "Remove the app “\(name)”",
+                details: "Stops and deletes the app's containers and networks. The app's data folder is kept — data deletion only happens from the app's detail view."
+            )
+            return await state.cooperAppRemove(appID)
+        }
+    }
+
     // MARK: - System
 
     func systemControl(action: CooperSystemAction, mode: AgentPermissionMode) async throws -> String {
@@ -688,4 +743,13 @@ enum CooperK8sAction: String, Sendable {
     case stop
     case create
     case delete
+}
+
+@Generable(description: "An action on an installed app from the Apps section")
+enum CooperAppAction: String, Sendable {
+    case status
+    case start
+    case stop
+    case update
+    case remove
 }

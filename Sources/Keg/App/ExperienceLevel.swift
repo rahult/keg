@@ -98,6 +98,18 @@ enum SectionHelpGuide {
                 ],
                 tip: "The menu bar icon shows the same status without opening the window."
             )
+        case .apps:
+            return SectionHelpContent(
+                title: "Apps",
+                beginner: "One-click installs of popular open-source apps — a notes app, a password manager, a media server, and more. Pick an app, answer two or three questions, and it runs. No terminal, no configuration files.",
+                technical: "A curated catalog of compose templates rendered with the install wizard's answers and orchestrated natively (topological up/down through ComposeOrchestrator). Each app is a compose project (apps-<id>) with kegapp-<id>-<service> container names, bind-mounted data under ~/.keg/apps/<id>, and one published web-UI port.",
+                firstSteps: [
+                    "Click Install… on any app in the catalog",
+                    "After installing, use Open to visit the app in your browser",
+                    "Use Update to move an app to its newest version — data is kept",
+                ],
+                tip: "Enable “Start when Keg opens” on an app (and Launch at Login in Settings) so it survives reboots."
+            )
         case .containers:
             return SectionHelpContent(
                 title: "Containers",

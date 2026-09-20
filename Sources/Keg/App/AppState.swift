@@ -117,6 +117,9 @@ final class AppState {
 
     private let containerClient = ContainerClient()
     private let agentAutomationService = AgentAutomationService()
+    /// The Apps section: curated one-click installs. Loads its catalog and
+    /// installation registry lazily (prepare()); never blocks launch.
+    let apps = AppStoreManager()
     private var refreshTimer: Timer?
 
     init() {
@@ -181,6 +184,11 @@ final class AppState {
         // didSet wiring).
         if isSystemRunning, dockerAPIAutoStart, !isDockerAPIRunning {
             startDockerAPI()
+        }
+        if isSystemRunning {
+            // Recreate Apps-section installs that opted into auto-start, in
+            // the background — a slow start must not delay launch.
+            Task { await apps.startAutoStartApps() }
         }
     }
 
@@ -281,6 +289,40 @@ final class AppState {
     func askCooper(_ prompt: String) {
         isCooperPanelVisible = true
         cooper.send(prompt)
+    }
+
+    // MARK: Cooper → Apps passthroughs
+    // The gateway holds AppState across isolation, so Cooper's app tools go
+    // through these MainActor wrappers — the same hop pattern as
+    // startSystem()/stopSystem() — rather than reaching into AppStoreManager.
+
+    func cooperAppsSummary() async -> String {
+        await apps.cooperSummary()
+    }
+
+    func cooperAppName(_ appID: String) -> String? {
+        apps.prepare()
+        return apps.installation(withID: appID)?.name
+    }
+
+    func cooperAppStatusLabel(_ appID: String) -> String {
+        apps.status(for: appID).label
+    }
+
+    func cooperAppStart(_ appID: String) async -> String {
+        await apps.cooperStart(appID: appID)
+    }
+
+    func cooperAppStop(_ appID: String) async -> String {
+        await apps.cooperStop(appID: appID)
+    }
+
+    func cooperAppUpdate(_ appID: String) async -> String {
+        await apps.cooperUpdate(appID: appID)
+    }
+
+    func cooperAppRemove(_ appID: String) async -> String {
+        await apps.cooperRemove(appID: appID)
     }
 
     /// Refresh system metrics
@@ -660,6 +702,7 @@ enum AppArea: String, CaseIterable, Identifiable {
 
 enum KegSection: String, CaseIterable, Identifiable {
     case dashboard = "Dashboard"
+    case apps = "Apps"
     case containers = "Containers"
     case compose = "Compose"
     case kubernetes = "Kubernetes"
@@ -680,6 +723,7 @@ enum KegSection: String, CaseIterable, Identifiable {
     var iconName: String {
         switch self {
         case .dashboard: return "square.grid.2x2"
+        case .apps: return "bag"
         case .containers: return "cube.box"
         case .compose: return "doc.text"
         case .kubernetes: return "helm"
