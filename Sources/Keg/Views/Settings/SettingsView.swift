@@ -20,11 +20,15 @@ struct SettingsView: View {
         return apiKeyValidation.message
     }
 
-    /// Moves the Settings window to the frame captured when settings was
-    /// invoked (top-left aligned with the main window, same width). The
-    /// window is skipped when this view is embedded in the main window.
+    /// Moves the Settings window into the frame captured when settings was
+    /// invoked: same width as the main window, centered over it, and taller
+    /// than the 450pt default. Skipped when this view is embedded in the
+    /// main window itself.
     private struct SettingsWindowFrame: NSViewRepresentable {
         let appState: AppState
+
+        /// The height Settings should open at.
+        private static let preferredHeight: CGFloat = 640
 
         func makeNSView(context: Context) -> NSView {
             let view = NSView()
@@ -37,13 +41,15 @@ struct SettingsView: View {
         }
 
         private func applyFrame(_ window: NSWindow?) {
-            guard window != nil, window !== appState.mainWindow,
-                  let frame = appState.pendingSettingsFrame else { return }
-            appState.pendingSettingsFrame = nil
+            guard let window, window !== appState.mainWindow else { return }
             var target = window.frame
-            target.origin.x = frame.origin.x
-            target.origin.y = frame.maxY - target.height   // top edges aligned
-            target.size.width = frame.width
+            target.size.height = max(target.height, Self.preferredHeight)
+            if let frame = appState.pendingSettingsFrame {
+                appState.pendingSettingsFrame = nil
+                target.size.width = frame.width
+                target.origin.x = frame.midX - target.width / 2
+                target.origin.y = frame.midY - target.height / 2
+            }
             window.setFrame(target, display: true, animate: false)
         }
     }
@@ -536,6 +542,16 @@ private struct ContainerDataLocationRow: View {
     @AppStorage(ContainerCLI.appRootDefaultsKey) private var path = ""
     @State private var problem: String? = ContainerCLI.appRootProblem()
 
+    private var isDefault: Bool {
+        path.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    /// The path in effect right now: the configured override with ~ expanded,
+    /// or the platform default when nothing is set.
+    private var effectivePath: String {
+        NSString(string: isDefault ? "~/.container" : path).expandingTildeInPath
+    }
+
     /// The runtime answering with a different root than configured means the
     /// setting won't take effect until services restart.
     private var runningRootMismatch: String? {
@@ -549,16 +565,33 @@ private struct ContainerDataLocationRow: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Data Location")
                 .font(.headline)
-            Text("Where the runtime keeps containers, images, and volumes. Leave empty for the default (~/.container). Change it while the system is stopped, then use Start System.")
+            Text("Where the runtime keeps containers, images, and volumes. Change it while the system is stopped, then use Start System.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            TextField("", text: $path, prompt: Text("empty = ~/.container"))
-                .textFieldStyle(.squareBorder)
-                .multilineTextAlignment(.leading)
-                .font(.system(.caption, design: .monospaced))
-                .onChange(of: path) { _, _ in
-                    problem = ContainerCLI.appRootProblem()
+
+            HStack(spacing: 10) {
+                Text(effectivePath + (isDefault ? "  (default)" : ""))
+                    .font(.system(.caption, design: .monospaced))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
+                Spacer()
+                Button("Browse…") { browse() }
+                    .controlSize(.small)
+                if !isDefault {
+                    Button("Reset") {
+                        path = ""
+                        problem = ContainerCLI.appRootProblem()
+                    }
+                    .controlSize(.small)
                 }
+            }
+
+            if isDefault {
+                Text("Using the platform default. Pick a custom folder — for example a dedicated volume — with Browse.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
             if let problem {
                 Text(problem)
                     .font(.caption)
@@ -571,6 +604,28 @@ private struct ContainerDataLocationRow: View {
             }
         }
         .padding(.vertical, 2)
+    }
+
+    private func browse() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose Container Data Location"
+        panel.message = "This folder will hold the runtime's containers, images, volumes, and snapshots."
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        // Start inside the current location when it exists, otherwise fall
+        // back to the containing volume or home.
+        var start = URL(fileURLWithPath: effectivePath, isDirectory: true)
+        if !FileManager.default.fileExists(atPath: start.path) {
+            start = URL(filePath: NSHomeDirectory())
+        }
+        panel.directoryURL = start
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            path = url.path
+            problem = ContainerCLI.appRootProblem()
+        }
     }
 }
 

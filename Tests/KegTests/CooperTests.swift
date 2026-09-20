@@ -239,7 +239,7 @@ final class CooperTests: XCTestCase {
     func testChipLabelsTrackRunningAndFinishedTools() {
         func toolCall(_ name: String) -> Transcript.Entry {
             .toolCalls(Transcript.ToolCalls([
-                Transcript.ToolCall(id: UUID().uuidString, toolName: name, arguments: "")
+                Transcript.ToolCall(id: UUID().uuidString, toolName: name, arguments: GeneratedContent(""))
             ]))
         }
 
@@ -265,7 +265,7 @@ final class CooperTests: XCTestCase {
 
     func testChipLabelsIgnoreNonToolEntries() {
         let entries: [Transcript.Entry] = [
-            .instructions(Transcript.Instructions(toolDefinitions: [], segments: [.text(.init(content: "persona"))])),
+            .instructions(Transcript.Instructions(segments: [.text(.init(content: "persona"))], toolDefinitions: [])),
             .prompt(Transcript.Prompt(segments: [.text(.init(content: "hi"))])),
             .response(Transcript.Response(assetIDs: [], segments: [.text(.init(content: "hello"))])),
         ]
@@ -276,7 +276,7 @@ final class CooperTests: XCTestCase {
         // Transcripts persisted before tool-activity chips existed must
         // still decode.
         let legacy = """
-        [{"id":"X","role":"assistant","text":"hi","isStreaming":false}]
+        [{"id":"DEADBEEF-0000-4000-8000-000000000000","role":"assistant","text":"hi","isStreaming":false}]
         """
         let messages = try JSONDecoder().decode([CooperController.Message].self, from: Data(legacy.utf8))
         XCTAssertEqual(messages.first?.text, "hi")

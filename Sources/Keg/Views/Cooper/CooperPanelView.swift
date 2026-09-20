@@ -313,58 +313,75 @@ extension Notification.Name {
     static let kegCooperFocus = Notification.Name("keg.cooperFocus")
 }
 
-/// Cooper's icon: a small keg/barrel wearing a chat tail — same brand
-/// family as Keg's barrel logo (rust on cream), drawn as vectors so it
-/// stays crisp at any size and in dark mode.
+/// Cooper's icon — a play on the Keg barrel logo: the same outlined barrel
+/// with its `>_` prompt, given a chat tail so the keg itself is talking.
+/// Pure vectors (traced from the master logo's proportions), so it stays
+/// crisp at every size and in dark mode.
 struct CooperBadgeIcon: View {
     var size: CGFloat = 22
 
+    private static let rust = Color(red: 0.54, green: 0.23, blue: 0.05)
+    private static let cream = Color(red: 0.97, green: 0.94, blue: 0.89)
+
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            // Cream chat bubble behind the barrel
+        ZStack {
             RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
-                .fill(Color(red: 0.98, green: 0.95, blue: 0.90))
-            // Barrel body
-            BarrelShape()
-                .fill(Color(red: 0.54, green: 0.23, blue: 0.05))
-                .padding(size * 0.16)
-            // Barrel hoops
-            VStack(spacing: size * 0.10) {
-                Capsule()
-                Capsule()
-            }
-            .foregroundStyle(Color(red: 0.98, green: 0.95, blue: 0.90).opacity(0.85))
-            .frame(height: max(1, size * 0.045))
-            .padding(.horizontal, size * 0.24)
-            // Chat tail poking out bottom-left
-            Circle()
-                .fill(Color(red: 0.54, green: 0.23, blue: 0.05))
-                .frame(width: size * 0.16, height: size * 0.16)
-                .offset(x: -size * 0.06, y: size * 0.16)
+                .fill(Self.cream)
+            // Speech tail (filled) under the stroked mark
+            CooperTailShape()
+                .fill(Self.rust)
+            TalkingKegShape()
+                .stroke(Self.rust, style: StrokeStyle(
+                    lineWidth: max(1, size * 0.068),
+                    lineCap: .round,
+                    lineJoin: .round
+                ))
         }
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
-        .help("Cooper — Keg's on-device agent")
+        .help("Cooper — the Keg that talks")
     }
 }
 
-/// Slightly bulged barrel silhouette: straight stave sides with curved
-/// top and bottom.
-struct BarrelShape: Shape {
+/// The keg-logo barrel: bowed top edge, bulged sides, near-rim arc, and
+/// the `>_` prompt. Geometry is a trace of the master logo at badge
+/// proportions (y-down fractions).
+struct TalkingKegShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        let bulge = rect.width * 0.16
-        path.move(to: CGPoint(x: rect.minX + rect.width * 0.20, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX - rect.width * 0.20, y: rect.minY))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.maxX - rect.width * 0.20, y: rect.maxY),
-            control: CGPoint(x: rect.maxX + bulge, y: rect.midY)
-        )
-        path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.20, y: rect.maxY))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.minX + rect.width * 0.20, y: rect.minY),
-            control: CGPoint(x: rect.minX - bulge, y: rect.midY)
-        )
+        let w = rect.width, h = rect.height
+        func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: w * x, y: h * y) }
+
+        // Silhouette: bowed top, bulged sides
+        path.move(to: p(0.185, 0.075))
+        path.addQuadCurve(to: p(0.815, 0.075), control: p(0.50, 0.0))
+        path.addQuadCurve(to: p(0.815, 0.925), control: p(1.04, 0.50))
+        path.addLine(to: p(0.185, 0.925))
+        path.addQuadCurve(to: p(0.185, 0.075), control: p(-0.04, 0.50))
+
+        // Near rim of the opening (single arc, clear of the top edge)
+        path.move(to: p(0.26, 0.185))
+        path.addQuadCurve(to: p(0.74, 0.185), control: p(0.50, 0.30))
+
+        // `>_` prompt
+        path.move(to: p(0.30, 0.34))
+        path.addLine(to: p(0.50, 0.50))
+        path.addLine(to: p(0.30, 0.66))
+        path.move(to: p(0.55, 0.66))
+        path.addLine(to: p(0.78, 0.66))
+
+        return path
+    }
+}
+
+/// Speech tail: a rounded wedge hugging the barrel wall's lower-left.
+struct CooperTailShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let w = rect.width, h = rect.height
+        path.move(to: CGPoint(x: w * 0.105, y: h * 0.745))
+        path.addLine(to: CGPoint(x: w * 0.225, y: h * 0.88))
+        path.addLine(to: CGPoint(x: w * 0.015, y: h * 0.985))
         path.closeSubpath()
         return path
     }
