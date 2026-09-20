@@ -9,15 +9,17 @@ import Foundation
 @MainActor
 final class PlatformSettingsVM {
     struct Settings: Sendable {
+        // Defaults match this machine's effective configuration (10-core /
+        // 16 GB Mac16,10): sliders are additionally bounded by the live host.
         var containerCPUs: Int = 4
-        var containerMemory: String = "1gb"
+        var containerMemoryMB: Int = 1024
         var buildCPUs: Int = 2
-        var buildMemory: String = "2048mb"
+        var buildMemoryMB: Int = 2048
         var buildRosetta: Bool = true
         var buildImage: String = "ghcr.io/apple/container-builder-shim/builder:0.13.1"
-        var machineCPUs: Int = 4
-        var machineMemory: String = "8gb"
-        var machineHomeMount: String = "ro"
+        var machineCPUs: Int = 5
+        var machineMemoryMB: Int = 8192
+        var machineHomeMount: String = "rw"
         var machineVirtualization: Bool = false
         var registryDomain: String = "docker.io"
         // Advanced internals: shown read-only. A wrong kernel/vminit value
@@ -30,6 +32,25 @@ final class PlatformSettingsVM {
     /// Valid values for the machine home-mount policy (HostMountOption in
     /// the container runtime): read-only, read-write, or not mounted.
     nonisolated static let homeMountOptions = ["ro", "rw", "none"]
+
+    /// Slider bounds come from the real hardware, not hardcoded guesses:
+    /// you can't sensibly assign more cores or RAM than the Mac has.
+    nonisolated static let hostCoreCount = ProcessInfo.processInfo.processorCount
+    nonisolated static let hostMemoryGB = max(2, Int((ProcessInfo.processInfo.physicalMemory + (1 << 30) - 1) / (1 << 30)))
+
+    /// "1gb" / "2048mb" / bare numbers → megabytes. Nil when unparseable.
+    nonisolated static func parseMemoryMB(_ value: String) -> Int? {
+        let trimmed = value.lowercased().trimmingCharacters(in: .whitespaces)
+        let digits = trimmed.prefix { $0.isNumber || $0 == "." }
+        guard let amount = Double(digits), amount > 0 else { return nil }
+        if trimmed.hasSuffix("gb") || trimmed.hasSuffix("g") {
+            return Int((amount * 1024).rounded())
+        }
+        if trimmed.hasSuffix("mb") || trimmed.hasSuffix("m") || digits == trimmed {
+            return Int(amount.rounded())
+        }
+        return nil
+    }
 
     var settings = Settings()
     var dnsDomains: [String] = []
@@ -97,17 +118,17 @@ final class PlatformSettingsVM {
 
         [container]
         cpus = \(settings.containerCPUs)
-        memory = "\(settings.containerMemory)"
+        memory = "\(settings.containerMemoryMB)mb"
 
         [build]
         cpus = \(settings.buildCPUs)
-        memory = "\(settings.buildMemory)"
+        memory = "\(settings.buildMemoryMB)mb"
         rosetta = \(settings.buildRosetta)
         image = "\(settings.buildImage)"
 
         [machine]
         cpus = \(settings.machineCPUs)
-        memory = "\(settings.machineMemory)"
+        memory = "\(settings.machineMemoryMB)mb"
         homeMount = "\(homeMount)"
         virtualization = \(settings.machineVirtualization)
 
@@ -185,13 +206,13 @@ final class PlatformSettingsVM {
 
             switch (section, key) {
             case ("container", "cpus"): result.containerCPUs = Int(value) ?? result.containerCPUs
-            case ("container", "memory"): result.containerMemory = value
+            case ("container", "memory"): result.containerMemoryMB = Self.parseMemoryMB(value) ?? result.containerMemoryMB
             case ("build", "cpus"): result.buildCPUs = Int(value) ?? result.buildCPUs
-            case ("build", "memory"): result.buildMemory = value
+            case ("build", "memory"): result.buildMemoryMB = Self.parseMemoryMB(value) ?? result.buildMemoryMB
             case ("build", "rosetta"): result.buildRosetta = (value == "true")
             case ("build", "image"): result.buildImage = value
             case ("machine", "cpus"): result.machineCPUs = Int(value) ?? result.machineCPUs
-            case ("machine", "memory"): result.machineMemory = value
+            case ("machine", "memory"): result.machineMemoryMB = Self.parseMemoryMB(value) ?? result.machineMemoryMB
             case ("machine", "homeMount"):
                 // The segmented picker only knows these three; snap anything
                 // unexpected (future values, typos in a hand-edited file) to

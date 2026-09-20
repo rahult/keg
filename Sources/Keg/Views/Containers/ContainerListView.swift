@@ -142,6 +142,13 @@ struct ContainerListView: View {
                                 selectedContainerIDs = [id]
                                 showingDeleteConfirmation = true
                             },
+                            onAskCooper: {
+                                appState.askCooper(
+                                    "Tell me about the container \"\(id)\" " +
+                                    "(\(container.configuration.image.reference), \(container.status.rawValue)) — " +
+                                    "anything unusual? Check its details and recent logs."
+                                )
+                            },
                             vm: vm
                         )
                     }
@@ -365,6 +372,7 @@ struct ContainerContextMenu: View {
     let container: ContainerSnapshot
     let onRecreate: () -> Void
     let onDelete: () -> Void
+    let onAskCooper: () -> Void
     let vm: ContainersVM
 
     private var isRunning: Bool {
@@ -383,6 +391,10 @@ struct ContainerContextMenu: View {
         }
 
         Divider()
+
+        Button("Ask Cooper About This Container…") {
+            onAskCooper()
+        }
 
         Button("Edit & Recreate…", action: onRecreate)
 

@@ -150,9 +150,9 @@ final class DavitParityTests: XCTestCase {
 
         let settings = PlatformSettingsVM.parseTOML(toml)
         XCTAssertEqual(settings.containerCPUs, 4)
-        XCTAssertEqual(settings.containerMemory, "1gb")
+        XCTAssertEqual(settings.containerMemoryMB, 1024)
         XCTAssertEqual(settings.buildCPUs, 2)
-        XCTAssertEqual(settings.buildMemory, "2048mb")
+        XCTAssertEqual(settings.buildMemoryMB, 2048)
         XCTAssertTrue(settings.buildRosetta)
         XCTAssertEqual(settings.registryDomain, "docker.io")
     }

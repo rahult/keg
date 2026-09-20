@@ -46,6 +46,16 @@ final class AppState {
     /// user closes it (a `Window` scene never recreates its window).
     weak var mainWindow: NSWindow?
 
+    /// Where the Settings window should open: the main window's frame,
+    /// captured whenever settings is invoked. Nil = default placement.
+    var pendingSettingsFrame: CGRect?
+
+    /// Remembers the main window's frame so the Settings window can open
+    /// top-left aligned with it (adopted by SettingsView's frame accessor).
+    func captureSettingsFrame() {
+        pendingSettingsFrame = mainWindow?.frame
+    }
+
     // Area navigation
     var currentArea: AppArea = .keg
     var selectedKegSection: KegSection = .containers
@@ -261,6 +271,13 @@ final class AppState {
     func showDashboard() {
         currentArea = .keg
         selectedKegSection = .dashboard
+    }
+
+    /// Deep link for "Ask Cooper about this" affordances: opens the panel
+    /// and starts a turn with a preloaded, object-specific question.
+    func askCooper(_ prompt: String) {
+        isCooperPanelVisible = true
+        cooper.send(prompt)
     }
 
     /// Refresh system metrics

@@ -59,20 +59,19 @@ struct CooperListContainersTool: Tool {
     }
 }
 
-struct CooperListResourcesTool: Tool {
-    let gateway: CooperGateway
-    var name = "list_resources"
+struct CooperDocsTool: Tool {
+    var name = "keg_docs"
     var description: String {
-        "List Keg's volumes or networks with their details."
+        "Look up Keg's internal reference docs: Apple container CLI usage, Keg architecture, Docker compatibility, Compose support, the keg CLI, the Kubernetes cluster, storage, troubleshooting, or quick starts. Use when a question needs facts beyond the current snapshot."
     }
 
     @Generable struct Arguments {
-        @Guide(description: "Which resource kind to list")
-        var kind: CooperResourceKind
+        @Guide(description: "Which documentation topic to read")
+        var topic: CooperKnowledge.Topic
     }
 
     func call(arguments: Arguments) async throws -> String {
-        await gateway.listResources(kind: arguments.kind)
+        CooperKnowledge.text(for: arguments.topic)
     }
 }
 

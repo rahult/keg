@@ -234,6 +234,55 @@ final class CooperTests: XCTestCase {
         XCTAssertEqual(transcript, decoded)
     }
 
+    // MARK: - Tool-activity chips
+
+    func testChipLabelsTrackRunningAndFinishedTools() {
+        func toolCall(_ name: String) -> Transcript.Entry {
+            .toolCalls(Transcript.ToolCalls([
+                Transcript.ToolCall(id: UUID().uuidString, toolName: name, arguments: GeneratedContent(""))
+            ]))
+        }
+
+        func toolOutput(_ name: String) -> Transcript.Entry {
+            .toolOutput(Transcript.ToolOutput(
+                id: UUID().uuidString,
+                toolName: name,
+                segments: [.text(.init(content: "ok"))]
+            ))
+        }
+
+        let entries: [Transcript.Entry] = [
+            toolCall("list_containers"),
+            toolCall("container_logs"),
+            toolOutput("list_containers"),
+        ]
+
+        XCTAssertEqual(
+            CooperController.chipLabels(from: entries),
+            ["✓ list_containers", "⚙ container_logs"]
+        )
+    }
+
+    func testChipLabelsIgnoreNonToolEntries() {
+        let entries: [Transcript.Entry] = [
+            .instructions(Transcript.Instructions(segments: [.text(.init(content: "persona"))], toolDefinitions: [])),
+            .prompt(Transcript.Prompt(segments: [.text(.init(content: "hi"))])),
+            .response(Transcript.Response(assetIDs: [], segments: [.text(.init(content: "hello"))])),
+        ]
+        XCTAssertTrue(CooperController.chipLabels(from: entries).isEmpty)
+    }
+
+    func testMessageDecodesWithoutActivityField() throws {
+        // Transcripts persisted before tool-activity chips existed must
+        // still decode.
+        let legacy = """
+        [{"id":"DEADBEEF-0000-4000-8000-000000000000","role":"assistant","text":"hi","isStreaming":false}]
+        """
+        let messages = try JSONDecoder().decode([CooperController.Message].self, from: Data(legacy.utf8))
+        XCTAssertEqual(messages.first?.text, "hi")
+        XCTAssertNil(messages.first?.toolActivity)
+    }
+
     // MARK: - Availability mapping
 
     func testAvailabilityMappingCoversDocumentedCases() {

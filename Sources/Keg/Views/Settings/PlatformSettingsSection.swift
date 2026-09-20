@@ -101,35 +101,58 @@ struct PlatformSettingsSection: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// CPUs: slider bounded by the host's core count, with an editable text.
+    private func cpuRow(_ label: String, value: Binding<Int>) -> some View {
+        settingRow(label) {
+            HStack(spacing: 10) {
+                Slider(value: Binding(
+                    get: { Double(value.wrappedValue) },
+                    set: { value.wrappedValue = Int($0.rounded()) }
+                ), in: 1...Double(PlatformSettingsVM.hostCoreCount), step: 1)
+                .frame(width: 140)
+                TextField("", value: value, format: .number)
+                    .textFieldStyle(.squareBorder)
+                    .font(.system(.caption, design: .monospaced))
+                    .frame(width: 52)
+                Text("cores")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 42, alignment: .leading)
+            }
+        }
+    }
+
+    /// Memory in GB (half-gig steps), backed by megabytes in the config.
+    private func memoryRow(_ label: String, mb: Binding<Int>) -> some View {
+        let gb = Binding(
+            get: { Double(mb.wrappedValue) / 1024.0 },
+            set: { mb.wrappedValue = max(512, Int((($0 * 2).rounded() / 2) * 1024)) }
+        )
+        return settingRow(label) {
+            HStack(spacing: 10) {
+                Slider(value: gb, in: 0.5...Double(PlatformSettingsVM.hostMemoryGB), step: 0.5)
+                    .frame(width: 140)
+                TextField("", value: gb, format: .number.precision(.fractionLength(0...1)))
+                    .textFieldStyle(.squareBorder)
+                    .font(.system(.caption, design: .monospaced))
+                    .frame(width: 64)
+                Text("GB")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28, alignment: .leading)
+            }
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             storageLocations
 
             VStack(alignment: .leading, spacing: 10) {
-                settingRow("Default CPUs") {
-                    HStack(spacing: 10) {
-                        Text("\(vm.settings.containerCPUs)").monospacedDigit()
-                        Stepper("", value: $vm.settings.containerCPUs, in: 1...32)
-                            .labelsHidden()
-                    }
-                }
-                settingRow("Default Memory") {
-                    TextField("", text: $vm.settings.containerMemory, prompt: Text("1gb"))
-                        .textFieldStyle(.squareBorder)
-                        .frame(width: 220)
-                }
-                settingRow("Builder CPUs") {
-                    HStack(spacing: 10) {
-                        Text("\(vm.settings.buildCPUs)").monospacedDigit()
-                        Stepper("", value: $vm.settings.buildCPUs, in: 1...16)
-                            .labelsHidden()
-                    }
-                }
-                settingRow("Builder Memory") {
-                    TextField("", text: $vm.settings.buildMemory, prompt: Text("2048mb"))
-                        .textFieldStyle(.squareBorder)
-                        .frame(width: 220)
-                }
+                cpuRow("Default CPUs", value: $vm.settings.containerCPUs)
+                memoryRow("Default Memory", mb: $vm.settings.containerMemoryMB)
+                cpuRow("Builder CPUs", value: $vm.settings.buildCPUs)
+                memoryRow("Builder Memory", mb: $vm.settings.buildMemoryMB)
                 settingRow("Builder Rosetta") {
                     Toggle("", isOn: $vm.settings.buildRosetta)
                         .labelsHidden()
@@ -139,18 +162,8 @@ struct PlatformSettingsSection: View {
                         .textFieldStyle(.squareBorder)
                         .frame(width: 320)
                 }
-                settingRow("Machine CPUs") {
-                    HStack(spacing: 10) {
-                        Text("\(vm.settings.machineCPUs)").monospacedDigit()
-                        Stepper("", value: $vm.settings.machineCPUs, in: 1...64)
-                            .labelsHidden()
-                    }
-                }
-                settingRow("Machine Memory") {
-                    TextField("", text: $vm.settings.machineMemory, prompt: Text("8gb"))
-                        .textFieldStyle(.squareBorder)
-                        .frame(width: 220)
-                }
+                cpuRow("Machine CPUs", value: $vm.settings.machineCPUs)
+                memoryRow("Machine Memory", mb: $vm.settings.machineMemoryMB)
                 settingRow("Home Mount") {
                     Picker("", selection: $vm.settings.machineHomeMount) {
                         Text("Read-only").tag("ro")
