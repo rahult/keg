@@ -244,29 +244,6 @@ actor ContainerBridge {
         return output
     }
 
-    /// Block until the container stops, then return its exit code (0 when the
-    /// CLI doesn't report one). Backs the Docker `POST /containers/{id}/wait`
-    /// route — `docker run` and `docker wait` depend on it.
-    func waitContainer(id: String) async throws -> Int32 {
-        while true {
-            let (code, output) = try await runCLI(["container", "inspect", id])
-            if code != 0 {
-                throw DockerAPIError.containerNotFound(id)
-            }
-            guard let data = output.data(using: .utf8),
-                  let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
-                  let entry = entries.first
-            else {
-                throw DockerAPIError.containerNotFound(id)
-            }
-            let state = (entry["status"] as? [String: Any])?["state"] as? String
-            if state != "running" {
-                return 0
-            }
-            try await Task.sleep(nanoseconds: 500_000_000)
-        }
-    }
-
     // MARK: - Image Operations
 
     /// Real on-disk size per image (blobs + unpacked snapshots), keyed by

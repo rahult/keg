@@ -135,8 +135,13 @@ actor ContainerEventBus {
             for (id, info) in lastStates where !seen.contains(id) {
                 emit(containerID: id, image: info.image, action: "destroy", status: "destroy", name: nil)
                 lastStates.removeValue(forKey: id)
-                // Release the retained stdio buffer with the container.
+                // Release the retained stdio buffer with the container, and
+                // reap the exit-future/stop/restart bookkeeping — /wait will
+                // have claimed the future by now except in pathological
+                // delays, and entries for auto-removed containers must not
+                // pile up.
                 await bridge.discardAttachBuffer(id: id)
+                await bridge.reapFinishedContainer(id: id)
             }
         }
 

@@ -179,14 +179,15 @@ extension ContainerBridge {
     /// Removes a container labeled `keg.auto-remove` once it exits —
     /// docker's `--rm`. Runs a beat after the die transition so an
     /// in-flight `POST /wait` can pull the exit code from the in-memory
-    /// process future before `container delete` makes it vanish. The bus's
-    /// next poll sees the vanish and emits the destroy event (plus buffer
-    /// cleanup), so nothing else is needed here.
+    /// process future before `container delete` makes it vanish. Deliberately
+    /// leaves `startedProcesses` alone — a late `/wait` claims the future
+    /// there, and stripping it first turns the real exit code into a
+    /// fallback 0. The bus's destroy transition reaps the bookkeeping.
     func autoRemoveAfterExit(_ container: DockerContainer) async {
         guard container.labels?["keg.auto-remove"] != nil,
               container.labels?["keg.restart-policy"] == nil else { return }
         try? await Task.sleep(nanoseconds: 2_000_000_000)
-        await finalizeAutoRemove(id: container.id)
+        _ = try? await removeContainer(id: container.id, force: false)
     }
 
     /// Whether `id` carries the auto-remove label (docker --rm) without a
@@ -204,13 +205,21 @@ extension ContainerBridge {
             && labels["keg.restart-policy"] == nil
     }
 
-    /// Shared removal tail for both auto-remove paths (exit-future watcher
-    /// and event-bus backstop): idempotent bookkeeping plus the delete.
+    /// Removal tail for the exit-future watcher path. Like the bus backstop,
+    /// it must not touch `startedProcesses` — see `autoRemoveAfterExit`.
     func finalizeAutoRemove(id: String) async {
+        _ = try? await removeContainer(id: id, force: false)
+    }
+
+    /// Drops per-container bookkeeping once the container is gone (the
+    /// bus's destroy transition): the retained exit future, stop/restart
+    /// markers. `/wait` normally consumes the exit future long before this
+    /// runs — the reap only exists so entries for auto-removed containers
+    /// can't pile up.
+    func reapFinishedContainer(id: String) {
         startedProcesses.removeValue(forKey: id)
         userStoppedIDs.remove(id)
         restartAttempts.removeValue(forKey: id)
-        _ = try? await removeContainer(id: id, force: false)
     }
 
     /// Starts every stopped container labeled restart=always — docker
@@ -232,38 +241,99 @@ extension ContainerBridge {
     /// exited. Prefers a process handle from `startContainerWithExitTracking`;
     /// bootstraps idempotently for containers the CLI started, but NEVER
     /// while an attach intent is pending (that bootstrap must win the stdio
-    /// race for `docker run` output to flow). Polling with exit code 0 is
-    /// the last resort for already-reaped containers.
+    /// race for `docker run` output to flow).
+    ///
+    /// The authoritative exit code comes from the XPC process wait, which
+    /// has been observed to never resolve on a contended runtime — the old
+    /// inline `await` on it turned that stall into a /wait connection that
+    /// hung for minutes and died as EOF. Both exit sources now drain into a
+    /// side slot and are polled against container state, so /wait always
+    /// returns once the container has exited: the real code when the
+    /// runtime delivers it, Docker's fallback 0 when it stalls, and the
+    /// retained code even after the container was auto-removed mid-wait.
+    /// Drains `box` for up to `seconds` before giving up. The
+    /// authoritative XPC exit wait lags the container's exit — sometimes by
+    /// minutes on a contended runtime; the old code awaited it inline
+    /// forever (a hung, then EOF'd /wait), so the wait polls instead and
+    /// only falls back once this bound is spent.
+    private func drainExitBox(_ box: ExitCodeBox, seconds: Double) async -> Int32? {
+        var waited = 0.0
+        while waited < seconds {
+            if let code = box.get() { return code }
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            waited += 0.5
+        }
+        return box.get()
+    }
+
     func waitContainerWithExitCode(id: String) async throws -> Int32 {
+        let exitBox = ExitCodeBox()
+
+        // Retained exit future (API-started containers): drain it in the
+        // background — awaiting it inline is what made a stalled XPC wait
+        // hang the whole response.
+        if let exitTask = startedProcesses.removeValue(forKey: id) {
+            Task { exitBox.set(await exitTask.value) }
+        }
+
         // Phase 1: block until the container has started at least once.
         while true {
+            if let code = exitBox.get() { return code }
             let (code, output) = try await runCLI(["container", "inspect", id])
             guard code == 0,
                   let data = output.data(using: .utf8),
                   let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
                   let entry = entries.first else {
+                // Removed between two polls — `docker run --rm` deletes on
+                // exit. The retained future outlives the container; give it
+                // time to deliver before declaring the container gone.
+                if let code = await drainExitBox(exitBox, seconds: 30) { return code }
                 throw DockerAPIError.containerNotFound(id)
             }
             let statusObj = entry["status"] as? [String: Any]
             let state = (statusObj?["state"] as? String) ?? ""
             if state == "running" { break }
-            let startedDate = statusObj?["startedDate"] as? String
-            if state != "running" && startedDate != nil && !(startedDate ?? "").isEmpty {
+            if state != "running",
+               let startedDate = statusObj?["startedDate"] as? String,
+               !startedDate.isEmpty {
                 break // ran and exited
             }
             try await Task.sleep(nanoseconds: 250_000_000)
         }
 
-        // Phase 2: resolve the exit code.
-        if let exitTask = startedProcesses.removeValue(forKey: id) {
-            return await exitTask.value
-        }
-        if let process = try? await Self.xpc.bootstrap(id: id, stdio: [nil, nil, nil]) {
-            if let code = try? await process.wait() {
-                return code
+        // Phase 2: resolve the exit code. For containers the CLI started
+        // without a retained future, bootstrap idempotently and drain its
+        // wait into the box the same way.
+        if startedProcesses[id] == nil && (pendingAttaches[id]?.isEmpty ?? true) {
+            Task { [id] in
+                if let process = try? await Self.xpc.bootstrap(id: id, stdio: [nil, nil, nil]) {
+                    if let code = try? await process.wait() {
+                        exitBox.set(code)
+                    }
+                }
             }
         }
-        return try await waitContainer(id: id)
+
+        while true {
+            if let code = exitBox.get() { return code }
+            let (code, output) = (try? await runCLI(["container", "inspect", id])) ?? (1, "")
+            guard code == 0,
+                  let data = output.data(using: .utf8),
+                  let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+                  let entry = entries.first else {
+                // Removed mid-wait: last chance for the retained code, then
+                // Docker's fallback.
+                return await drainExitBox(exitBox, seconds: 30) ?? 0
+            }
+            let state = ((entry["status"] as? [String: Any])?["state"] as? String) ?? ""
+            if state != "running" {
+                // Exited but no code delivered yet — hold the connection
+                // while the runtime catches up (it can lag by minutes);
+                // only then fall back to Docker's 0.
+                return await drainExitBox(exitBox, seconds: 120) ?? 0
+            }
+            try await Task.sleep(nanoseconds: 500_000_000)
+        }
     }
 
     // MARK: - Exec
@@ -678,6 +748,29 @@ final class AttachBuffer: @unchecked Sendable {
         process.standardError = pipe
         try process.run()
         return LogFollowStream(process: process, handle: pipe.fileHandleForReading)
+    }
+}
+
+/// Thread-safe one-way exit-code slot behind `POST /wait`. The
+/// authoritative sources (retained pump future, idempotent bootstrap wait)
+/// drain into it from background tasks that must never block the response,
+/// while the wait polls for whatever landed.
+final class ExitCodeBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var code: Int32?
+
+    /// First writer wins — a late duplicate drain can't overwrite the
+    /// already-reported code.
+    func set(_ value: Int32) {
+        lock.lock()
+        if code == nil { code = value }
+        lock.unlock()
+    }
+
+    func get() -> Int32? {
+        lock.lock()
+        defer { lock.unlock() }
+        return code
     }
 }
 
