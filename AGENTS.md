@@ -99,7 +99,7 @@ swift build -c release  # Build binary only
 - No Intel Mac support (Apple Silicon required)
 - No CRI shim yet (K8s uses containerd inside kindest/node)
 - The runtime never GCs `snapshots/`: per-image seed blocks (~180 MB–1.4 GB each) of deleted containers/images stay behind forever. After bulk container or image deletion, remove `snapshots/<64-hex>` dirs that no remaining container references (check `containers/*/*.json` for references first)
-- `POST /wait` occasionally drops the connection (EOF) instead of returning the exit code when the runtime is contended; `docker run` then warns instead of printing the code. Exit codes propagate reliably on fast runs
+- **Intermittent request swallow in `DockerHijackHTTPChannel`**: some accepted connections never dispatch their first request to the router (no response, no error — the client hangs until it gives up as EOF), while identical fresh connections succeed. Isolated 2026-09-20: it is NOT the bridge or the runtime (same requests succeed via fresh connections and via the raw CLI); suspicion is `LateHTTPPipelineBuilder`'s buffered pipeline hand-off racing request delivery. `/wait` itself is now bounded (stalled exit delivery falls back instead of hanging), but the channel-level swallow still surfaces as occasional `docker run`/`/wait` EOFs — needs a dedicated pass over the custom channel pipeline
 
 ## Dependencies
 
