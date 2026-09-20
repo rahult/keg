@@ -1,8 +1,27 @@
 # Changelog
 
-## [Unreleased]
+## [0.7.0] — 2026-09-21
 
-### Added (Phase 2)
+### Added
+- **Cooper, the built-in agent** — an on-device agent on Apple's FoundationModels (`SystemLanguageModel.default`): no cloud calls, no account, nothing leaves the machine. Ask "what's running?" or "why did my container fail?", have it pull an image, bring up a Compose stack, or navigate the app ("open the logs view"). The architecture is sized to the on-device model: each turn classifies intent, then runs one specialist session with at most five tools (overview, containers, images, compose, system/k8s); the maintained knowledge base is served on demand via a `keg_docs` tool instead of inflating the context; live state arrives as a compact per-turn snapshot; transcripts trim on overflow with one retry; throttled turns back off exponentially.
+- **Cooper permission gate** — Settings → Cooper picks the mode: Explore (look, never touch), Ask (an approval card for every change), Execute (routine actions applied autonomously). Destructive operations — removing containers/images, compose down, stopping the runtime, deleting the cluster — require approval in every mode. The gate suspends inside the tool call and resumes when you answer the card; the 4th identical tool call in a turn is refused with change-your-approach guidance.
+- **Cooper conversations persist** on-device at `~/.keg/cooper` and rehydrate on the next launch (stage tracing in `debug.log`). Right-click any container or image → "Ask Cooper About This…" opens the panel with the object preloaded; the toolbar button uses a pure-SwiftUI barrel mark.
+- **One instance, one window** — a POSIX pid guard makes a second launch focus the existing app instead of racing it (lowest pid survives); `keg://` deep links always land in the live window, and a stale `/Applications` copy hijacking the scheme is detected.
+- **Settings rebuilt into six domain tabs** — Keg, Apple Containers, Docker, Kubernetes, Cooper, About — with host-bounded sliders that save on a debounce, the runtime's per-machine **data location** (app-root) settable through a volume browser with a refuse-to-start preflight, and the container config surface exposed: home mount (ro/rw/none) and builder image as grouped rows.
+- **Docker API completions** — `--rm` is honored (AutoRemove), the prune routes work (containers, images, networks, volumes), and `POST /wait` is bounded so a stalled exit delivery falls back instead of hanging `docker run`.
+- **Honest lists** — container/image lists carry truth-in-listing subtitles, an All|Running segmented filter with visible counts, and chips that say what they do; volumes can be created from the UI; Compose guards against a stale or missing compose-file path.
+- **User guide** — a twelve-page plain-Markdown docs set (`docs/guide/`) covering every app area, linked from the website and in-app help.
+
+### Fixed
+- A wedged container runtime is survivable and diagnosable: CLI operations run bounded, the runtime reports `.unresponsive` with backoff instead of hanging the UI, and the Health panel surfaces diagnostics with one-click recovery.
+- The Cooper panel's "Open Apple Intelligence Settings" now opens the Siri & Apple Intelligence pane (the old anchor landed on General on macOS 27).
+
+### Known limitations
+- Some accepted Docker-API connections never dispatch their first request (the client waits until EOF while an identical fresh connection succeeds) — a `DockerHijackHTTPChannel` pipeline race under investigation; `/wait` itself is bounded, but occasional `docker run` EOFs can still surface.
+
+## [0.6.0] — 2026-09-18
+
+### Added
 - **`docker cp`** works end to end — file and directory, in and out, including into-directory semantics — via the `/archive` endpoints (HEAD stat with the base64 `X-Docker-Container-Path-Stat` header, XPC `copyIn`/`copyOut`, tar handling).
 - **Restart policies**: `--restart always / unless-stopped / on-failure` persists as a container label; the event bus (now always polling, no `/events` subscriber needed) revives crashed containers with a crash-loop cap; API stop/kill suppresses auto-restart; a startup sweep revives `always` containers daemon-style.
 - **Late attach**: API-started containers keep their stdio in a ring-buffered buffer, so `docker attach` on a *running* container replays recent history then streams live. Attach-before-start (`docker run`) uses direct pump wiring. `keg attach [-i]` joins from the companion CLI.
@@ -10,7 +29,7 @@
 - **CI on a real Mac** (`.github/workflows/contract.yml`): the 21-check Docker CLI contract suite on a self-hosted `macos-container-runtime` runner on every push/PR.
 - **Homebrew cask** (`Casks/keg.rb`) ready for submission; installs the app and puts `keg` on PATH.
 
-### Fixed (Phase 2)
+### Fixed
 - **The crash class behind months of flakiness — XPC fd double-close**: Apple's `XPCMessage.set(FileHandle)` *closes the descriptor after transfer*. Every stdio fd Keg handed to `createProcess`/`bootstrap` died in-process, and our later closes (or FileHandle deinit) landed on recycled fd numbers — killing CLI pipe reads (NSException) and NIO sockets (EBADF write preconditions) at random. Stdio now transfers dup'ed fds in non-owning FileHandles; our originals close once, at the right time. Verified: 20/20 rapid `docker run` with exact exit codes, 10× exec loop, full contract suite green repeatedly.
 - Hijacked-connection writes are serialized on the channel's event loop; error responses to HEAD carry no body (Go client connection poisoning); directory stat mode carries Go's `ModeDir` bit so `docker cp` resolves destinations correctly.
 

@@ -1,5 +1,5 @@
 cask "keg" do
-  version "0.5.0"
+  version "0.7.0"
   sha256 :no_check # DMG is notarized and stapled; Sparkle verifies EdDSA on updates
 
   url "https://github.com/rahult/keg/releases/download/v#{version}/Keg-#{version}.dmg",
