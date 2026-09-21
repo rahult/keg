@@ -10,6 +10,14 @@ import FoundationModels
 /// prompt embeds a fresh state snapshot. Sessions are always constructed
 /// through the `model:` parameter so an alternative backend can slot in
 /// later without touching this file.
+///
+/// Two backends share this pipeline. The on-device one is the FoundationModels
+/// path above. When the on-device model is unavailable — or the user forces
+/// it — turns run against any OpenAI-compatible server (`streamRemoteReply`):
+/// no router pass (a capable model takes the full tool set), OpenAI function
+/// calling against the same gateway, reasoning output split out of the
+/// visible reply, and its own persisted history. Approval cards, the
+/// permission gate, and repeat-call protection are backend-independent.
 @Observable
 @MainActor
 final class CooperController {
@@ -29,6 +37,9 @@ final class CooperController {
         /// recomputed from stream snapshots. Optional so transcripts saved
         /// before this field decode cleanly.
         var toolActivity: [String]?
+        /// Reasoning text (remote thinking models). Optional so transcripts
+        /// saved before this field decode cleanly.
+        var reasoning: String?
     }
 
     /// One proactive suggestion. Built from a state transition without a
@@ -56,6 +67,11 @@ final class CooperController {
     private(set) var messages: [Message] = []
     private(set) var isStreaming = false
     private(set) var availability: CooperAvailability = .checking
+    /// Which brain the current turns run on. `.remote` when the on-device
+    /// model is unavailable (or forced off) and an OpenAI-compatible
+    /// server is configured; the panel shows `remoteLabel` then.
+    private(set) var brain: CooperBrainKind = .onDevice
+    private(set) var remoteLabel: String?
     private(set) var pendingApprovals: [CooperApprovalRequest] = []
     private(set) var nudges: [Nudge] = []
 
@@ -63,6 +79,11 @@ final class CooperController {
     private let gateway: CooperGateway
     private var streamTask: Task<Void, Never>?
     private var savedTranscript: Transcript?
+    /// The remote path's own conversation (OpenAI message shapes), kept
+    /// alongside the FoundationModels transcript so switching backends
+    /// never mixes dialects.
+    private var remoteHistory: [CooperChatMessage] = []
+    private var hasLoadedRemoteHistory = false
     private var approvalContinuations: [UUID: CheckedContinuation<Bool, Never>] = [:]
     private var hasLoadedHistory = false
     private var hasGreeted = false
@@ -129,8 +150,19 @@ final class CooperController {
         }
     }
 
+    /// Resolves which brain turns run on: the on-device model when it is
+    /// ready (unless the remote path is forced), otherwise the configured
+    /// OpenAI-compatible server. Cheap enough to call on every panel open;
+    /// also invoked by Settings when the remote configuration changes.
     func checkAvailability() {
-        availability = CooperAvailability.from(systemModel: .default)
+        let resolution = CooperBackendResolver.resolve(
+            systemAvailability: CooperAvailability.from(systemModel: .default),
+            preference: CooperRemoteConfigStore.loadPreference(),
+            remote: CooperRemoteConfigStore.loadConfig()
+        )
+        availability = resolution.availability
+        brain = resolution.brain
+        remoteLabel = resolution.remoteConfig.map { "\($0.model) · \($0.hostDisplay)" }
     }
 
     private func greet() {
@@ -175,7 +207,10 @@ final class CooperController {
         guard !isStreaming else { return }
         messages.removeAll()
         savedTranscript = nil
+        remoteHistory = []
+        hasLoadedRemoteHistory = true
         Self.removePersistence()
+        CooperChatHistory.removePersistence()
         hasGreeted = false
         greet()
     }
@@ -183,11 +218,21 @@ final class CooperController {
     /// The full turn pipeline, on the main actor; every long step inside is
     /// async and yields, and the framework offloads generation internally.
     private func runTurn(_ text: String) async {
-        Self.debugLog("turn start")
+        Self.debugLog("turn start (brain: \(brain == .remote ? "remote" : "on-device"))")
         messages.append(Message(role: .assistant, text: "", isStreaming: true))
         await gateway.beginTurn()
         Self.debugLog("turn: beginTurn done")
 
+        switch brain {
+        case .onDevice:
+            await runOnDeviceTurn(text)
+        case .remote:
+            await runRemoteTurn(text)
+        }
+        persistMessages()
+    }
+
+    private func runOnDeviceTurn(_ text: String) async {
         do {
             Self.debugLog("turn: classifying")
             let domain = try await CooperRouter.classify(prompt: text)
@@ -200,7 +245,200 @@ final class CooperController {
         } catch {
             await handleModelFailure(error, text: text)
         }
-        persistMessages()
+    }
+
+    // MARK: - Remote turns (OpenAI-compatible backend)
+
+    private func runRemoteTurn(_ text: String) async {
+        do {
+            try await streamRemoteReply(text: text)
+        } catch let error as CooperGateError {
+            finishAssistant(with: error.message)
+        } catch is CancellationError {
+            finishAssistant(with: " …stopped.")
+        } catch {
+            await handleRemoteFailure(error, text: text)
+        }
+    }
+
+    /// Streams the remote model's reply with live tool round-trips, then
+    /// persists the updated history. Retries once on context overflow with
+    /// a hard-trimmed history.
+    private func streamRemoteReply(text: String) async throws {
+        let config = CooperRemoteConfigStore.loadConfig()
+        guard config.isConfigured, let _ = config.effectiveBaseURL else {
+            throw CooperRemoteError.configuration("No remote model is configured — set one up in Settings → Cooper.")
+        }
+        let apiKey = CooperKeychain.loadAPIKey()
+        loadRemoteHistoryIfNeeded()
+        var history = remoteHistory
+        if history.first?.role != .system {
+            history.insert(CooperChatMessage.system(Self.remoteSystemPrompt), at: 0)
+        }
+        let tools = CooperRemoteTools.allTools(gateway: gateway, mode: permissionMode)
+        let snapshot = await CooperContext.loadSnapshot(appState: appState)
+        let userPrompt = """
+        Current Keg state:
+        \(snapshot.render())
+        User request: \(text)
+        """
+
+        // Remote watchdog: generous, because reasoning models can be silent
+        // for minutes before the first token; URLSession's request timeout
+        // is the lower backstop and the user's Stop button the real one.
+        streamWatchdogFired = false
+        let watchdog = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(600))
+            guard !Task.isCancelled else { return }
+            Self.debugLog("remote reply: WATCHDOG fired")
+            self?.streamWatchdogFired = true
+            self?.streamTask?.cancel()
+        }
+        defer { watchdog.cancel() }
+
+        for attempt in 0..<2 {
+            replaceStreamingMessage(with: "")
+            do {
+                Self.debugLog("remote reply: start (attempt \(attempt))")
+                var lastRendered = ""
+                var lastChips: [String] = []
+                var finalHistory: [CooperChatMessage]?
+                let stream = CooperOpenAIBackend.turn(
+                    config: config,
+                    apiKey: apiKey,
+                    history: history,
+                    userPrompt: userPrompt,
+                    tools: tools
+                )
+                for try await event in stream {
+                    if Task.isCancelled { break }
+                    switch event {
+                    case .update(let update):
+                        if let delta = update.visibleDelta, !delta.isEmpty {
+                            lastRendered += delta
+                            replaceStreamingMessage(with: lastRendered)
+                        }
+                        if let delta = update.thinkingDelta, !delta.isEmpty,
+                           config.thinking != .off {
+                            appendStreamingReasoning(delta)
+                        }
+                        if let name = update.toolStarted {
+                            lastChips.append("⚙ \(name)")
+                            updateStreamingActivity(lastChips)
+                        }
+                        if let name = update.toolFinished,
+                           let index = lastChips.firstIndex(of: "⚙ \(name)") {
+                            lastChips[index] = "✓ \(name)"
+                            updateStreamingActivity(lastChips)
+                        }
+                    case .done(let newHistory):
+                        finalHistory = newHistory
+                    }
+                }
+                Self.debugLog("remote reply: stream finished, chars=\(lastRendered.count)")
+                if streamWatchdogFired {
+                    finalizeStreamingMessage(with: Self.remoteWatchdogMessage(host: config.hostDisplay))
+                } else {
+                    finalizeStreamingMessage(with: lastRendered.isEmpty
+                        ? "The model returned an empty reply. Try again, or pick a different model in Settings → Cooper."
+                        : lastRendered)
+                    if let finalHistory {
+                        remoteHistory = finalHistory
+                        CooperChatHistory.persist(finalHistory)
+                    }
+                }
+                return
+            } catch is CancellationError where streamWatchdogFired {
+                finalizeStreamingMessage(with: Self.remoteWatchdogMessage(host: config.hostDisplay))
+                return
+            } catch {
+                if attempt == 0, CooperRemoteError.isContextOverflow(error) {
+                    history = CooperChatHistory.trimmed(history, keepLast: 6)
+                    continue
+                }
+                throw error
+            }
+        }
+    }
+
+    /// Persona plus the all-tools guidance — the remote path sends one
+    /// system message instead of the on-device path's per-turn domain hints.
+    private static var remoteSystemPrompt: String {
+        CooperContext.personaInstructions + "\n\n" + CooperRemoteTools.systemGuidance
+    }
+
+    private static func remoteWatchdogMessage(host: String) -> String {
+        "The model at \(host) didn't answer in time — the server may be busy or unreachable. Ask again in a moment."
+    }
+
+    /// One bounded recovery pass for the remote path: exponential backoff
+    /// for throttle, hard trim for overflow (handled in the stream loop),
+    /// and provider-specific copy for everything else.
+    private func handleRemoteFailure(_ error: Error, text: String) async {
+        if Self.isThrottledRemote(error) {
+            for delay in [2.0, 6.0] {
+                try? await Task.sleep(for: .seconds(delay))
+                Self.debugLog("remote retry after \(delay)s backoff")
+                do {
+                    try await streamRemoteReply(text: text)
+                    return
+                } catch {
+                    if !Self.isThrottledRemote(error) {
+                        finishAssistant(with: Self.remoteRecoveryCopy(error))
+                        return
+                    }
+                }
+            }
+            finishAssistant(with: "The model server keeps rate-limiting us. Give it a moment and ask again.")
+            return
+        }
+        if CooperRemoteError.isContextOverflow(error) {
+            remoteHistory = CooperChatHistory.trimmed(remoteHistory, keepLast: 4)
+            CooperChatHistory.persist(remoteHistory)
+            finishAssistant(with: "Our conversation outgrew the model's context window, so I trimmed it back. Ask again and I'll pick up from the current state.")
+            return
+        }
+        finishAssistant(with: Self.remoteRecoveryCopy(error))
+    }
+
+    private static func isThrottledRemote(_ error: Error) -> Bool {
+        if case CooperRemoteError.http(let status, _) = error { return status == 429 }
+        return false
+    }
+
+    private static func remoteRecoveryCopy(_ error: Error) -> String {
+        switch error {
+        case CooperRemoteError.configuration(let message):
+            return message
+        case CooperRemoteError.http(let status, let message):
+            switch status {
+            case 401, 403:
+                return "The API key was rejected by the model server (\(message)). Check it in Settings → Cooper."
+            case 404:
+                return "The model or endpoint wasn't found (\(message)). Check the model name and server URL in Settings → Cooper."
+            case 429:
+                return "The model server is rate-limiting us (\(message)). Give it a moment and ask again."
+            default:
+                return "The model server reported an error: \(message)"
+            }
+        case CooperRemoteError.interrupted(let message):
+            return message
+        case CooperRemoteError.network(let message):
+            return "Couldn't reach the model server: \(message)"
+        default:
+            return "Something went sideways: \(error.localizedDescription)"
+        }
+    }
+
+    private func loadRemoteHistoryIfNeeded() {
+        guard !hasLoadedRemoteHistory else { return }
+        hasLoadedRemoteHistory = true
+        remoteHistory = CooperChatHistory.load()
+    }
+
+    private func appendStreamingReasoning(_ delta: String) {
+        guard let index = messages.lastIndex(where: \.isStreaming) else { return }
+        messages[index].reasoning = (messages[index].reasoning ?? "") + delta
     }
 
     /// Streams the specialist reply, retrying once on context pressure.
@@ -468,10 +706,12 @@ final class CooperController {
     /// Loads the model weights before the first question. The first-ever
     /// generation on a machine can otherwise stall for a long time (observed
     /// here); a prewarmed session answers in seconds. Called at attach (app
-    /// launch) and again from the panel if assets weren't ready yet.
+    /// launch) and again from the panel if assets weren't ready yet. Only
+    /// applies to the on-device brain — and re-runs if that brain becomes
+    /// active later (e.g. after switching back from remote).
     func prewarmIfNeeded() {
-        guard !hasPrewarmed, availability == .ready else { return }
-        hasPrewarmed = true
+        guard !hasPrewarmedOnDevice, brain == .onDevice, availability == .ready else { return }
+        hasPrewarmedOnDevice = true
         Self.debugLog("prewarm: start")
         Task.detached(priority: .utility) {
             let session = LanguageModelSession(
@@ -484,7 +724,7 @@ final class CooperController {
         }
     }
 
-    private var hasPrewarmed = false
+    private var hasPrewarmedOnDevice = false
 
     // MARK: - Persistence
 

@@ -5,6 +5,7 @@ import SwiftUI
 /// permission-mode picker. Only exists while `appState.isCooperVisible`.
 struct CooperPanelView: View {
     @Environment(AppState.self) private var appState
+    @Environment(\.openSettings) private var openSettings
     @State private var draft = ""
     @FocusState private var inputFocused: Bool
 
@@ -21,7 +22,7 @@ struct CooperPanelView: View {
             case .checking:
                 VStack(spacing: 10) {
                     ProgressView()
-                    Text("Checking Apple Intelligence…")
+                    Text("Waking Cooper…")
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -73,7 +74,16 @@ struct CooperPanelView: View {
     private func availabilityBadge(_ availability: CooperAvailability) -> some View {
         switch availability {
         case .ready:
-            EmptyView()
+            if let label = appState.cooper.remoteLabel {
+                // The remote brain is active: show which model is answering.
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(.quinary))
+                    .help("Cooper is answering via an OpenAI-compatible server (set up in Settings → Cooper)")
+            }
         case .checking:
             Image(systemName: "hourglass").foregroundStyle(.secondary)
         case .modelNotReady:
@@ -136,6 +146,17 @@ struct CooperPanelView: View {
             }
         case .assistant:
             VStack(alignment: .leading, spacing: 6) {
+                if let reasoning = message.reasoning, !reasoning.isEmpty {
+                    DisclosureGroup("Thinking") {
+                        Text(reasoning)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
                 if let chips = message.toolActivity, !chips.isEmpty {
                     FlowChipsView(labels: chips)
                 }
@@ -281,8 +302,24 @@ struct CooperPanelView: View {
                     }
                 }
             }
+            // The remote-backend recovery path: any OpenAI-compatible
+            // server substitutes for the on-device model.
+            if CooperRemoteConfigStore.loadConfig().isConfigured == false {
+                VStack(spacing: 8) {
+                    Divider().padding(.horizontal, 24)
+                    Text("Cooper can also run on any OpenAI-compatible model server — OpenAI, OpenRouter, Groq, a local Ollama, and more.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    Button("Set Up a Remote Model…") {
+                        appState.captureSettingsFrame()
+                        openSettings()
+                    }
+                }
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task { cooper.checkAvailability() }
     }
 
     private func unavailableTitle(_ availability: CooperAvailability) -> String {
@@ -301,13 +338,13 @@ struct CooperPanelView: View {
     private func unavailableDetail(_ availability: CooperAvailability) -> String {
         switch availability {
         case .appleIntelligenceOff:
-            return "Cooper runs entirely on Apple's on-device model. Turn on Apple Intelligence in System Settings to chat."
+            return "Cooper normally runs on Apple's on-device model. Turn on Apple Intelligence in System Settings — or point Cooper at an OpenAI-compatible model server instead."
         case .deviceNotEligible:
-            return "Apple Intelligence (and therefore Cooper) needs an Apple Silicon Mac with Apple Intelligence support enabled in this macOS version."
+            return "Apple Intelligence needs an Apple Silicon Mac with Apple Intelligence support enabled in this macOS version. Alternatively, Cooper can run on any OpenAI-compatible model server."
         case .modelNotReady:
-            return "Apple Intelligence has been turned on, but its model assets are still downloading. This usually takes a few minutes."
+            return "Apple Intelligence has been turned on, but its model assets are still downloading. This usually takes a few minutes. You can also use a remote model server in the meantime."
         default:
-            return "The on-device model isn't available right now. Everything else in Keg keeps working; check back later."
+            return "The on-device model isn't available right now. Everything else in Keg keeps working; check back later, or configure a remote model server."
         }
     }
 }
