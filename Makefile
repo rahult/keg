@@ -204,6 +204,12 @@ run: app
 test:
 	swift test
 
+# Point this clone at the versioned git hooks (post-commit background build).
+# Local config, so run once per clone.
+hooks:
+	git config core.hooksPath githooks
+	@echo "🪝 git hooks active: commits now start a background keg build"
+
 qa:
 	./Scripts/qa.sh
 

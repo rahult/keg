@@ -1,0 +1,45 @@
+#!/bin/sh
+# Post-commit: build Keg.app in the background so a commit that doesn't
+# compile surfaces in a notification minutes later, not at next launch.
+#
+# Active when the repo has `core.hooksPath` set (see `make hooks`). The
+# build is detached — committing must never block on a full release build —
+# and lock-guarded so a burst of commits starts one build, not ten.
+
+# Never build mid-rebase/amend chains; those commits aren't real yet.
+gitdir=$(git rev-parse --git-dir) || exit 0
+if [ -d "$gitdir/rebase-merge" ] || [ -d "$gitdir/rebase-apply" ]; then
+    exit 0
+fi
+
+log="$gitdir/keg-build.log"
+lock="$gitdir/keg-build.lock"
+
+# A build already in flight covers this tree; skip instead of racing it
+# over the .build directory.
+if [ -f "$lock" ] && kill -0 "$(cat "$lock" 2>/dev/null)" 2>/dev/null; then
+    exit 0
+fi
+
+# Finder-launched git clients strip PATH; make needs brew + xcode tools.
+PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+export PATH
+
+(
+    echo $$ > "$lock"
+    shortsha=$(git rev-parse --short HEAD)
+    {
+        echo "=== keg build $shortsha — started $(date) ==="
+        if make app; then
+            echo "=== build OK ==="
+            osascript -e "display notification \"✅ Build OK ($shortsha)\" with title \"Keg\"" >/dev/null 2>&1
+        else
+            echo "=== build FAILED ==="
+            osascript -e "display notification \"❌ Build FAILED ($shortsha) — see .git/keg-build.log\" with title \"Keg\"" >/dev/null 2>&1
+        fi
+    } > "$log" 2>&1
+    rm -f "$lock"
+) >/dev/null 2>&1 &
+
+echo "🔨 keg build started in background — log: $log"
+exit 0

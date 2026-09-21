@@ -79,7 +79,12 @@ make app          # Build Keg.app
 make open         # Build and launch
 make test         # Run tests
 swift build -c release  # Build binary only
+make hooks        # Activate versioned git hooks (core.hooksPath githooks)
 ```
+
+## Git Hooks
+
+`githooks/post-commit` (active via `make hooks` → `core.hooksPath githooks`, local config per clone) starts a **background** `make app` after every commit — macOS notification on pass/fail, full log at `.git/keg-build.log`, lock-guarded so commit bursts start one build. Skips during rebase/amend chains. Expect the notification a couple of minutes after committing; a failed build means the commit you just made doesn't compile.
 
 ## Current Capabilities
 
