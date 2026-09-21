@@ -4,14 +4,14 @@
         <title>Keg</title>
         <item>
             <title>0.8.0</title>
-            <pubDate>Mon, 21 Sep 2026 20:52:00 +0000</pubDate>
+            <pubDate>Mon, 21 Sep 2026 21:24:06 +0000</pubDate>
             <link>https://keg.rahultrikha.com/</link>
             <sparkle:fullReleaseNotesLink>https://github.com/rahult/keg/releases</sparkle:fullReleaseNotesLink>
-            <sparkle:version>13</sparkle:version>
+            <sparkle:version>15</sparkle:version>
             <sparkle:shortVersionString>0.8.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://github.com/rahult/keg/releases/download/v0.8.0/Keg-0.8.0.zip" length="22213754" type="application/octet-stream" sparkle:edSignature="Wz94zFJSXgcvQ04OlFqNomttM/sIIKln8BBdLSY/AZuTRGGBCnHVln/v0rlMqcOdQAsEuaGPRZmTOzgWrGpuCQ=="/>
+            <enclosure url="https://github.com/rahult/keg/releases/download/v0.8.0/Keg-0.8.0.zip" length="22406137" type="application/octet-stream" sparkle:edSignature="yo+pijLAvnY6ipl4qZyWjvb7xLDV9/xsecVywvn/tGCMkOpzMSsoIy+Iu255fht7ewGqbRJqp/LfCW8ME+6mDA=="/>
         </item>
     </channel>
 </rss>
