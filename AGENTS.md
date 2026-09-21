@@ -93,6 +93,7 @@ swift build -c release  # Build binary only
 - Kubernetes cluster lifecycle
 - Menu bar popover, settings
 - Cooper: on-device agent (FoundationModels) in an inspector panel — observe, guide (section navigation), and gated container/image/compose/runtime actions
+- Boot-kernel setup: detects an unregistered default kernel (container runtime 1.4+ refuses to start containers without one — typical after a Homebrew upgrade) and offers a one-click `container system kernel set --recommended --force` repair from the Run sheet, Health panel, and Settings → Apple Containers (`BootKernel.swift`, `BootKernelStatusViews.swift`)
 
 ## Known Limitations
 

@@ -39,6 +39,12 @@ Where containers, images, volumes, and snapshots live.
 - **Storage Locations** — the resolved containers / volumes / images paths,
   each with a copy button.
 - **Advanced (read-only)** — the pinned kernel and vminit images.
+- **Boot Kernel** — whether the runtime has a default boot kernel
+  registered. Container runtime 1.4+ refuses to start containers until one
+  is, which typically happens right after a Homebrew runtime upgrade; Keg
+  detects it and offers a one-click **Install Recommended Kernel** (also
+  surfaced in the Health panel and the Run sheet). **Reinstall** re-fetches
+  the recommended kernel after a runtime upgrade.
 - **DNS Domains** — locally registered DNS domains.
 
 ## Docker

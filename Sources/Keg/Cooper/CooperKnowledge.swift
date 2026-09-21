@@ -63,6 +63,12 @@ enum CooperKnowledge {
       means recreate (Keg's Edit & Recreate).
     - Stopping a container must go through the CLI — the HTTP API's stop
       is broken against CLI >= 1.3 (Keg works around this).
+    - Boot kernel: runtime 1.4+ requires an explicitly registered default
+      kernel (`container system kernel set --recommended --force`);
+      until then every run fails with "default kernel not configured for
+      architecture arm64" — typical right after a Homebrew runtime
+      upgrade. Keg detects this and offers a one-click install
+      (Run sheet banner, Health panel, Settings → Apple Containers).
     """
 
     private static let kegArchitecture = """

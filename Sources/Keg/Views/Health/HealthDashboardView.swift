@@ -51,6 +51,7 @@ struct HealthDashboardView: View {
         .toolbarRole(.editor)
         .task {
             await vm.refresh()
+            await appState.checkBootKernel()
         }
     }
 
@@ -108,6 +109,11 @@ struct HealthDashboardView: View {
                     .foregroundStyle(.secondary)
             }
             .font(.caption)
+
+            // A missing boot kernel blocks every new container but looks
+            // nothing like a wedged runtime from the outside — surface the
+            // repair here, next to the other runtime facts.
+            BootKernelWarningBanner()
 
             let calls = ContainerCLI.recentCalls.suffix(6).reversed()
             if calls.isEmpty {

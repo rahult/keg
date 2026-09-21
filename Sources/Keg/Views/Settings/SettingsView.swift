@@ -204,6 +204,8 @@ struct SettingsView: View {
                 }
 
                 ContainerDataLocationRow()
+
+                BootKernelStatusCard()
             }
 
 

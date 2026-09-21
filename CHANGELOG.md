@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.7.1] — 2026-09-21
+
+### Added
+- **Boot-kernel setup & repair** — container runtime 1.4+ requires an explicitly registered default boot kernel and refuses to start any new container with "default kernel not configured for architecture arm64" until one exists — exactly where a Homebrew runtime upgrade (`brew upgrade container`) leaves an otherwise healthy install, with nothing but the raw CLI error as a hint. Keg now detects the missing registration and offers a one-click **Install Recommended Kernel** (runs `container system kernel set --recommended --force`, pinned to your data location) in the three places users meet the problem: the Run sheet — before the image pull is wasted, with Run disabled until fixed — the Health panel, and Settings → Apple Containers. **Reinstall** re-fetches the recommended kernel after future runtime upgrades, a raw CLI kernel failure in a run is translated into an actionable message (for the race past the precheck), and Cooper's knowledge base covers the condition.
+
 ## [0.7.0] — 2026-09-21
 
 ### Added
