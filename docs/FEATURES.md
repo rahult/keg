@@ -92,8 +92,16 @@ app: runtime foundation first, then the sidebar's Workloads → Content → Syst
 
 ## Cooper — the built-in agent
 
-- **On-device agent** built on Apple's FoundationModels; requests never leave
-  the Mac.
+- **On-device agent** built on Apple's FoundationModels; on-device requests
+  never leave the Mac.
+- **Works without Apple Intelligence** — falls back to any
+  OpenAI-compatible model server (OpenAI, OpenRouter, Groq, DeepSeek, a
+  local Ollama, and more), with presets and a model list one click away.
+  The API key lives in the macOS Keychain; a local server keeps
+  everything on this machine.
+- **Thinking-model support** on the remote path: optional
+  reasoning-effort control, thinking separated from the answer (collapsible),
+  and provider-specific switches via Extra Request JSON.
 - Answers questions about Keg, containers, images, Compose, and the runtime —
   and can act on them.
 - **Three permission modes**: Explore (read-only), Ask (confirms every

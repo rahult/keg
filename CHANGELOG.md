@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.0] — 2026-09-22
+
+### Added
+- **Cooper runs without Apple Intelligence** — a second brain: any OpenAI-compatible chat-completions server (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, or local Ollama / LM Studio / vLLM). When the on-device model is unavailable — Apple Intelligence turned off, this Mac not eligible, or its model assets still downloading — Cooper automatically switches to the configured remote server; Settings → Cooper → Model backend can also force either path, and the panel header shows which model is answering. Tool calling, permission modes, approval cards, and the repeat-call guard are identical on both paths (the remote model gets every tool at once — no small-model tool subsets).
+- **Remote model setup** — provider presets with a one-click server URL, a "List" button that reads the server's model catalog, and the API key stored in the macOS Keychain (never in plain preferences). A "Set Up a Remote Model…" recovery path appears in the Cooper panel when Apple Intelligence is off and nothing is configured yet.
+- **Thinking-model support** on the remote path — request-side `reasoning_effort` (low/medium/high, sent only when explicitly chosen since providers reject unsupported values); response-side reasoning is separated from the answer whether the server streams `reasoning_content`/`reasoning` fields or the model inlines `<think>` tags, including tags split across stream chunks. Thinking renders as a collapsible section; "Off" neither requests nor shows it. Provider-specific switches (Qwen `enable_thinking`, temperature, `max_tokens`) go through an Advanced *Extra Request JSON* field merged last into every request.
+- Cooper's knowledge base covers its own backends (new `agent_backend` topic), and the guide documents the fallback.
+
+### Fixed
+- Remote-path robustness: context-overflow replies retry with a hard-trimmed history that never leaves tool results orphaned from their calls (the message shape providers reject); 429s back off exponentially; 401/404/5xx surface the server's own error message with actionable copy.
+
 ## [0.7.1] — 2026-09-21
 
 ### Added
