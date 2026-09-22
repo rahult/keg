@@ -34,8 +34,8 @@ final class ImagesVM {
                             // matching `container system df`.
                             let diskSize = try await ImageDiskUsage.diskSize(for: image)
                             if diskSize > 0 { return diskSize }
-                            // Store not readable (e.g. custom root) — fall back
-                            // to the compressed manifest size.
+                            // Store not readable — fall back to the
+                            // compressed manifest size.
                             return try await ClientImage.getFullImageSize(image: image)
                         }
                         group.addTask {

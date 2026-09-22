@@ -11,9 +11,14 @@ import ContainerAPIClient
 /// snapshot. Reading the store directly keeps the Images list consistent
 /// with the Dashboard's disk usage figures.
 enum ImageDiskUsage {
-    /// Root of the container data store (container-apiserver default).
+    /// Root of the container data store: the Data Location configured in
+    /// Settings (the same root `AppState.startSystem` hands the apiserver),
+    /// or the container-apiserver default when nothing is configured.
     static var storeRoot: URL {
-        FileManager.default.homeDirectoryForCurrentUser
+        if let configured = ContainerCLI.configuredAppRoot {
+            return URL(fileURLWithPath: configured, isDirectory: true)
+        }
+        return FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support/com.apple.container", isDirectory: true)
     }
 
