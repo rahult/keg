@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.1] — 2026-09-22
+
+### Fixed
+- **Image sizes respect the configured data location** — the Images list (and the Docker API's size field) read the store from the Data Location set in Settings instead of always assuming the default (`~/Library/Application Support/com.apple.container`). On machines that keep container data on another volume, every image silently showed only its compressed download size (nginx:latest: ~62 MB) instead of its real on-disk footprint — compressed blobs plus the unpacked ext4 snapshot (~1.42 GB). Default-location installs were unaffected.
+
 ## [0.8.0] — 2026-09-22
 
 ### Added
