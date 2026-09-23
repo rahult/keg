@@ -122,6 +122,8 @@ struct ContainerLogsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            filterBar
+            Divider()
             if isLoading && logLines.isEmpty {
                 ProgressView("Loading logs...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -140,49 +142,6 @@ struct ContainerLogsView: View {
         }
         .accessibilityLabel("Container Logs")
         .accessibilityHint("View and filter log output for this container")
-        .navigationTitle("Logs")
-        .searchable(text: $searchText, prompt: "Search logs")
-        .toolbar {
-            ToolbarItem(placement: .automatic) {
-                Picker("Level", selection: $levelFilter) {
-                    ForEach(LogLevelFilter.allCases, id: \.self) { filter in
-                        Text(filter.rawValue).tag(filter)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 200)
-                .accessibilityLabel("Log level filter")
-                .accessibilityHint("Filter logs by severity level")
-            }
-
-            ToolbarItem(placement: .automatic) {
-                Toggle(isOn: $isFollowing) {
-                    Label("Follow", systemImage: isFollowing ? "arrow.down.to.line" : "pause")
-                }
-                .toggleStyle(.button)
-                .tint(isFollowing ? .accentColor : .secondary)
-                .accessibilityLabel("Follow logs")
-                .accessibilityHint("Automatically scroll to new log entries")
-            }
-
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    copyAllLogs()
-                } label: {
-                    Label("Copy All", systemImage: "doc.on.doc")
-                }
-                .accessibilityLabel("Copy all logs")
-            }
-
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    clearLogs()
-                } label: {
-                    Label("Clear", systemImage: "trash")
-                }
-                .accessibilityLabel("Clear logs")
-            }
-        }
         .task {
             await loadLogs()
         }
@@ -197,6 +156,78 @@ struct ContainerLogsView: View {
         .onDisappear {
             logProcess?.terminate()
         }
+    }
+
+    // MARK: - Filter Bar
+
+    /// Inline controls instead of `.toolbar`/`.searchable`: this view lives in
+    /// the inspector column, and SwiftUI's AppKit toolbar bridge crashes
+    /// (NSToolbar insertion exception) when inspector-embedded views try to
+    /// mount window toolbar items as the tab appears.
+    private var filterBar: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                Picker("Level", selection: $levelFilter) {
+                    ForEach(LogLevelFilter.allCases, id: \.self) { filter in
+                        Text(filter.rawValue).tag(filter)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityLabel("Log level filter")
+                .accessibilityHint("Filter logs by severity level")
+
+                Toggle(isOn: $isFollowing) {
+                    Label("Follow", systemImage: isFollowing ? "arrow.down.to.line" : "pause")
+                }
+                .toggleStyle(.button)
+                .tint(isFollowing ? .accentColor : .secondary)
+                .labelStyle(.iconOnly)
+                .help(isFollowing ? "Following — click to pause" : "Paused — click to follow new lines")
+                .accessibilityLabel("Follow logs")
+                .accessibilityHint("Automatically scroll to new log entries")
+
+                Button {
+                    copyAllLogs()
+                } label: {
+                    Label("Copy All", systemImage: "doc.on.doc")
+                }
+                .labelStyle(.iconOnly)
+                .help("Copy the filtered log lines")
+                .accessibilityLabel("Copy all logs")
+
+                Button {
+                    clearLogs()
+                } label: {
+                    Label("Clear", systemImage: "trash")
+                }
+                .labelStyle(.iconOnly)
+                .help("Clear the log view")
+                .accessibilityLabel("Clear logs")
+            }
+
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Filter lines", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .accessibilityLabel("Filter log lines")
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear filter")
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(.quinary, in: RoundedRectangle(cornerRadius: 6))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
     }
 
     // MARK: - Log Content
@@ -329,8 +360,12 @@ struct ContainerLogsView: View {
                         }
                     }
                 }
-                // Keep alive while following
-                try? await Task.sleep(for: .seconds(Int.max))
+                // Keep alive while following. Don't park on one huge
+                // Duration (e.g. .seconds(Int.max)): it overflows the
+                // concurrency runtime's clock math and traps the process.
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(3600))
+                }
             } else {
                 let data = pipe.fileHandleForReading.readDataToEndOfFile()
                 if let str = String(data: data, encoding: .utf8) {

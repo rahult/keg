@@ -463,6 +463,31 @@ private struct EnvironmentTab: View {
                     systemImage: "text.word.spacing"
                 )
             } else {
+                // Inline search instead of `.searchable`: this tab lives in the
+                // inspector column, where the AppKit toolbar search field bridge
+                // is part of the crash-prone toolbar path.
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    TextField("Search variables", text: $search)
+                        .textFieldStyle(.plain)
+                    if !search.isEmpty {
+                        Button {
+                            search = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Clear search")
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(.quinary, in: RoundedRectangle(cornerRadius: 6))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+
                 Table(entries) {
                     TableColumn("Key") { entry in
                         Text(entry.key)
@@ -475,7 +500,6 @@ private struct EnvironmentTab: View {
                     }
                 }
                 .tableStyle(.inset(alternatesRowBackgrounds: false))
-                .searchable(text: $search, prompt: "Search variables")
             }
         }
     }

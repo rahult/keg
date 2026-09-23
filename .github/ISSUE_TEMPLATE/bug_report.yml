@@ -1,0 +1,97 @@
+name: Bug report
+description: Something in Keg misbehaves or crashes
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of Keg is affected?
+      options:
+        - Containers
+        - Container detail (inspector)
+        - Images
+        - Builds
+        - Compose
+        - Kubernetes
+        - Networks
+        - Volumes
+        - Ports
+        - Registries
+        - Logs
+        - Terminal
+        - Dev Containers
+        - Health
+        - Cooper
+        - Docker API socket
+        - keg CLI
+        - Settings
+        - Menu bar
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect to happen instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Exact clicks and state. "Open Containers, select a running container, pick Logs from the tab dropdown" is a great step.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Keg version
+      description: Menu bar → Keg → About Keg
+      placeholder: "0.8.1 (build 12)"
+    validations:
+      required: true
+  - type: dropdown
+    id: macos
+    attributes:
+      label: macOS version
+      options:
+        - "26.0 (Tahoe)"
+        - "26.1"
+        - "26.2"
+        - "27.0"
+        - Other (say so in the description)
+    validations:
+      required: true
+  - type: textarea
+    id: crash-report
+    attributes:
+      label: Crash report
+      description: |
+        If Keg crashed or hung: pick the newest `Keg-*.ips` from
+        `~/Library/Logs/DiagnosticReports/`, and paste the "exception" line
+        plus the first ~15 frames of the faulting thread. A fenced code block
+        keeps this machine-readable for triage tooling.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Container logs, `container system` errors, anything the app showed. Fenced code block, please.
+      render: shell
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues for this problem
+        - label: The container runtime starts outside Keg (`container system start`)

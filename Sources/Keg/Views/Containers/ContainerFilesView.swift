@@ -214,24 +214,9 @@ struct ContainerFilesView: View {
                 ProgressView("Loading…")
             }
         }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    vm.upload()
-                } label: {
-                    Label("Upload…", systemImage: "arrow.up.doc")
-                }
-                .accessibilityHint("Upload a file into this directory")
-            }
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    Task { await vm.load() }
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-                .keyboardShortcut("r", modifiers: .command)
-            }
-        }
+        // No `.toolbar` here: this view lives in the inspector column, and
+        // SwiftUI's AppKit toolbar bridge can crash mounting inspector-embedded
+        // toolbar items. Controls live in the path bar instead.
         .alert("Delete Item?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
@@ -298,6 +283,25 @@ struct ContainerFilesView: View {
                 Image(systemName: "return")
             }
             .accessibilityLabel("Go to path")
+
+            Spacer(minLength: 0)
+
+            Button {
+                vm.upload()
+            } label: {
+                Image(systemName: "arrow.up.doc")
+            }
+            .help("Upload a file into this directory")
+            .accessibilityLabel("Upload a file into this directory")
+
+            Button {
+                Task { await vm.load() }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .keyboardShortcut("r", modifiers: .command)
+            .help("Refresh the directory listing")
+            .accessibilityLabel("Refresh the directory listing")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
