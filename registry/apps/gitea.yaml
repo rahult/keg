@@ -1,0 +1,25 @@
+id: gitea
+name: Gitea
+tagline: Painless self-hosted Git service
+category: Development
+icon: chevron.left.forwardslash.chevron.right
+summary: |
+  Your own GitHub-style home for code: repositories, issues, pull
+  requests, and wikis, running entirely on this Mac. Works with the git
+  command line and any Git client over HTTP.
+note: A setup wizard appears on first open — choose SQLite and the defaults.
+webUI:
+  port: 3000
+  path: /
+compose: |
+  services:
+    gitea:
+      image: gitea/gitea:latest
+      container_name: kegapp-gitea-app
+      ports:
+        - "{{.KegWebPort}}:3000"
+      environment:
+        USER_UID: "1000"
+        USER_GID: "1000"
+      volumes:
+        - {{.KegDataDir}}/data:/data

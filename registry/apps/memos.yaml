@@ -1,0 +1,25 @@
+id: memos
+name: Memos
+tagline: Lightweight, self-hosted note taking
+category: Notes
+icon: note.text
+summary: |
+  A privacy-first note-taking service — think of it as your own personal
+  notes app that lives on this Mac. Write quick notes, tag them, and
+  search everything from a clean web interface.
+note: The first account you create becomes the administrator.
+webUI:
+  port: 5230
+  path: /
+compose: |
+  services:
+    memos:
+      image: neosmemo/memos:stable
+      container_name: kegapp-memos-app
+      ports:
+        - "{{.KegWebPort}}:5230"
+      environment:
+        MEMOS_MODE: prod
+        MEMOS_PORT: "5230"
+      volumes:
+        - {{.KegDataDir}}/data:/var/opt/memos

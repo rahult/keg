@@ -1,0 +1,35 @@
+id: vaultwarden
+name: Vaultwarden
+tagline: Your own password manager, Bitwarden-compatible
+category: Security
+icon: key.fill
+summary: |
+  A lightweight server that speaks the Bitwarden protocol, so you can use
+  the official Bitwarden apps and browser extensions — with your data
+  stored on this Mac instead of in the cloud.
+note: |
+  Optional: leave the admin token empty to disable the admin panel, or
+  set one to manage settings at the /admin page. Sync from the Bitwarden
+  app by pointing it at http://127.0.0.1:<port>.
+webUI:
+  port: 8222
+  path: /
+fields:
+  - id: AdminToken
+    label: Admin panel token
+    type: password
+    required: false
+    advanced: true
+    generate: true
+    help: Leave empty to disable the /admin panel (recommended).
+compose: |
+  services:
+    vaultwarden:
+      image: vaultwarden/server:latest
+      container_name: kegapp-vaultwarden-app
+      ports:
+        - "{{.KegWebPort}}:80"
+      environment:
+        ADMIN_TOKEN: {{.AdminToken}}
+      volumes:
+        - {{.KegDataDir}}/data:/data

@@ -120,6 +120,12 @@ struct AppDetailView: View {
                     Spacer()
                 }
 
+                if apps.definitionChanged(for: installation) {
+                    Label("The registry changed this app's template — Update re-creates it with your settings kept.", systemImage: "arrow.triangle.2.circlepath")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+
                 HStack(spacing: 10) {
                     if app.webUI != nil {
                         Button {

@@ -90,6 +90,11 @@ struct CatalogApp: Identifiable, Hashable, Codable, Sendable {
     var note: String?
     var webUI: CatalogWebUI?
     var fields: [CatalogField]
+    /// Set by a registry entry to retire an app (e.g. a broken image):
+    /// hidden entries stay resolvable for installed apps but the browse
+    /// grid doesn't offer them. A higher-precedence catalog tier can clear
+    /// it by re-declaring the app with `hidden: false`.
+    var hidden: Bool = false
     /// Raw compose YAML containing `{{.Placeholder}}` slots.
     let compose: String
 
@@ -97,12 +102,13 @@ struct CatalogApp: Identifiable, Hashable, Codable, Sendable {
         case id, name, tagline, category, icon, summary, note
         case webUI
         case fields
+        case hidden
         case compose
     }
 
     init(id: String, name: String, tagline: String, category: String, icon: String,
          summary: String, note: String? = nil, webUI: CatalogWebUI? = nil,
-         fields: [CatalogField] = [], compose: String) {
+         fields: [CatalogField] = [], hidden: Bool = false, compose: String) {
         self.id = id
         self.name = name
         self.tagline = tagline
@@ -112,6 +118,7 @@ struct CatalogApp: Identifiable, Hashable, Codable, Sendable {
         self.note = note
         self.webUI = webUI
         self.fields = fields
+        self.hidden = hidden
         self.compose = compose
     }
 
@@ -126,6 +133,7 @@ struct CatalogApp: Identifiable, Hashable, Codable, Sendable {
         note = try container.decodeIfPresent(String.self, forKey: .note)
         webUI = try container.decodeIfPresent(CatalogWebUI.self, forKey: .webUI)
         fields = try container.decodeIfPresent([CatalogField].self, forKey: .fields) ?? []
+        hidden = try container.decodeIfPresent(Bool.self, forKey: .hidden) ?? false
         compose = try container.decode(String.self, forKey: .compose)
     }
 }

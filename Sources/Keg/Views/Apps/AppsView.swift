@@ -15,6 +15,9 @@ struct AppsView: View {
 
     private var filteredCatalog: [CatalogApp] {
         apps.catalog.filter { app in
+            // Hidden entries (retired in the registry) stay resolvable for
+            // installed apps but are not offered for install.
+            guard !app.hidden else { return false }
             guard !searchText.isEmpty else { return true }
             return app.name.localizedCaseInsensitiveContains(searchText)
                 || app.tagline.localizedCaseInsensitiveContains(searchText)
@@ -66,6 +69,7 @@ struct AppsView: View {
         .errorBanner($errorMessage)
         .task {
             apps.prepare()
+            await apps.maybeRefreshRemoteCatalog()
             await apps.refreshStatuses()
         }
         .task(id: appState.selectedKegSection) {
@@ -110,33 +114,98 @@ struct AppsView: View {
     @ViewBuilder
     private var catalogSection: some View {
         GroupBox("App Catalog") {
-            if filteredCatalog.isEmpty {
-                Text(searchText.isEmpty ? "The catalog is empty." : "No apps match “\(searchText)”.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 18)
-            } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 12)], spacing: 12) {
-                    ForEach(filteredCatalog) { app in
-                        CatalogAppCard(
-                            app: app,
-                            installation: apps.installation(withID: app.id),
-                            status: apps.installation(withID: app.id).map { apps.status(for: $0.appID) }
-                        ) {
-                            selectedAppID = app.id
-                        } onInstall: {
-                            installTarget = app
-                        } onOpen: {
-                            if let installation = apps.installation(withID: app.id) {
-                                apps.openWebUI(for: installation)
+            VStack(alignment: .leading, spacing: 12) {
+                registryStatusRow
+
+                if filteredCatalog.isEmpty {
+                    Text(searchText.isEmpty ? "The catalog is empty." : "No apps match “\(searchText)”.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                } else {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 12)], spacing: 12) {
+                        ForEach(filteredCatalog) { app in
+                            let installation = apps.installation(withID: app.id)
+                            CatalogAppCard(
+                                app: app,
+                                installation: installation,
+                                status: installation.map { apps.status(for: $0.appID) },
+                                definitionChanged: installation.map { apps.definitionChanged(for: $0) } ?? false
+                            ) {
+                                selectedAppID = app.id
+                            } onInstall: {
+                                installTarget = app
+                            } onOpen: {
+                                if let installation {
+                                    apps.openWebUI(for: installation)
+                                }
                             }
                         }
                     }
                 }
-                .padding(.top, 4)
             }
+            .padding(.top, 4)
         }
+    }
+
+    /// Registry sync state + the manual refresh control.
+    private var registryStatusRow: some View {
+        HStack(spacing: 8) {
+            switch apps.remoteCatalogState {
+            case .syncing:
+                ProgressView()
+                    .controlSize(.small)
+                Text("Syncing registry…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case .synced(let date, let count):
+                Image(systemName: "checkmark.icloud")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("\(count) app\(count == 1 ? "" : "s") · synced \(Self.relativeTime(date)) from \(hostName)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case .failed(let message):
+                Image(systemName: "exclamationmark.icloud")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                Text("Registry unreachable — using the last synced catalog (\(message))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .help(message)
+            case .idle:
+                Image(systemName: "icloud")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("Using the built-in catalog — the registry hasn't synced yet")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button {
+                Task { await apps.refreshRemoteCatalog() }
+            } label: {
+                Label("Refresh Registry", systemImage: "arrow.triangle.2.circlepath")
+            }
+            .controlSize(.small)
+            .disabled(apps.remoteCatalogState.isSyncing)
+            .help("Re-download the app registry now (automatic once a day)")
+            .accessibilityLabel("Refresh the app registry")
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Registry status")
+    }
+
+    private var hostName: String {
+        (apps.catalogRemoteBaseOverride ?? RemoteCatalog.configuredBaseURL).host ?? "registry"
+    }
+
+    private static func relativeTime(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 
     private var catalogWarningsBanner: some View {
@@ -218,6 +287,8 @@ struct CatalogAppCard: View {
     let app: CatalogApp
     let installation: AppInstallation?
     let status: AppStoreManager.AppStatus?
+    /// The registry changed this app's template since it was installed.
+    let definitionChanged: Bool
     let onOpenDetails: () -> Void
     let onInstall: () -> Void
     let onOpen: () -> Void
@@ -249,6 +320,15 @@ struct CatalogAppCard: View {
                     .padding(.vertical, 2)
                     .background(Color.accentColor.opacity(0.12), in: Capsule())
                     .foregroundStyle(.secondary)
+                if definitionChanged {
+                    Text("Template updated")
+                        .font(.caption2)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.orange.opacity(0.15), in: Capsule())
+                        .foregroundStyle(.orange)
+                        .help("The registry changed this app's template — Update re-creates it with your settings kept")
+                }
                 Spacer()
                 if installation != nil {
                     if let status, status == .running, app.webUI != nil {

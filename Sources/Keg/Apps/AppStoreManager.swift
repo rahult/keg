@@ -21,6 +21,11 @@ struct AppInstallation: Codable, Identifiable, Hashable, Sendable {
     /// Re-created automatically when Keg opens (after the runtime is up).
     /// Stopping an app by hand clears this; installing or starting sets it.
     var autoStart: Bool
+    /// Checksum of the catalog definition at install time (or the last
+    /// Update that adopted a new template). When it differs from the
+    /// current catalog entry's checksum, the template changed and Update
+    /// will apply it.
+    var definitionSHA: String?
 
     var id: String { appID }
 }
@@ -78,11 +83,28 @@ final class AppStoreManager {
         }
     }
 
+    /// Where the catalog currently stands relative to the remote registry.
+    enum RemoteCatalogState: Equatable {
+        case idle
+        case syncing
+        case synced(Date, Int)
+        case failed(String)
+
+        var isSyncing: Bool {
+            if case .syncing = self { return true }
+            return false
+        }
+    }
+
     typealias Progress = @MainActor (String) -> Void
 
     private(set) var catalog: [CatalogApp] = []
     /// Non-fatal catalog problems (bad user-added YAML) surfaced in the UI.
     private(set) var catalogWarnings: [String] = []
+    /// appID → the winning catalog YAML for that id, for definition
+    /// checksums (install/update adoption).
+    private(set) var catalogSources: [String: String] = [:]
+    private(set) var remoteCatalogState: RemoteCatalogState = .idle
     private(set) var installations: [AppInstallation] = []
     private(set) var serviceStates: [String: [ServiceState]] = [:]
     /// appID → label of the lifecycle operation currently in flight.
@@ -92,6 +114,21 @@ final class AppStoreManager {
     private let orchestrator = ComposeOrchestrator()
     private let containerClient = ContainerClient()
     private var didLoad = false
+    private var isSyncingCatalog = false
+
+    // Injectable roots/session so catalog merge and registry sync can be
+    // exercised against temp directories in tests.
+    var catalogUserDirectoryOverride: String?
+    var catalogRemoteCacheOverride: URL?
+    var catalogRemoteBaseOverride: URL?
+    var catalogSession: URLSession = RemoteCatalog.makeSession()
+
+    private var userCatalogDirectoryURL: String {
+        catalogUserDirectoryOverride ?? Self.userCatalogDirectory
+    }
+    private var remoteCacheDirectoryURL: URL {
+        catalogRemoteCacheOverride ?? RemoteCatalog.cacheDirectory
+    }
 
     // MARK: Paths
     // Pure path/namespace builders — usable from any isolation.
@@ -118,6 +155,8 @@ final class AppStoreManager {
         "apps-\(appID)"
     }
 
+    nonisolated private static let lastSyncDefaultsKey = "apps.catalog.lastSync"
+
     // MARK: Loading
 
     /// Cheap at construction; real work happens on first prepare() so app
@@ -135,16 +174,36 @@ final class AppStoreManager {
         loadCatalog()
     }
 
-    private func loadCatalog() {
+    /// Rebuilds the catalog from three tiers, later tiers overriding earlier
+    /// ones by id: bundled definitions (offline fallback) → the synced
+    /// remote registry → user-added local YAMLs in ~/.keg/apps/catalog.
+    /// A tier can retire an app with `hidden: true`; a later tier can
+    /// un-retire it by re-declaring it with `hidden: false`.
+    func loadCatalog() {
         var warnings: [String] = []
-        var bundled: [CatalogApp] = []
-        var userApps: [CatalogApp] = []
-        do {
-            bundled = try AppCatalog.load(yamlContents: BundledAppCatalog.yamlContents)
-        } catch {
-            warnings.append("Bundled app catalog problem: \(error)")
+        var merged: [String: (app: CatalogApp, source: String)] = [:]
+
+        for yaml in BundledAppCatalog.yamlContents {
+            do {
+                for app in try AppCatalog.load(yamlContents: [yaml]) {
+                    merged[app.id] = (app, yaml)
+                }
+            } catch {
+                warnings.append("Bundled app catalog problem: \(error)")
+            }
         }
-        let userURL = URL(filePath: Self.userCatalogDirectory)
+
+        for (entry, yaml) in RemoteCatalog.cachedFiles(cacheDir: remoteCacheDirectoryURL) {
+            do {
+                for app in try AppCatalog.load(yamlContents: [yaml]) {
+                    merged[app.id] = (app, yaml)
+                }
+            } catch {
+                warnings.append("Registry \(entry.file): \(error)")
+            }
+        }
+
+        let userURL = URL(filePath: userCatalogDirectoryURL)
         if let files = try? FileManager.default.contentsOfDirectory(
             at: userURL, includingPropertiesForKeys: nil
         ) {
@@ -154,18 +213,28 @@ final class AppStoreManager {
                     continue
                 }
                 do {
-                    userApps.append(contentsOf: try AppCatalog.load(yamlContents: [yaml]))
+                    for app in try AppCatalog.load(yamlContents: [yaml]) {
+                        merged[app.id] = (app, yaml)
+                    }
                 } catch {
                     warnings.append("\(file.lastPathComponent): \(error)")
                 }
             }
         }
-        // User entries replace bundled ones with the same id, so a local
-        // catalog can adjust or extend the built-in selection.
-        let userIDs = Set(userApps.map(\.id))
-        catalog = (bundled.filter { !userIDs.contains($0.id) } + userApps)
+
+        catalog = merged.values.map(\.app)
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        catalogSources = merged.mapValues(\.source)
         catalogWarnings = warnings
+        restoreRemoteCatalogState()
+    }
+
+    private func restoreRemoteCatalogState() {
+        if let last = UserDefaults.standard.object(forKey: Self.lastSyncDefaultsKey) as? Date {
+            remoteCatalogState = .synced(last, RemoteCatalog.cachedFiles(cacheDir: remoteCacheDirectoryURL).count)
+        } else {
+            remoteCatalogState = .idle
+        }
     }
 
     private func loadInstallations() {
@@ -292,6 +361,7 @@ final class AppStoreManager {
         let values = try AppComposeRenderer.resolvedValues(
             app: app, answers: answers, dataRoot: absoluteDataRoot, webPort: webPort
         )
+        try AppComposeRenderer.validateRequired(app: app, values: values)
         try AppComposeRenderer.validateEmbeddable(app: app, values: values)
         let rendered = try AppComposeRenderer.render(app: app, values: values)
 
@@ -332,7 +402,8 @@ final class AppStoreManager {
             dataRoot: absoluteDataRoot,
             composePath: composePath,
             installedAt: Date(),
-            autoStart: true
+            autoStart: true,
+            definitionSHA: definitionSHA(for: app.id)
         )
         installations.append(record)
         saveInstallations()
@@ -376,15 +447,35 @@ final class AppStoreManager {
         serviceStates[installation.appID] = await currentState(for: installation)
     }
 
-    /// Update: re-pull images, recreate containers. Data volumes are bind
-    /// mounts, so app data survives.
+    /// Update: re-pull images, recreate containers, and — when the catalog
+    /// definition changed since install (registry refresh) — re-render the
+    /// app from the new template, reusing the stored wizard answers (new
+    /// fields fall back to their defaults). Data volumes are bind mounts,
+    /// so app data survives all of it.
     func update(_ installation: AppInstallation, progress: Progress? = nil) async throws {
         try beginOperation(installation.appID, label: "Updating…")
         defer { endOperation(installation.appID) }
         guard FileManager.default.fileExists(atPath: installation.composePath) else {
             throw AppsError.composeFileMissing(installation.composePath)
         }
-        let compose = try String(contentsOfFile: installation.composePath, encoding: .utf8)
+
+        let catalogApp = app(withID: installation.appID)
+        let compose: String
+        if let catalogApp {
+            let values = try AppComposeRenderer.resolvedValues(
+                app: catalogApp,
+                answers: installation.fieldValues,
+                dataRoot: installation.dataRoot,
+                webPort: installation.webPort ?? catalogApp.webUI?.port ?? 8080
+            )
+            try AppComposeRenderer.validateRequired(app: catalogApp, values: values)
+            compose = try AppComposeRenderer.render(app: catalogApp, values: values)
+            try compose.write(toFile: installation.composePath, atomically: true, encoding: .utf8)
+        } else {
+            // App left the catalog (or is hidden): update images in place.
+            compose = try String(contentsOfFile: installation.composePath, encoding: .utf8)
+        }
+
         try await pullImages(in: compose, progress: progress)
         try await orchestrator.down(
             filePath: installation.composePath,
@@ -397,6 +488,11 @@ final class AppStoreManager {
             detached: true,
             progress: progress
         )
+        if catalogApp != nil, let sha = definitionSHA(for: installation.appID),
+           let index = installations.firstIndex(where: { $0.appID == installation.appID }) {
+            installations[index].definitionSHA = sha
+            saveInstallations()
+        }
         serviceStates[installation.appID] = await currentState(for: installation)
     }
 
@@ -439,6 +535,55 @@ final class AppStoreManager {
                   activeOperations[installation.appID] == nil else { continue }
             try? await start(installation)
         }
+    }
+
+    // MARK: Remote registry
+
+    /// Checksum of the catalog definition currently shown for an app, to
+    /// compare against an installation's `definitionSHA`.
+    func definitionSHA(for appID: String) -> String? {
+        prepare()
+        return catalogSources[appID].map { RemoteCatalog.sha256Hex(Data($0.utf8)) }
+    }
+
+    /// True when the app's template changed since it was installed/last
+    /// updated — the catalog card shows a badge and Update adopts it.
+    func definitionChanged(for installation: AppInstallation) -> Bool {
+        guard let recorded = installation.definitionSHA,
+              let current = definitionSHA(for: installation.appID) else { return false }
+        return recorded != current
+    }
+
+    /// Forces a registry sync. Failures keep the previous (or bundled)
+    /// catalog and land in `remoteCatalogState` for the UI.
+    func refreshRemoteCatalog() async {
+        guard !isSyncingCatalog else { return }
+        isSyncingCatalog = true
+        remoteCatalogState = .syncing
+        defer { isSyncingCatalog = false }
+        do {
+            let base = catalogRemoteBaseOverride ?? RemoteCatalog.configuredBaseURL
+            let result = try await RemoteCatalog.sync(
+                base: base, session: catalogSession, cacheDir: remoteCacheDirectoryURL
+            )
+            loadCatalog()
+            UserDefaults.standard.set(Date(), forKey: Self.lastSyncDefaultsKey)
+            remoteCatalogState = .synced(Date(), result.total)
+        } catch {
+            remoteCatalogState = .failed(Self.describe(error))
+        }
+    }
+
+    /// Auto-refresh path: throttled to once per `maxAge` (24h). Call sites:
+    /// app launch and the Apps section appearing; the button bypasses the
+    /// throttle by calling refreshRemoteCatalog() directly.
+    func maybeRefreshRemoteCatalog(maxAge: TimeInterval = 86_400) async {
+        prepare()
+        if let last = UserDefaults.standard.object(forKey: Self.lastSyncDefaultsKey) as? Date,
+           Date().timeIntervalSince(last) < maxAge {
+            return
+        }
+        await refreshRemoteCatalog()
     }
 
     // MARK: Web UI
@@ -524,6 +669,7 @@ final class AppStoreManager {
         case let apps as AppsError: return apps.description
         case let compose as ComposeError: return compose.description
         case let catalog as AppCatalogError: return catalog.description
+        case let remote as RemoteCatalogError: return remote.description
         default: return error.localizedDescription
         }
     }

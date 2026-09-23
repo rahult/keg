@@ -1,0 +1,29 @@
+id: syncthing
+name: Syncthing
+tagline: Keep folders in sync across your devices
+category: Files
+icon: arrow.triangle.2.circlepath
+summary: |
+  Sync folders between your Mac, phone, and other computers — directly,
+  privately, and without any cloud in the middle. Pair devices once and
+  Syncthing keeps them up to date.
+note: |
+  After opening, add this Mac as a device in Settings → Show ID, then
+  pair your other devices with it.
+webUI:
+  port: 8384
+  path: /
+compose: |
+  services:
+    syncthing:
+      image: syncthing/syncthing:latest
+      container_name: kegapp-syncthing-app
+      ports:
+        - "{{.KegWebPort}}:8384"
+        - "22000:22000/tcp"
+        - "22000:22000/udp"
+        - "21027:21027/udp"
+      environment:
+        STGUIADDRESS: 0.0.0.0:8384
+      volumes:
+        - {{.KegDataDir}}/sync:/var/syncthing

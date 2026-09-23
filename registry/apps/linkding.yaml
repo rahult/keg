@@ -1,0 +1,33 @@
+id: linkding
+name: linkding
+tagline: Fast bookmark manager built for minimalists
+category: Bookmarks
+icon: bookmark.fill
+summary: |
+  Save and organize your bookmarks in one place, on your own machine.
+  linkding is fast, searchable, and has browser extensions for one-click
+  saving.
+note: The admin account below is created automatically on first start.
+webUI:
+  port: 9090
+  path: /
+fields:
+  - id: AdminUsername
+    label: Admin username
+    default: admin
+  - id: AdminPassword
+    label: Admin password
+    type: password
+    generate: true
+compose: |
+  services:
+    linkding:
+      image: sissbruecker/linkding:latest
+      container_name: kegapp-linkding-app
+      ports:
+        - "{{.KegWebPort}}:9090"
+      environment:
+        LD_SUPERUSER_NAME: {{.AdminUsername}}
+        LD_SUPERUSER_PASSWORD: {{.AdminPassword}}
+      volumes:
+        - {{.KegDataDir}}/data:/etc/linkding/data

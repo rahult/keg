@@ -1,0 +1,22 @@
+id: uptime-kuma
+name: Uptime Kuma
+tagline: Monitor your websites and services
+category: Monitoring
+icon: waveform.path.ecg
+summary: |
+  A self-hosted monitoring tool that checks whether your websites,
+  servers, and services are up — and tells you when they are not. Set up
+  checks in minutes with a friendly web interface.
+note: Create your admin account the first time you open it.
+webUI:
+  port: 3001
+  path: /
+compose: |
+  services:
+    uptime-kuma:
+      image: louislam/uptime-kuma:1
+      container_name: kegapp-uptime-kuma-app
+      ports:
+        - "{{.KegWebPort}}:3001"
+      volumes:
+        - {{.KegDataDir}}/data:/app/data

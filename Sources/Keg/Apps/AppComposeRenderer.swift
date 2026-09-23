@@ -15,6 +15,7 @@ enum AppComposeRenderer {
 
     enum RenderError: Error, CustomStringConvertible {
         case missingValues([String])
+        case missingRequired([String])
         case embeddedUnsafeValue(field: String)
         case portNotAnInteger(field: String)
 
@@ -22,6 +23,8 @@ enum AppComposeRenderer {
             switch self {
             case .missingValues(let fields):
                 return "Missing values for: \(fields.joined(separator: ", "))"
+            case .missingRequired(let labels):
+                return "This app now requires settings you haven't chosen yet: \(labels.joined(separator: ", ")). Remove and reinstall it to configure the new options."
             case .embeddedUnsafeValue(let field):
                 return "'\(field)' contains characters that are only allowed in a standalone placeholder"
             case .portNotAnInteger(let field):
@@ -33,6 +36,18 @@ enum AppComposeRenderer {
     /// Placeholders referenced by a template.
     static func placeholders(in compose: String) -> Set<String> {
         Set(compose.matches(of: placeholderPattern).map { String($0.1) })
+    }
+
+    /// Required fields must resolve to non-empty values — a backstop for
+    /// install/update paths even if the UI's own check is bypassed, and the
+    /// guard when an updated template introduces a requirement the stored
+    /// answers can't satisfy.
+    static func validateRequired(app: CatalogApp, values: [String: String]) throws {
+        let missing = app.fields
+            .filter { $0.required }
+            .filter { (values[$0.id] ?? "").trimmingCharacters(in: .whitespaces).isEmpty }
+            .map(\.label)
+        guard missing.isEmpty else { throw RenderError.missingRequired(missing) }
     }
 
     /// Merges catalog defaults (with `{{.KegDataDir}}` indirection expanded)

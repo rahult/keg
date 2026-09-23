@@ -1,0 +1,33 @@
+id: umami
+name: Umami
+tagline: Privacy-focused web analytics
+category: Analytics
+icon: chart.bar.fill
+summary: |
+  A simple, fast alternative to Google Analytics for your websites. Drop
+  the tracking snippet into any site and watch visits roll in — with no
+  cookies and no data leaving this Mac.
+note: Sign in with admin / umami and change the password right away.
+webUI:
+  port: 8281
+  path: /
+fields:
+  - id: AppSecret
+    label: App secret
+    type: password
+    generate: true
+    advanced: true
+    help: Random string used to sign session data.
+compose: |
+  services:
+    umami:
+      image: ghcr.io/umami-software/umami:latest
+      container_name: kegapp-umami-app
+      ports:
+        - "{{.KegWebPort}}:3000"
+      environment:
+        DATABASE_URL: "file:/data/umami.db"
+        APP_SECRET: {{.AppSecret}}
+        HOSTNAME: 0.0.0.0
+      volumes:
+        - {{.KegDataDir}}/data:/data

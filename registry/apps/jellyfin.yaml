@@ -1,0 +1,36 @@
+id: jellyfin
+name: Jellyfin
+tagline: Your movies and music, streamed everywhere
+category: Media
+icon: play.tv.fill
+summary: |
+  A media server that puts your movie, TV, and music library on every
+  screen in the house — smart TVs, phones, and browsers — with no
+  subscription and no cloud.
+note: |
+  Choose the folder that holds your media below, then finish the setup
+  wizard (library scan) on first open.
+webUI:
+  port: 8096
+  path: /
+fields:
+  - id: MediaDirectory
+    label: Media folder
+    type: directory
+    default: "{{.KegDataDir}}/media"
+    help: The folder with your movies, shows, and music. Mounted read-only.
+compose: |
+  services:
+    jellyfin:
+      image: jellyfin/jellyfin:latest
+      container_name: kegapp-jellyfin-app
+      ports:
+        - "{{.KegWebPort}}:8096"
+        - "1900:1900/udp"
+        - "7359:7359/udp"
+      environment:
+        TZ: {{.KegTimeZone}}
+      volumes:
+        - {{.KegDataDir}}/config:/config
+        - {{.KegDataDir}}/cache:/cache
+        - {{.MediaDirectory}}:/media:ro

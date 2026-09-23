@@ -122,11 +122,18 @@ enum CooperKnowledge {
     private static let appsStore = """
     APPS SECTION (one-click installs of open-source apps)
     - A curated catalog (Memos, linkding, Uptime Kuma, Vaultwarden, Gitea,
-      Umami, Syncthing, NocoDB, Jellyfin) plus optional user catalogs under
-      ~/.keg/apps/catalog/*.yaml. All bundled apps are linux/arm64 images
-      and deliberately single-service: apple container 1.3.1 has no
-      inter-container name resolution, so multi-service templates (a web
-      app plus its database) cannot work yet.
+      Umami, Syncthing, NocoDB, Jellyfin) synced from the maintainer's
+      GitHub registry, with the bundled definitions as offline fallback.
+      Users can add their own app definitions in ~/.keg/apps/catalog.
+      All bundled apps are linux/arm64 images and deliberately
+      single-service: apple container 1.3.1 has no inter-container name
+      resolution, so multi-service templates (a web app plus its database)
+      cannot work yet.
+    - The Apps section has a Refresh Registry button; the registry also
+      syncs itself about once a day. When a sync changes an installed
+      app's template, its card shows "Template updated" and Update
+      re-creates it with the user's settings kept. A "hidden" registry
+      entry retires an app from the browse grid without breaking installs.
     - Installing renders the app's compose template with the wizard's
       answers into ~/.keg/apps/<id>/app.yaml, pre-pulls images pinned to
       linux/arm64, and brings the services up detached.

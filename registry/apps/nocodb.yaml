@@ -1,0 +1,21 @@
+id: nocodb
+name: NocoDB
+tagline: Databases that feel like spreadsheets
+category: Databases
+icon: tablecells
+summary: |
+  Build little business apps and shared tables without writing code —
+  an open alternative to Airtable that stores everything on this Mac.
+  Invite others and work on rows together.
+webUI:
+  port: 8282
+  path: /
+compose: |
+  services:
+    nocodb:
+      image: nocodb/nocodb:latest
+      container_name: kegapp-nocodb-app
+      ports:
+        - "{{.KegWebPort}}:8080"
+      volumes:
+        - {{.KegDataDir}}/data:/usr/app/data

@@ -269,11 +269,25 @@ final class AppsStoreTests: XCTestCase {
             dataRoot: "/Users/x/.keg/apps/memos",
             composePath: "/Users/x/.keg/apps/memos/app.yaml",
             installedAt: Date(timeIntervalSince1970: 1_758_000_000),
-            autoStart: true
+            autoStart: true,
+            definitionSHA: "abc123"
         )
         let data = try JSONEncoder().encode([record])
         let decoded = try JSONDecoder().decode([AppInstallation].self, from: data)
         XCTAssertEqual(decoded, [record])
+    }
+
+    func testInstallationRecordDecodesWithoutDefinitionSHA() throws {
+        // Records written before the registry feature have no definitionSHA
+        // key — they must keep loading.
+        let legacy = """
+        [{"appID":"memos","name":"Memos","fieldValues":{},"webPort":5230,
+          "dataRoot":"/Users/x/.keg/apps/memos","composePath":"/Users/x/.keg/apps/memos/app.yaml",
+          "installedAt":677515200000,"autoStart":true}]
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode([AppInstallation].self, from: legacy)
+        XCTAssertEqual(decoded.first?.definitionSHA, nil)
+        XCTAssertEqual(decoded.first?.appID, "memos")
     }
 
     func testProjectAndPathHelpers() {
