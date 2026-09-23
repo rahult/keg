@@ -69,8 +69,9 @@ enum CooperKnowledge {
       kernel (`container system kernel set --recommended --force`);
       until then every run fails with "default kernel not configured for
       architecture arm64" — typical right after a Homebrew runtime
-      upgrade. Keg detects this and offers a one-click install
-      (Run sheet banner, Health panel, Settings → Apple Containers).
+      upgrade. Keg detects this and auto-installs the recommended kernel
+      once per session; the Run sheet banner, Health panel, and
+      Settings → Apple Containers keep manual repair buttons for retries.
     """
 
     private static let kegArchitecture = """

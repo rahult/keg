@@ -372,7 +372,19 @@ final class AppState {
             // Bounded: a wedged runtime used to hang this call forever. On
             // timeout the child is killed and .unresponsive (or the error)
             // is surfaced instead of the app silently stalling.
-            let (code, output) = try await ContainerCLI.run(arguments, timeout: .seconds(120))
+            var (code, output) = try await ContainerCLI.run(arguments, timeout: .seconds(120))
+            if code != 0 {
+                // With no default kernel registered — exactly what a runtime
+                // upgrade leaves behind — the start command aborts at its
+                // interactive "Install the recommended kernel? [Y/n]" prompt,
+                // and there is no TTY. Probe (which auto-repairs), then retry
+                // once so Start heals the machine instead of dead-ending.
+                await checkBootKernel()
+                if case .missing = bootKernelStatus {
+                    systemStatus = .stopped
+                    (code, output) = try await ContainerCLI.run(arguments, timeout: .seconds(120))
+                }
+            }
             if code != 0 {
                 systemStatus = .error(output.isEmpty ? "container system start failed" : output)
                 return
@@ -384,6 +396,10 @@ final class AppState {
                     }
                     lastKnownRuntimeAppRoot = health.appRoot.path
                     systemStatus = .running(health)
+                    // A runtime upgrade leaves no default boot kernel
+                    // registered; checking here lets the auto-repair heal it
+                    // before anything tries to run a container.
+                    await checkBootKernel()
                     return
                 } catch {
                     try? await Task.sleep(for: .seconds(1))
@@ -431,6 +447,11 @@ final class AppState {
     var bootKernelNotice: (message: String, isError: Bool)?
     var isInstallingBootKernel = false
     private var isCheckingBootKernel = false
+    /// Auto-repair runs once per session: a failed attempt (offline, say)
+    /// surfaces via `bootKernelNotice` and the manual repair stays available,
+    /// but a persistently broken environment never triggers repeated
+    /// multi-hundred-MB downloads on every refresh tick.
+    private var hasAutoRepairedBootKernel = false
 
     /// Cheap two-call probe: does this runtime do kernel registration at all
     /// (`container system kernel` exists on 1.4+ only), and is a default
@@ -440,6 +461,14 @@ final class AppState {
         guard !isCheckingBootKernel, ContainerCLI.isInstalled else { return }
         isCheckingBootKernel = true
         defer { isCheckingBootKernel = false }
+        await refreshBootKernelStatus()
+        await autoRepairBootKernelIfMissing()
+    }
+
+    /// The probe itself, without the re-entrancy guard — the auto-repair and
+    /// install paths call it while `checkBootKernel` is still on the stack,
+    /// and the guarded entry point would no-op and leave a stale status.
+    private func refreshBootKernelStatus() async {
         guard let (helpCode, _) = try? await ContainerCLI.run(["container", "system", "kernel", "--help"], timeout: .seconds(10)) else {
             bootKernelStatus = .unknown
             return
@@ -451,6 +480,18 @@ final class AppState {
         }
         let registration = BootKernel.parseRegistration(toml)
         bootKernelStatus = BootKernel.status(registrationSupported: helpCode == 0, binaryPath: registration.binaryPath)
+    }
+
+    /// An unregistered default kernel is exactly what a runtime upgrade
+    /// leaves behind, and every `container run` fails at "Fetching kernel"
+    /// until it's fixed — so repair it on detection instead of waiting for
+    /// the user to find a repair button. Manual repair (Run sheet, Health,
+    /// Settings) remains for retries.
+    private func autoRepairBootKernelIfMissing() async {
+        guard !hasAutoRepairedBootKernel, case .missing = bootKernelStatus else { return }
+        hasAutoRepairedBootKernel = true
+        bootKernelNotice = ("No default boot kernel registered (typical after a runtime upgrade) — installing the recommended kernel…", false)
+        await installRecommendedBootKernel()
     }
 
     /// One-click repair for the unregistered-kernel state: installs the
@@ -478,7 +519,7 @@ final class AppState {
         } catch {
             bootKernelNotice = (error.localizedDescription, true)
         }
-        await checkBootKernel()
+        await refreshBootKernelStatus()
     }
 
     /// Last line of a CLI output blob, for error surfaces that must not
