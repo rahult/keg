@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.2] — 2026-09-23
+
+### Fixed
+- **Opening a container's Logs no longer crashes the app** — picking Logs from the tab dropdown of a running container quit Keg outright, via two independent faults on the same path: the log-follow task parked on a `Duration` (`Task.sleep(for: .seconds(Int.max))`) that overflows the concurrency runtime's clock math and traps seconds after the tab opens; and the view's toolbar items were declared from inside the inspector column, which throws inside AppKit's NSToolbar insertion on macOS 26 the moment the tab mounts. The level filter, Follow toggle, Copy All, Clear, and the search field are now an inline control row inside the Logs view; the Files tab's Upload/Refresh and the Environment tab's variable search moved inline for the same reason — inspector-embedded views no longer touch the window toolbar at all.
+
+### Added
+- **Boot-kernel auto-repair** — builds on 0.7.1's one-click repair: Keg now installs the recommended kernel by itself when it finds no default registered (once per session; the manual repair buttons in the Run sheet, Health panel, and Settings stay for retries). The repair also heals the start path — with no kernel registered the runtime aborts `container system start` at an interactive install prompt that can never be answered, which read as a mysterious start failure after every `brew upgrade container`; Keg now detects that abort, repairs, and retries Start on its own.
+
 ## [0.8.1] — 2026-09-22
 
 ### Fixed
