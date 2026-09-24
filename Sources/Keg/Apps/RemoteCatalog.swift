@@ -54,10 +54,13 @@ enum RemoteCatalogError: Error, CustomStringConvertible {
 }
 
 enum RemoteCatalog {
-    /// The registry the Apps section syncs from. Override with
-    /// `defaults write dev.rahult.keg apps.catalogURL <url>` (any https URL
-    /// or a file:// directory for offline testing).
-    static let defaultBaseURL = URL(string: "https://raw.githubusercontent.com/rahult/keg-apps/main")!
+    /// The registry the Apps section syncs from: the `registry/` folder of
+    /// this repo on GitHub. A push to `main` publishes catalog changes to
+    /// clients on their next sync — no Keg release involved. Override with
+    /// `defaults write dev.rahult.keg apps.catalogURL <url>` (any https URL,
+    /// e.g. a branch for staging, or a file:// directory for offline
+    /// testing).
+    static let defaultBaseURL = URL(string: "https://raw.githubusercontent.com/rahult/keg/main/registry")!
 
     static var configuredBaseURL: URL {
         if let raw = UserDefaults.standard.string(forKey: "apps.catalogURL"),

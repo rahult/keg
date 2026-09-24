@@ -1,9 +1,14 @@
 # Keg Apps Registry
 
-The curated catalog the Keg Apps section syncs from. This folder is the
-registry's content, ready to be pushed to a public GitHub repo (by default
-Keg looks at `raw.githubusercontent.com/rahult/keg-apps/main` — see
-"Pointing Keg at the registry" below).
+The curated catalog the Keg Apps section syncs from. It lives in this repo
+at `registry/`, served to clients through GitHub raw URLs — by default Keg
+fetches `https://raw.githubusercontent.com/rahult/keg/main/registry/index.yaml`
+and the files it lists.
+
+Publishing is just a push to `main`: clients re-sync (about once a day, or
+via **Refresh Registry** in the Apps section) and pick up the change. No Keg
+release is involved — the app bundles the same definitions only as an
+offline fallback for first runs before the first successful sync.
 
 ## Layout
 
@@ -13,9 +18,8 @@ apps/<id>.yaml      # one catalog app definition per file
 ```
 
 Each `apps/<id>.yaml` is a full catalog definition — the same format as the
-ones embedded in `Sources/Keg/Apps/BundledAppCatalog.swift` (which exist only
-as the offline fallback for first runs with no network). `index.yaml` lists
-every app with a `sha256` of its file so the app can skip unchanged
+ones embedded in `Sources/Keg/Apps/BundledAppCatalog.swift`. `index.yaml`
+lists every app with a `sha256` of its file so the app can skip unchanged
 downloads and reject corrupted ones.
 
 ## Adding or updating an app
@@ -28,11 +32,7 @@ downloads and reject corrupted ones.
    ```
 
 3. Bump `updated:` in `index.yaml`.
-4. Commit and push to the registry repo's default branch.
-
-Clients pick it up on their next refresh — automatically once a day (on
-launch or when the Apps section opens), or immediately via **Refresh
-Registry** in the Apps section.
+4. Commit and push to `main`.
 
 ## Retiring an app
 
@@ -50,18 +50,21 @@ Three layers merge by app id, later wins:
 2. This registry (the synced cache in `~/.keg/apps/remote-catalog/`)
 3. Local overrides a user places in `~/.keg/apps/catalog/`
 
-## Pointing Keg at the registry
+## Pointing Keg elsewhere
 
-The default base URL is
-`https://raw.githubusercontent.com/rahult/keg-apps/main` (any branch/path
-works — the app fetches `<base>/index.yaml` then `<base>/<file>`). To use a
-different repo, fork, or a local folder while testing:
+The default base URL is the `registry/` folder of this repo on `main`. The
+base is whatever directory contains `index.yaml` — the app fetches
+`<base>/index.yaml` then `<base>/<file>` — so overrides are one
+`defaults write` away:
 
 ```sh
-defaults write dev.rahult.keg apps.catalogURL "https://raw.githubusercontent.com/<you>/<repo>/<branch>"
-# local folder (handy before the repo exists — no server needed):
-defaults write dev.rahult.keg apps.catalogURL "file:///Volumes/Atlas/Code/projects/meadow/registry"
+# A staging branch of this repo, to try templates before merging to main:
+defaults write dev.rahult.keg apps.catalogURL "https://raw.githubusercontent.com/rahult/keg/staging/registry"
+# A local folder while offline (no server needed):
+defaults write dev.rahult.keg apps.catalogURL "file:///path/to/meadow/registry"
 ```
 
-The only server requirement is that the files are reachable over plain HTTP
-GETs; no API, auth, or special headers.
+Note for hosting: raw fetches are unauthenticated, so clients can only sync
+while the repo is public. If the repo is ever made private, the Apps
+section falls back to the bundled catalog and the Refresh button reports
+the 404.
