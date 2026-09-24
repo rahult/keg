@@ -27,6 +27,8 @@ enum BundledAppCatalog {
     tagline: Lightweight, self-hosted note taking
     category: Notes
     icon: note.text
+    homepage: https://www.usememos.com
+    source: https://github.com/usememos/memos
     summary: |
       A privacy-first note-taking service — think of it as your own personal
       notes app that lives on this Mac. Write quick notes, tag them, and
@@ -55,6 +57,8 @@ enum BundledAppCatalog {
     tagline: Fast bookmark manager built for minimalists
     category: Bookmarks
     icon: bookmark.fill
+    homepage: https://linkding.link
+    source: https://github.com/sissbruecker/linkding
     summary: |
       Save and organize your bookmarks in one place, on your own machine.
       linkding is fast, searchable, and has browser extensions for one-click
@@ -91,6 +95,8 @@ enum BundledAppCatalog {
     tagline: Monitor your websites and services
     category: Monitoring
     icon: waveform.path.ecg
+    homepage: https://uptime.kuma.pet
+    source: https://github.com/louislam/uptime-kuma
     summary: |
       A self-hosted monitoring tool that checks whether your websites,
       servers, and services are up — and tells you when they are not. Set up
@@ -116,6 +122,7 @@ enum BundledAppCatalog {
     tagline: Your own password manager, Bitwarden-compatible
     category: Security
     icon: key.fill
+    source: https://github.com/dani-garcia/vaultwarden
     summary: |
       A lightweight server that speaks the Bitwarden protocol, so you can use
       the official Bitwarden apps and browser extensions — with your data
@@ -154,6 +161,8 @@ enum BundledAppCatalog {
     tagline: Painless self-hosted Git service
     category: Development
     icon: chevron.left.forwardslash.chevron.right
+    homepage: https://about.gitea.com
+    source: https://github.com/go-gitea/gitea
     summary: |
       Your own GitHub-style home for code: repositories, issues, pull
       requests, and wikis, running entirely on this Mac. Works with the git
@@ -183,6 +192,8 @@ enum BundledAppCatalog {
     tagline: Privacy-focused web analytics
     category: Analytics
     icon: chart.bar.fill
+    homepage: https://umami.is
+    source: https://github.com/umami-software/umami
     summary: |
       A simple, fast alternative to Google Analytics for your websites. Drop
       the tracking snippet into any site and watch visits roll in — with no
@@ -219,6 +230,8 @@ enum BundledAppCatalog {
     tagline: Keep folders in sync across your devices
     category: Files
     icon: arrow.triangle.2.circlepath
+    homepage: https://syncthing.net
+    source: https://github.com/syncthing/syncthing
     summary: |
       Sync folders between your Mac, phone, and other computers — directly,
       privately, and without any cloud in the middle. Pair devices once and
@@ -251,6 +264,8 @@ enum BundledAppCatalog {
     tagline: Databases that feel like spreadsheets
     category: Databases
     icon: tablecells
+    homepage: https://nocodb.com
+    source: https://github.com/nocodb/nocodb
     summary: |
       Build little business apps and shared tables without writing code —
       an open alternative to Airtable that stores everything on this Mac.
@@ -276,6 +291,8 @@ enum BundledAppCatalog {
     tagline: Your movies and music, streamed everywhere
     category: Media
     icon: play.tv.fill
+    homepage: https://jellyfin.org
+    source: https://github.com/jellyfin/jellyfin
     summary: |
       A media server that puts your movie, TV, and music library on every
       screen in the house — smart TVs, phones, and browsers — with no

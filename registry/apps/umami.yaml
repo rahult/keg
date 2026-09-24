@@ -3,6 +3,8 @@ name: Umami
 tagline: Privacy-focused web analytics
 category: Analytics
 icon: chart.bar.fill
+homepage: https://umami.is
+source: https://github.com/umami-software/umami
 summary: |
   A simple, fast alternative to Google Analytics for your websites. Drop
   the tracking snippet into any site and watch visits roll in — with no

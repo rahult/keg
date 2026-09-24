@@ -3,6 +3,8 @@ name: Gitea
 tagline: Painless self-hosted Git service
 category: Development
 icon: chevron.left.forwardslash.chevron.right
+homepage: https://about.gitea.com
+source: https://github.com/go-gitea/gitea
 summary: |
   Your own GitHub-style home for code: repositories, issues, pull
   requests, and wikis, running entirely on this Mac. Works with the git

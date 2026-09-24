@@ -3,6 +3,8 @@ name: linkding
 tagline: Fast bookmark manager built for minimalists
 category: Bookmarks
 icon: bookmark.fill
+homepage: https://linkding.link
+source: https://github.com/sissbruecker/linkding
 summary: |
   Save and organize your bookmarks in one place, on your own machine.
   linkding is fast, searchable, and has browser extensions for one-click

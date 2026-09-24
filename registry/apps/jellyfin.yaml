@@ -3,6 +3,8 @@ name: Jellyfin
 tagline: Your movies and music, streamed everywhere
 category: Media
 icon: play.tv.fill
+homepage: https://jellyfin.org
+source: https://github.com/jellyfin/jellyfin
 summary: |
   A media server that puts your movie, TV, and music library on every
   screen in the house — smart TVs, phones, and browsers — with no

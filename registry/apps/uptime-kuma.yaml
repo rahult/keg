@@ -3,6 +3,8 @@ name: Uptime Kuma
 tagline: Monitor your websites and services
 category: Monitoring
 icon: waveform.path.ecg
+homepage: https://uptime.kuma.pet
+source: https://github.com/louislam/uptime-kuma
 summary: |
   A self-hosted monitoring tool that checks whether your websites,
   servers, and services are up — and tells you when they are not. Set up

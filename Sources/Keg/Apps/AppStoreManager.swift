@@ -374,6 +374,7 @@ final class AppStoreManager {
             at: URL(filePath: absoluteDataRoot), withIntermediateDirectories: true
         )
         try rendered.write(toFile: composePath, atomically: true, encoding: .utf8)
+        Self.prepareBindMounts(in: rendered)
 
         do {
             try await pullImages(in: rendered, progress: progress)
@@ -418,6 +419,7 @@ final class AppStoreManager {
             throw AppsError.composeFileMissing(installation.composePath)
         }
         let compose = try String(contentsOfFile: installation.composePath, encoding: .utf8)
+        Self.prepareBindMounts(in: compose)
         try await pullImages(in: compose, progress: progress)
         try await orchestrator.up(
             filePath: installation.composePath,
@@ -471,6 +473,7 @@ final class AppStoreManager {
             try AppComposeRenderer.validateRequired(app: catalogApp, values: values)
             compose = try AppComposeRenderer.render(app: catalogApp, values: values)
             try compose.write(toFile: installation.composePath, atomically: true, encoding: .utf8)
+            Self.prepareBindMounts(in: compose)
         } else {
             // App left the catalog (or is hidden): update images in place.
             compose = try String(contentsOfFile: installation.composePath, encoding: .utf8)
@@ -715,6 +718,27 @@ final class AppStoreManager {
             )
             if code != 0 {
                 throw ComposeError.runFailed("pull \(image)", output)
+            }
+        }
+    }
+
+    /// Creates host directories for every bind-mount source in the compose
+    /// file. Unlike Docker, `container run` refuses a missing host path
+    /// instead of creating it — and templates conventionally mount
+    /// subdirectories of the data root (<root>/data, <root>/db, …) that
+    /// don't exist until first boot. Named volumes (no leading "/") are the
+    /// orchestrator's business and are skipped. Pure path creation, safe to
+    /// call repeatedly.
+    nonisolated static func prepareBindMounts(in compose: String) {
+        guard let file = try? YAMLDecoder().decode(ComposeFile.self, from: compose) else { return }
+        for service in file.services.values {
+            for volume in service.volumes ?? [] {
+                let source = volume.split(separator: ":", maxSplits: 1).first.map(String.init) ?? ""
+                let path = source.hasPrefix("~/")
+                    ? NSString(string: source).expandingTildeInPath
+                    : source
+                guard path.hasPrefix("/") else { continue }
+                try? FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
             }
         }
     }

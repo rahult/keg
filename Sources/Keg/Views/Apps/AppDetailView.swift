@@ -12,6 +12,8 @@ struct AppDetailView: View {
     @State private var logsTarget: AppStoreManager.ServiceState?
     @State private var logsText = ""
     @State private var showUninstallDialog = false
+    @State private var showsComposeFile = false
+    @State private var composeFileText = ""
     @State private var errorMessage: String?
 
     private var apps: AppStoreManager { appState.apps }
@@ -51,6 +53,9 @@ struct AppDetailView: View {
         .errorBanner($errorMessage)
         .sheet(item: $logsTarget) { state in
             logsSheet(state)
+        }
+        .sheet(isPresented: $showsComposeFile) {
+            composeFileSheet
         }
         .confirmationDialog(
             "Remove \(catalogApp?.name ?? appID)?",
@@ -95,6 +100,7 @@ struct AppDetailView: View {
 
                 servicesSection
                 storageSection(installation: installation)
+                composeFileSection(installation: installation)
                 aboutSection(app)
                 uninstallSection
             }
@@ -278,11 +284,64 @@ struct AppDetailView: View {
         }
     }
 
+    /// The exact file the app boots from: view it, or find it on disk.
+    private func composeFileSection(installation: AppInstallation) -> some View {
+        GroupBox("Compose File") {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(installation.composePath)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                    Text("The rendered definition the app's services run from. Update rewrites it when the registry template changes.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("View") {
+                    composeFileText = (try? String(contentsOfFile: installation.composePath, encoding: .utf8))
+                        ?? "Could not read the file."
+                    showsComposeFile = true
+                }
+                .controlSize(.small)
+                Button("Reveal in Finder") {
+                    NSWorkspace.shared.activateFileViewerSelecting(
+                        [URL(filePath: installation.composePath)]
+                    )
+                }
+                .controlSize(.small)
+            }
+            .padding(.top, 4)
+        }
+    }
+
     private func aboutSection(_ app: CatalogApp) -> some View {
         GroupBox("About") {
             VStack(alignment: .leading, spacing: 8) {
                 Text(app.summary)
                     .font(.callout)
+                if app.homepage != nil || app.source != nil {
+                    HStack(spacing: 12) {
+                        if let homepage = app.homepage, let url = URL(string: homepage) {
+                            Button {
+                                NSWorkspace.shared.open(url)
+                            } label: {
+                                Label("Website", systemImage: "safari")
+                            }
+                            .buttonStyle(.link)
+                            .help(homepage)
+                        }
+                        if let source = app.source, let url = URL(string: source) {
+                            Button {
+                                NSWorkspace.shared.open(url)
+                            } label: {
+                                Label("Source Code", systemImage: "curlybraces.square")
+                            }
+                            .buttonStyle(.link)
+                            .help(source)
+                        }
+                    }
+                    .font(.caption)
+                }
                 if let note = app.note {
                     Label {
                         Text(note)
@@ -335,6 +394,29 @@ struct AppDetailView: View {
             Divider()
             ScrollView {
                 Text(logsText.isEmpty ? "Loading…" : logsText)
+                    .font(.system(.caption, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+            }
+            .background(Color(nsColor: .textBackgroundColor))
+        }
+        .frame(width: 640, height: 480)
+    }
+
+    private var composeFileSheet: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Compose File")
+                    .font(.headline)
+                Spacer()
+                Button("Done") { showsComposeFile = false }
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(12)
+            Divider()
+            ScrollView {
+                Text(composeFileText)
                     .font(.system(.caption, design: .monospaced))
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)

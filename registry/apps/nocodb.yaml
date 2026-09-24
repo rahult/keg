@@ -3,6 +3,8 @@ name: NocoDB
 tagline: Databases that feel like spreadsheets
 category: Databases
 icon: tablecells
+homepage: https://nocodb.com
+source: https://github.com/nocodb/nocodb
 summary: |
   Build little business apps and shared tables without writing code —
   an open alternative to Airtable that stores everything on this Mac.

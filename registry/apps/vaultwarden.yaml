@@ -3,6 +3,7 @@ name: Vaultwarden
 tagline: Your own password manager, Bitwarden-compatible
 category: Security
 icon: key.fill
+source: https://github.com/dani-garcia/vaultwarden
 summary: |
   A lightweight server that speaks the Bitwarden protocol, so you can use
   the official Bitwarden apps and browser extensions — with your data

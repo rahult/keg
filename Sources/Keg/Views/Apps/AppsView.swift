@@ -9,9 +9,20 @@ struct AppsView: View {
     @State private var searchText = ""
     @State private var installTarget: CatalogApp?
     @State private var selectedAppID: String?
+    @State private var selectedCatalogApp: CatalogAppRoute?
     @State private var errorMessage: String?
 
     private var apps: AppStoreManager { appState.apps }
+
+    /// Where a card click goes: installed apps open their management page,
+    /// catalog apps open the "what will this do" preflight page.
+    private func openDetails(for app: CatalogApp) {
+        if apps.installation(withID: app.id) != nil {
+            selectedAppID = app.id
+        } else {
+            selectedCatalogApp = CatalogAppRoute(id: app.id)
+        }
+    }
 
     private var filteredCatalog: [CatalogApp] {
         apps.catalog.filter { app in
@@ -61,6 +72,9 @@ struct AppsView: View {
             }
             .navigationDestination(item: $selectedAppID) { id in
                 AppDetailView(appID: id)
+            }
+            .navigationDestination(item: $selectedCatalogApp) { route in
+                AppCatalogDetailView(appID: route.id)
             }
         }
         .sheet(item: $installTarget) { app in
@@ -124,25 +138,25 @@ struct AppsView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 18)
                 } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 12)], spacing: 12) {
-                        ForEach(filteredCatalog) { app in
-                            let installation = apps.installation(withID: app.id)
-                            CatalogAppCard(
-                                app: app,
-                                installation: installation,
-                                status: installation.map { apps.status(for: $0.appID) },
-                                definitionChanged: installation.map { apps.definitionChanged(for: $0) } ?? false
-                            ) {
-                                selectedAppID = app.id
-                            } onInstall: {
-                                installTarget = app
-                            } onOpen: {
-                                if let installation {
-                                    apps.openWebUI(for: installation)
-                                }
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 12)], spacing: 12) {
+                    ForEach(filteredCatalog) { app in
+                        let installation = apps.installation(withID: app.id)
+                        CatalogAppCard(
+                            app: app,
+                            installation: installation,
+                            status: installation.map { apps.status(for: $0.appID) },
+                            definitionChanged: installation.map { apps.definitionChanged(for: $0) } ?? false
+                        ) {
+                            openDetails(for: app)
+                        } onInstall: {
+                            installTarget = app
+                        } onOpen: {
+                            if let installation {
+                                apps.openWebUI(for: installation)
                             }
                         }
                     }
+                }
                 }
             }
             .padding(.top, 4)
@@ -277,6 +291,14 @@ struct InstalledAppCard: View {
                     NSPasteboard.general.setString(url.absoluteString, forType: .string)
                 }
             }
+            if let app = apps.app(withID: installation.appID) {
+                if let homepage = app.homepage, let url = URL(string: homepage) {
+                    Button("Website") { NSWorkspace.shared.open(url) }
+                }
+                if let source = app.source, let url = URL(string: source) {
+                    Button("Source Code") { NSWorkspace.shared.open(url) }
+                }
+            }
         }
     }
 }
@@ -344,13 +366,53 @@ struct CatalogAppCard: View {
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
                 }
+                tileMenu
             }
         }
         .padding(12)
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 10))
-        .accessibilityElement(children: .combine)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onOpenDetails)
+        .contextMenu {
+            Button("About This App…", action: onOpenDetails)
+            linkMenuItems
+            Divider()
+            if installation != nil {
+                Button("Show App Details", action: onOpenDetails)
+            } else {
+                Button("Install…", action: onInstall)
+            }
+        }
+        .accessibilityElement(children: .contain)
         .accessibilityLabel("\(app.name): \(app.tagline)")
+    }
+
+    /// ⋯ menu: the app detail page plus the project's own links.
+    private var tileMenu: some View {
+        Menu {
+            Button("About This App…", action: onOpenDetails)
+            linkMenuItems
+        } label: {
+            Image(systemName: "ellipsis.circle")
+        }
+        .controlSize(.small)
+        .help("More options")
+        .accessibilityLabel("More options for \(app.name)")
+    }
+
+    @ViewBuilder
+    private var linkMenuItems: some View {
+        if let homepage = app.homepage, let url = URL(string: homepage) {
+            Button("Website") {
+                NSWorkspace.shared.open(url)
+            }
+        }
+        if let source = app.source, let url = URL(string: source) {
+            Button("Source Code") {
+                NSWorkspace.shared.open(url)
+            }
+        }
     }
 }
 

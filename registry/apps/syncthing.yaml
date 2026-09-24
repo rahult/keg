@@ -3,6 +3,8 @@ name: Syncthing
 tagline: Keep folders in sync across your devices
 category: Files
 icon: arrow.triangle.2.circlepath
+homepage: https://syncthing.net
+source: https://github.com/syncthing/syncthing
 summary: |
   Sync folders between your Mac, phone, and other computers — directly,
   privately, and without any cloud in the middle. Pair devices once and

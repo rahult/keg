@@ -86,6 +86,10 @@ struct CatalogApp: Identifiable, Hashable, Codable, Sendable {
     let icon: String
     /// One-paragraph "what is this" for the install sheet.
     let summary: String
+    /// Official website, shown on the tile menu and the detail page.
+    var homepage: String?
+    /// Upstream source repository (GitHub), same surfaces.
+    var source: String?
     /// Setup facts the user must know (default logins, first-run notes).
     var note: String?
     var webUI: CatalogWebUI?
@@ -99,7 +103,8 @@ struct CatalogApp: Identifiable, Hashable, Codable, Sendable {
     let compose: String
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, tagline, category, icon, summary, note
+        case id, name, tagline, category, icon, summary
+        case homepage, source, note
         case webUI
         case fields
         case hidden
@@ -107,7 +112,8 @@ struct CatalogApp: Identifiable, Hashable, Codable, Sendable {
     }
 
     init(id: String, name: String, tagline: String, category: String, icon: String,
-         summary: String, note: String? = nil, webUI: CatalogWebUI? = nil,
+         summary: String, homepage: String? = nil, source: String? = nil,
+         note: String? = nil, webUI: CatalogWebUI? = nil,
          fields: [CatalogField] = [], hidden: Bool = false, compose: String) {
         self.id = id
         self.name = name
@@ -115,6 +121,8 @@ struct CatalogApp: Identifiable, Hashable, Codable, Sendable {
         self.category = category
         self.icon = icon
         self.summary = summary
+        self.homepage = homepage
+        self.source = source
         self.note = note
         self.webUI = webUI
         self.fields = fields
@@ -130,6 +138,8 @@ struct CatalogApp: Identifiable, Hashable, Codable, Sendable {
         category = try container.decode(String.self, forKey: .category)
         icon = try container.decode(String.self, forKey: .icon)
         summary = try container.decode(String.self, forKey: .summary)
+        homepage = try container.decodeIfPresent(String.self, forKey: .homepage)
+        source = try container.decodeIfPresent(String.self, forKey: .source)
         note = try container.decodeIfPresent(String.self, forKey: .note)
         webUI = try container.decodeIfPresent(CatalogWebUI.self, forKey: .webUI)
         fields = try container.decodeIfPresent([CatalogField].self, forKey: .fields) ?? []

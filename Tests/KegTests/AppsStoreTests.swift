@@ -19,11 +19,52 @@ final class AppsStoreTests: XCTestCase {
             XCTAssertFalse(app.tagline.isEmpty, app.id)
             XCTAssertFalse(app.summary.isEmpty, app.id)
             XCTAssertFalse(app.compose.isEmpty, app.id)
+            XCTAssertNotNil(app.source, "\(app.id) should link to its upstream source")
             XCTAssertNotNil(
                 app.id.range(of: #"^[a-z0-9][a-z0-9-]*$"#, options: .regularExpression),
                 "app id must be kebab-case: \(app.id)"
             )
+            if let source = app.source {
+                XCTAssertNotNil(URL(string: source), "\(app.id) source is not a URL: \(source)")
+            }
+            if let homepage = app.homepage {
+                XCTAssertNotNil(URL(string: homepage), "\(app.id) homepage is not a URL: \(homepage)")
+            }
         }
+    }
+
+    /// Apple container refuses bind mounts whose host path does not exist
+    /// (unlike Docker) — the manager must create every referenced host
+    /// directory before starting services. This was the NocoDB first-boot
+    /// failure: the template mounts <dataRoot>/data, which only exists
+    /// after this preparation.
+    func testPrepareBindMountsCreatesHostDirectories() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keg-bindmounts-\(UUID().uuidString.prefix(8))")
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let compose = """
+        services:
+          app:
+            image: alpine
+            volumes:
+              - \(root.path)/deeply/nested/data:/var/lib/data
+              - \(root.path)/shared:/srv:ro
+              - named-volume:/var/lib/named
+        """
+        AppStoreManager.prepareBindMounts(in: compose)
+
+        var isDirectory: ObjCBool = false
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: root.appendingPathComponent("deeply/nested/data").path, isDirectory: &isDirectory)
+            && isDirectory.boolValue,
+            "nested bind source should be created"
+        )
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: root.appendingPathComponent("shared").path, isDirectory: &isDirectory)
+            && isDirectory.boolValue,
+            "read-only bind source should be created"
+        )
     }
 
     func testBundledCatalogPlaceholdersAreSatisfiable() throws {

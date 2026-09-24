@@ -7,28 +7,28 @@ updated: 2026-09-24
 apps:
   - id: gitea
     file: apps/gitea.yaml
-    sha256: 87817a1b6948d1cd4b0631f53020d3be7db60bae183816d29b5eb7c74ef32b6c
+    sha256: 57ab1f848de873dca4d5f2ef0d0ece0f59f1a3d772a97f18a32a0e222e07353d
   - id: jellyfin
     file: apps/jellyfin.yaml
-    sha256: 2d4f1a4ce9c9137b3ed26e9471dad72df7c5fc327d090374bc6c4fb5ef71ceb6
+    sha256: 87937e53f8bff78c086a0244a3f07d337af7ea8b775da07e7afe9fffa575c79f
   - id: linkding
     file: apps/linkding.yaml
-    sha256: be0f18215d81ad74af5efde71587c92740e870e2ff6e9758a168d448e6b7bea6
+    sha256: f61d5c070a9d76951bf91546ee23e46141716e6ec1c7edc66bc0cf52db31d929
   - id: memos
     file: apps/memos.yaml
-    sha256: 8ead33a5f4c4f72bd3daf53b040b1226f27da8c03488ac4e4933012f45a25c66
+    sha256: 840474998910238087804fc479a07d4a1c41f02f44c1c3b39ab8cc11f1aa5550
   - id: nocodb
     file: apps/nocodb.yaml
-    sha256: 801e6ba9565a4556260854cc8555b39531e6449a4b9840c634f5ff23515d7b2b
+    sha256: 6943bc30d7a9166615c8a59a21c92517f705d4f8cea21bf335c9d483eafda9e0
   - id: syncthing
     file: apps/syncthing.yaml
-    sha256: 6aade73e2ef8e9f1258794e5fcff9f0776ee2cfc0e37c19259101b1b6a775c95
+    sha256: 6b30b30e3c26f74ccd853c52b9e8306016c5226fceeb583e570b20338db3e56d
   - id: umami
     file: apps/umami.yaml
-    sha256: 2697366ae2e0184b9dbbf611cbbdb0d544784e47751a54c737d07f3d34c10d62
+    sha256: ace66a5d593b3136d130585404d7e6fa9ed28939369aef3af3fd04746edfc8a9
   - id: uptime-kuma
     file: apps/uptime-kuma.yaml
-    sha256: 2b9ed194f7e1c08b1857d52716a18d6ce177221aa780bea67be1f2029f9a4509
+    sha256: 5f9b38e54ab8fe5a9589f9fe60083fba5286895f917061b38961d1947dc687b4
   - id: vaultwarden
     file: apps/vaultwarden.yaml
-    sha256: cd8332556eb59bb84147bef3fbe826bb53333022407bb83a55fed05a34a5ac11
+    sha256: 1744e91ec590819408f8108f57d42947fbf4c79d58f0bc6facf1997e463a8486

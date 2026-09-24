@@ -3,6 +3,8 @@ name: Memos
 tagline: Lightweight, self-hosted note taking
 category: Notes
 icon: note.text
+homepage: https://www.usememos.com
+source: https://github.com/usememos/memos
 summary: |
   A privacy-first note-taking service — think of it as your own personal
   notes app that lives on this Mac. Write quick notes, tag them, and
