@@ -496,9 +496,9 @@ enum KegCLI {
         for id in ids {
             do {
                 switch action {
-                case .start: try client.start(id: id)
-                case .stop: try client.stop(id: id)
-                case .restart: try client.restart(id: id)
+                case .start: try client.start(id: id, timeoutSeconds: 300)
+                case .stop: try client.stop(id: id, timeoutSeconds: 300)
+                case .restart: try client.restart(id: id, timeoutSeconds: 300)
                 }
                 print("\(id) \(action.verb)")
             } catch {
@@ -521,7 +521,7 @@ enum KegCLI {
         var failures = 0
         for id in ids {
             do {
-                try client.remove(id: id, force: force)
+                try client.remove(id: id, force: force, timeoutSeconds: 300)
                 print("\(id) removed")
             } catch {
                 failures += 1

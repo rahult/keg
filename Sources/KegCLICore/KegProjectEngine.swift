@@ -385,7 +385,7 @@ public struct KegProjectEngine {
             // replaced so the file on disk is the source of truth.
             if existing.contains(where: { $0.displayName == containerName }) {
                 progress("recreating \(containerName)")
-                try? client.remove(id: containerName, force: true)
+                try? client.remove(id: containerName, force: true, timeoutSeconds: 300)
             } else {
                 progress("creating \(containerName)")
             }
@@ -395,7 +395,7 @@ public struct KegProjectEngine {
             )
             progress("preparing \(image) (pulled on demand)")
             try client.createContainer(request: createRequest, name: containerName)
-            try client.start(id: containerName)
+            try client.start(id: containerName, timeoutSeconds: 300)
             progress("starting \(containerName)")
 
             try waitUntilRunning(containerName: containerName, service: serviceName, timeout: options.waitTimeout) { line in
@@ -463,8 +463,8 @@ public struct KegProjectEngine {
         for serviceName in order.reversed() {
             let containerName = KegProjectLoader.containerName(project: config.name, service: serviceName)
             guard existing.contains(where: { $0.displayName == containerName }) else { continue }
-            try? client.stop(id: containerName)
-            try client.remove(id: containerName, force: true)
+            try? client.stop(id: containerName, timeoutSeconds: 300)
+            try client.remove(id: containerName, force: true, timeoutSeconds: 300)
             removed += 1
         }
         return removed

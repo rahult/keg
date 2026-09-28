@@ -52,8 +52,8 @@ public struct UnixSocketHTTPClient: Sendable {
         try request("POST", path, body: body, timeoutSeconds: timeoutSeconds)
     }
 
-    public func delete(_ path: String) throws -> Response {
-        try request("DELETE", path, body: nil)
+    public func delete(_ path: String, timeoutSeconds: Int32? = nil) throws -> Response {
+        try request("DELETE", path, body: nil, timeoutSeconds: timeoutSeconds)
     }
 
     public func request(_ method: String, _ path: String, body: Data? = nil) throws -> Response {

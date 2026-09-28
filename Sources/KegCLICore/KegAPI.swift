@@ -153,8 +153,10 @@ public struct KegAPIClient: Sendable {
         try decode(http.get("/containers/\(id)/json"))
     }
 
-    public func start(id: String) throws {
-        let response = try http.post("/containers/\(id)/start")
+    /// VM stop/start/teardown can run well past the interactive 10s socket
+    /// default; callers pass an explicit timeout for those.
+    public func start(id: String, timeoutSeconds: Int32? = nil) throws {
+        let response = try http.post("/containers/\(id)/start", body: nil, timeoutSeconds: timeoutSeconds)
         guard (200..<300).contains(response.status) || response.status == 304 else {
             throw UnixSocketHTTPClient.ClientError.socketFailed(
                 "start failed (HTTP \(response.status)): \(String(data: response.body, encoding: .utf8) ?? "")"
@@ -162,8 +164,8 @@ public struct KegAPIClient: Sendable {
         }
     }
 
-    public func stop(id: String) throws {
-        let response = try http.post("/containers/\(id)/stop")
+    public func stop(id: String, timeoutSeconds: Int32? = nil) throws {
+        let response = try http.post("/containers/\(id)/stop", body: nil, timeoutSeconds: timeoutSeconds)
         guard (200..<300).contains(response.status) || response.status == 304 else {
             throw UnixSocketHTTPClient.ClientError.socketFailed(
                 "stop failed (HTTP \(response.status)): \(String(data: response.body, encoding: .utf8) ?? "")"
@@ -171,8 +173,8 @@ public struct KegAPIClient: Sendable {
         }
     }
 
-    public func restart(id: String) throws {
-        let response = try http.post("/containers/\(id)/restart")
+    public func restart(id: String, timeoutSeconds: Int32? = nil) throws {
+        let response = try http.post("/containers/\(id)/restart", body: nil, timeoutSeconds: timeoutSeconds)
         guard (200..<300).contains(response.status) else {
             throw UnixSocketHTTPClient.ClientError.socketFailed(
                 "restart failed (HTTP \(response.status)): \(String(data: response.body, encoding: .utf8) ?? "")"
@@ -180,8 +182,8 @@ public struct KegAPIClient: Sendable {
         }
     }
 
-    public func remove(id: String, force: Bool) throws {
-        let response = try http.delete("/containers/\(id)\(force ? "?force=1" : "")")
+    public func remove(id: String, force: Bool, timeoutSeconds: Int32? = nil) throws {
+        let response = try http.delete("/containers/\(id)\(force ? "?force=1" : "")", timeoutSeconds: timeoutSeconds)
         guard (200..<300).contains(response.status) else {
             throw UnixSocketHTTPClient.ClientError.socketFailed(
                 "remove failed (HTTP \(response.status)): \(String(data: response.body, encoding: .utf8) ?? "")"
