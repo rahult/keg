@@ -19,7 +19,7 @@ struct KubernetesSettingsSection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: SettingsMetrics.groupSpacing) {
             HStack {
                 statusView
                 Spacer()
@@ -40,9 +40,7 @@ struct KubernetesSettingsSection: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             case .stopped:
-                Text("The cluster container exists but isn't running. Start it to use `kubectl` against it.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                SettingsCaption("The cluster container exists but isn't running. Start it to use `kubectl` against it.")
             case .running, .checking:
                 EmptyView()
             }
@@ -69,9 +67,7 @@ struct KubernetesSettingsSection: View {
                     .foregroundStyle(.red)
             }
 
-            Text("Deleting the cluster (container and kubeconfig) is done from the Kubernetes section in the sidebar, where the bootstrap output is visible.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+            SettingsCaption("Deleting the cluster (container and kubeconfig) is done from the Kubernetes section in the sidebar, where the bootstrap output is visible.")
         }
         .padding(.vertical, 4)
         .task { await refresh() }
@@ -79,25 +75,20 @@ struct KubernetesSettingsSection: View {
 
     @ViewBuilder
     private var statusView: some View {
-        HStack(spacing: 8) {
-            switch status {
-            case .checking:
+        switch status {
+        case .checking:
+            // Still probing the runtime — a spinner, not a state dot.
+            HStack(spacing: 8) {
                 ProgressView().controlSize(.small)
                 Text("Checking cluster…")
                     .font(.headline)
-            case .absent:
-                Circle().fill(Color.gray).frame(width: 10, height: 10)
-                Text("No cluster")
-                    .font(.headline)
-            case .running:
-                Circle().fill(Color.green).frame(width: 10, height: 10)
-                Text("Cluster running")
-                    .font(.headline)
-            case .stopped:
-                Circle().fill(Color.orange).frame(width: 10, height: 10)
-                Text("Cluster stopped")
-                    .font(.headline)
             }
+        case .absent:
+            SettingsStatusCard(.inactive, title: "No cluster")
+        case .running:
+            SettingsStatusCard(.ok, title: "Cluster running")
+        case .stopped:
+            SettingsStatusCard(.warning, title: "Cluster stopped")
         }
     }
 

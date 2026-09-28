@@ -31,6 +31,7 @@ struct PlatformSetupCard: View {
                             Task { await installer.install() }
                         }
                         .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
 
                         Button("Install via Homebrew…") {
                             let command = "brew install container"

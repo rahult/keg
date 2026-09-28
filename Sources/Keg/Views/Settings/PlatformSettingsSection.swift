@@ -14,36 +14,34 @@ struct PlatformSettingsSection: View {
     /// named volumes, and images — derived from the configured data root.
     private var storageLocations: some View {
         let root = appState.effectiveDataRootPath
-        return VStack(alignment: .leading, spacing: 5) {
-            Text("Storage Locations")
-                .font(.headline)
-            storageRow("Containers", "\(root)/containers")
-            storageRow("Volumes", "\(root)/volumes")
-            storageRow("Images", "\(root)/content")
-            Text("Everything persistent lives under the data root set in Container System → Data Location. Moving it means stopping the system, copying the folder, and updating that field.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+        return SettingsGroup("Storage Locations", caption: "Everything persistent lives under the data root set in Container System → Data Location. Moving it means stopping the system, copying the folder, and updating that field.") {
+            pathRow("Containers", "\(root)/containers")
+            pathRow("Volumes", "\(root)/volumes")
+            pathRow("Images", "\(root)/content")
         }
-        .padding(.vertical, 2)
     }
 
-    private func storageRow(_ label: String, _ path: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(label)
-                .frame(width: 110, alignment: .leading)
-                .foregroundStyle(.secondary)
-            Text(path)
-                .font(.system(.caption, design: .monospaced))
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .textSelection(.enabled)
-            Spacer()
-            Button("Copy") {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(path, forType: .string)
+    /// A storage path needs middle-truncation, so it mirrors SettingsCopyLine
+    /// (monospaced value + borderless copy) with a line limit instead of
+    /// wrapping.
+    private func pathRow(_ label: String, _ path: String) -> some View {
+        SettingsRow(label) {
+            HStack(spacing: 4) {
+                Text(path)
+                    .font(.system(.caption, design: .monospaced))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(path, forType: .string)
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+                .accessibilityLabel("Copy \(label) path")
             }
-            .controlSize(.small)
-            .buttonStyle(.borderless)
         }
     }
 
@@ -52,69 +50,29 @@ struct PlatformSettingsSection: View {
     /// container from starting.
     private var advancedSection: some View {
         DisclosureGroup("Advanced (read-only)", isExpanded: $showAdvanced) {
-            VStack(alignment: .leading, spacing: 5) {
-                advancedRow("Kernel", vm.settings.kernelBinaryPath)
-                advancedRow("Kernel URL", vm.settings.kernelURL)
-                advancedRow("vminit Image", vm.settings.vminitImage)
-                Text("Pinned by the container platform and updated with it. Edit the config TOML by hand only if you know why.")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+            VStack(alignment: .leading, spacing: SettingsMetrics.groupSpacing) {
+                SettingsRow("Kernel") {
+                    advancedValue(vm.settings.kernelBinaryPath)
+                }
+                SettingsRow("Kernel URL") {
+                    advancedValue(vm.settings.kernelURL)
+                }
+                SettingsRow("vminit Image") {
+                    advancedValue(vm.settings.vminitImage)
+                }
+                SettingsCaption("Pinned by the container platform and updated with it. Edit the config TOML by hand only if you know why.")
             }
             .padding(.top, 4)
         }
         .font(.subheadline)
     }
 
-    private func advancedRow(_ label: String, _ value: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(label)
-                .frame(width: 110, alignment: .leading)
-                .foregroundStyle(.secondary)
-            Text(value.isEmpty ? "—" : value)
-                .font(.system(.caption, design: .monospaced))
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .textSelection(.enabled)
-            Spacer()
-        }
-    }
-
-    /// A labelled group of related rows: the fastest way to tell the three
-    /// CPU/memory triples apart.
-    private func group(_ name: String, caption: String? = nil, @ViewBuilder content: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(name)
-                .font(.subheadline.weight(.semibold))
-            content()
-            if let caption {
-                Text(caption)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .padding(.vertical, 2)
-    }
-
-    /// One settings row: fixed-width label column so every control starts at
-    /// the same x. A plain HStack — Grid centers cells in their columns and
-    /// stretches Steppers, which scattered the controls across the row.
-    private func settingRow(_ label: String, @ViewBuilder control: () -> some View) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 16) {
-            Text(label)
-                .foregroundStyle(.secondary)
-                .frame(width: 180, alignment: .leading)
-            // Fixed control column: every control starts at the same x even
-            // though the fields themselves have different natural widths.
-            HStack(spacing: 0) {
-                control()
-                Spacer(minLength: 0)
-            }
-            .frame(width: 330, alignment: .leading)
-            Spacer(minLength: 0)
-        }
-        // Full-width leading frame: the Settings form centers fixed-width
-        // rows, which offsets controls differently on every row.
-        .frame(maxWidth: .infinity, alignment: .leading)
+    private func advancedValue(_ value: String) -> some View {
+        Text(value.isEmpty ? "—" : value)
+            .font(.system(.caption, design: .monospaced))
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .textSelection(.enabled)
     }
 
     /// CPUs: slider bounded by the host's core count, with an editable text
@@ -124,7 +82,7 @@ struct PlatformSettingsSection: View {
             get: { value.wrappedValue },
             set: { value.wrappedValue = min(max($0, 1), PlatformSettingsVM.hostCoreCount) }
         )
-        return settingRow(label) {
+        return SettingsRow(label) {
             HStack(spacing: 10) {
                 Slider(value: Binding(
                     get: { Double(clamped.wrappedValue) },
@@ -132,12 +90,10 @@ struct PlatformSettingsSection: View {
                 ), in: 1...Double(PlatformSettingsVM.hostCoreCount), step: 1)
                 .frame(width: 140)
                 TextField("", value: clamped, format: .number)
-                    .textFieldStyle(.squareBorder)
+                    .textFieldStyle(.roundedBorder)
                     .font(.system(.caption, design: .monospaced))
                     .frame(width: 52)
-                Text("cores")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                SettingsCaption("cores")
                     .frame(width: 42, alignment: .leading)
             }
         }
@@ -151,50 +107,48 @@ struct PlatformSettingsSection: View {
             get: { Double(mb.wrappedValue) / 1024.0 },
             set: { mb.wrappedValue = min(max(Int((($0 * 2).rounded() / 2) * 1024), limits.lowerBound), limits.upperBound) }
         )
-        return settingRow(label) {
+        return SettingsRow(label) {
             HStack(spacing: 10) {
                 Slider(value: gb, in: 0.5...Double(PlatformSettingsVM.hostMemoryGB), step: 0.5)
                     .frame(width: 140)
                 TextField("", value: gb, format: .number.precision(.fractionLength(0...1)))
-                    .textFieldStyle(.squareBorder)
+                    .textFieldStyle(.roundedBorder)
                     .font(.system(.caption, design: .monospaced))
                     .frame(width: 64)
-                Text("GB")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                SettingsCaption("GB")
                     .frame(width: 28, alignment: .leading)
             }
         }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: SettingsMetrics.groupSpacing) {
             storageLocations
 
-            VStack(alignment: .leading, spacing: 14) {
-                group("Containers", caption: "Resources for newly created containers.") {
+            VStack(alignment: .leading, spacing: SettingsMetrics.groupSpacing) {
+                SettingsGroup("Containers", caption: "Resources for newly created containers.") {
                     cpuRow("CPUs", value: $vm.settings.containerCPUs)
                     memoryRow("Memory", mb: $vm.settings.containerMemoryMB)
                 }
 
-                group("Builds", caption: "Resources for `container build`.") {
+                SettingsGroup("Builds", caption: "Resources for `container build`.") {
                     cpuRow("CPUs", value: $vm.settings.buildCPUs)
                     memoryRow("Memory", mb: $vm.settings.buildMemoryMB)
-                    settingRow("Rosetta") {
+                    SettingsRow("Rosetta") {
                         Toggle("", isOn: $vm.settings.buildRosetta)
                             .labelsHidden()
                     }
-                    settingRow("Builder Image") {
+                    SettingsRow("Builder Image") {
                         TextField("", text: $vm.settings.buildImage, prompt: Text("ghcr.io/apple/…/builder:tag"))
-                            .textFieldStyle(.squareBorder)
-                            .frame(width: 320)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 280)
                     }
                 }
 
-                group("Machines", caption: "Defaults for full Linux machines.") {
+                SettingsGroup("Machines", caption: "Defaults for full Linux machines.") {
                     cpuRow("CPUs", value: $vm.settings.machineCPUs)
                     memoryRow("Memory", mb: $vm.settings.machineMemoryMB)
-                    settingRow("Home Mount") {
+                    SettingsRow("Home Mount") {
                         Picker("", selection: $vm.settings.machineHomeMount) {
                             Text("Read-only").tag("ro")
                             Text("Read-write").tag("rw")
@@ -202,24 +156,21 @@ struct PlatformSettingsSection: View {
                         }
                         .labelsHidden()
                         .pickerStyle(.segmented)
-                        .frame(width: 240)
+                        .frame(width: SettingsMetrics.pickerWidth)
                         .help("Whether containers see your Mac home folder, and how")
                     }
-                    settingRow("Virtualization") {
+                    SettingsRow("Virtualization") {
                         Toggle("", isOn: $vm.settings.machineVirtualization)
                             .labelsHidden()
                     }
                 }
 
-                group("Registry") {
-                    settingRow("Domain") {
+                SettingsGroup("Registry", caption: "Where images are pulled from; docker.io covers Docker Hub.") {
+                    SettingsRow("Domain") {
                         TextField("", text: $vm.settings.registryDomain, prompt: Text("docker.io"))
-                            .textFieldStyle(.squareBorder)
+                            .textFieldStyle(.roundedBorder)
                             .frame(width: 220)
                     }
-                    Text("Where images are pulled from; docker.io covers Docker Hub.")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
                 }
             }
             .disabled(vm.isLoading || !vm.canEdit)
@@ -244,9 +195,7 @@ struct PlatformSettingsSection: View {
                 .controlSize(.small)
                 .disabled(vm.isLoading)
 
-                Text("Changes save automatically and apply to new containers, builds, and machines.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                SettingsCaption("Changes save automatically and apply to new containers, builds, and machines.")
             }
 
             if let notice = vm.saveNotice {
@@ -275,18 +224,14 @@ struct PlatformSettingsSection: View {
             }
 
             if vm.dnsDomains.isEmpty {
-                Text("No local DNS domains. Containers remain reachable by IP and published ports.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                SettingsCaption("No local DNS domains. Containers remain reachable by IP and published ports.")
             } else {
                 ForEach(vm.dnsDomains, id: \.self) { domain in
                     Label(domain, systemImage: "network")
                         .font(.system(.caption, design: .monospaced))
                 }
             }
-            Text("Creating a domain needs an administrator: `sudo container system dns create <name>`.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+            SettingsCaption("Creating a domain needs an administrator: `sudo container system dns create <name>`.")
         }
         .padding(.vertical, 4)
         .task {
@@ -300,7 +245,7 @@ struct TerminalPreferenceSection: View {
     @State private var preferred = TerminalLauncher.preferred
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: SettingsMetrics.groupSpacing) {
             Picker("Open shells in", selection: $preferred) {
                 ForEach(TerminalEmulator.allCases) { emulator in
                     if emulator.isAvailable {
@@ -313,9 +258,7 @@ struct TerminalPreferenceSection: View {
                 TerminalLauncher.preferred = preferred
             }
 
-            Text("Used by Open Terminal in the Containers list and container detail view.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            SettingsCaption("Used by Open Terminal in the Containers list and container detail view.")
         }
         .padding(.vertical, 4)
     }

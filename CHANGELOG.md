@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.3] — 2026-09-28
+
+### Changed
+- **Settings, rebuilt for consistency** — every tab now renders from one shared component layer (`SettingsComponents.swift`): a single labeled-row grid (fixed 140pt label / 280pt control columns), one status display (colored dot + headline + detail + action), one caption style, one spacing rhythm, and one clipboard idiom. Previously each of the seven tabs invented its own layout — five different label-column widths, three caption styles, six hand-rolled status rows — so the same kind of control sat differently on every tab. The conventions are documented in DESIGN.md §18; the orphaned Supaglue integrations view (384 lines, unwired since the agents stack went dormant) is removed.
+
+### Fixed
+- **Settings window fits its content** — it no longer adopts the main window's width; it opens at 720×640, sized for the grouped form, still centered over the main window.
+- **Gateway app addresses are clickable** — the `*.keg` hostnames in Settings → Gateway (App addresses and Custom routes) are now links that open `http://<name>.keg:8080` in the browser, instead of read-only text.
+
 ## [0.8.2] — 2026-09-23
 
 ### Fixed

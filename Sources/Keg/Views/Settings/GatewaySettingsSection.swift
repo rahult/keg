@@ -23,36 +23,16 @@ struct GatewaySettingsSection: View {
     }
 
     var body: some View {
-        @Bindable var gateway = appState.gateway
+        VStack(alignment: .leading, spacing: SettingsMetrics.groupSpacing) {
+            gatewayStatusCard
 
-        Form {
-            Section("Gateway") {
-                HStack {
-                    Circle()
-                        .fill(gateway.isEnabled ? (gateway.isProxyRunning && gateway.isDNSRunning ? Color.green : Color.orange) : Color.gray)
-                        .frame(width: 10, height: 10)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(gateway.isEnabled ? gateway.statusSummary : "Off")
-                            .font(.headline)
-                        Text("Installed apps answer at memorable hostnames — http://memos.keg:\(GatewayConfig.proxyPort) instead of 127.0.0.1:5230")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Toggle("Enable", isOn: $gateway.isEnabled)
-                        .toggleStyle(.switch)
-                }
-
-                if let error = gateway.lastError {
-                    Label(error, systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
-
-                Text("Entirely local (loopback): the DNS responder and the routing proxy run inside Keg and only this Mac can reach them. Apps keep their direct 127.0.0.1 ports as a fallback.")
+            if let error = gateway.lastError {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.orange)
             }
+
+            SettingsCaption("Entirely local (loopback): the DNS responder and the routing proxy run inside Keg and only this Mac can reach them. Apps keep their direct 127.0.0.1 ports as a fallback.")
 
             resolverSection
 
@@ -62,16 +42,39 @@ struct GatewaySettingsSection: View {
 
             customRoutesSection
         }
+        .padding(.vertical, 4)
+    }
+
+    // MARK: Status
+
+    private var gatewayStatusCard: some View {
+        @Bindable var gateway = appState.gateway
+        return SettingsStatusCard(gatewayState, title: gateway.isEnabled ? gateway.statusSummary : "Off") {
+            AnyView(SettingsCaption("Installed apps answer at memorable hostnames — http://memos.keg:\(GatewayConfig.proxyPort) instead of 127.0.0.1:5230"))
+        } actions: {
+            AnyView(Toggle("Enable", isOn: $gateway.isEnabled)
+                .toggleStyle(.switch))
+        }
+    }
+
+    /// Dot per service health: green only when enabled AND both services
+    /// are up, orange when enabled but something is down, gray when off.
+    private var gatewayState: SettingsStatusCard<AnyView, AnyView>.State {
+        guard gateway.isEnabled else { return .inactive }
+        return (gateway.isProxyRunning && gateway.isDNSRunning) ? .ok : .warning
     }
 
     // MARK: HTTPS (opt-in)
 
     private var httpsSection: some View {
-        Section {
-            Toggle("HTTPS (https://name.keg:8443)", isOn: Binding(
-                get: { gateway.isHTTPSPermitted },
-                set: { gateway.isHTTPSPermitted = $0 }
-            ))
+        SettingsGroup("HTTPS", caption: "Serves https://<name>.keg:\(GatewayConfig.tlsPort) per app. Opt-in — HTTP on :\(GatewayConfig.proxyPort) keeps working with or without it.") {
+            SettingsRow("HTTPS") {
+                Toggle("", isOn: Binding(
+                    get: { gateway.isHTTPSPermitted },
+                    set: { gateway.isHTTPSPermitted = $0 }
+                ))
+                .labelsHidden()
+            }
 
             if gateway.isHTTPSPermitted {
                 statusRow(
@@ -113,14 +116,8 @@ struct GatewaySettingsSection: View {
                     }
                 }
 
-                Text("Trust is per-user and needs one system dialog — Keg can't install it silently, and the CA key never leaves your login keychain. Firefox keeps its own store: import \(GatewayTrust.caCertificatePath) manually if you use it. Certificates are issued per app name and re-issued when you install or remove apps.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                SettingsCaption("Trust is per-user and needs one system dialog — Keg can't install it silently, and the CA key never leaves your login keychain. Firefox keeps its own store: import \(GatewayTrust.caCertificatePath) manually if you use it. Certificates are issued per app name and re-issued when you install or remove apps.")
             }
-        } header: {
-            Text("HTTPS")
-        } footer: {
-            Text("Opt-in. HTTP on :8080 keeps working with or without it.")
         }
     }
 
@@ -154,7 +151,7 @@ struct GatewaySettingsSection: View {
     // MARK: One-time resolver setup
 
     private var resolverSection: some View {
-        Section("One-time setup") {
+        SettingsGroup("One-time setup") {
             if resolverConfigured {
                 Label {
                     VStack(alignment: .leading, spacing: 2) {
@@ -172,30 +169,20 @@ struct GatewaySettingsSection: View {
                 }
                 .controlSize(.small)
             } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Run this once in Terminal so macOS sends *.keg names to Keg's responder:")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    HStack {
-                        Text(GatewayConfig.resolverCommand)
-                            .font(.system(.caption, design: .monospaced))
-                            .textSelection(.enabled)
-                            .lineLimit(2)
-                        Spacer()
-                        Button("Copy") {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(GatewayConfig.resolverCommand, forType: .string)
-                        }
-                        .controlSize(.small)
-                        Button("Open in Terminal") {
-                            openInTerminal(GatewayConfig.resolverCommand)
-                        }
-                        .controlSize(.small)
+                SettingsCaption("Run this once in Terminal so macOS sends *.keg names to Keg's responder:")
+                HStack {
+                    Text(GatewayConfig.resolverCommand)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                        .lineLimit(2)
+                    Spacer()
+                    SettingsCopyLine(value: GatewayConfig.resolverCommand, accessibilityLabel: "Copy command")
+                    Button("Open in Terminal") {
+                        openInTerminal(GatewayConfig.resolverCommand)
                     }
-                    Text("Keg never runs commands with sudo itself — you see and approve exactly what runs. Undo anytime: \(GatewayConfig.resolverRemoveCommand)")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                    .controlSize(.small)
                 }
+                SettingsCaption("Keg never runs commands with sudo itself — you see and approve exactly what runs. Undo anytime: \(GatewayConfig.resolverRemoveCommand)")
             }
 
             Button("Re-check") { recheckResolver() }
@@ -208,12 +195,10 @@ struct GatewaySettingsSection: View {
     // MARK: App addresses
 
     private var addressSection: some View {
-        Section("App addresses") {
+        SettingsGroup("App addresses") {
             let routes = gateway.appRoutes.sorted { $0.hostname < $1.hostname }
             if routes.isEmpty {
-                Text("No installed apps with a web interface yet.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                SettingsCaption("No installed apps with a web interface yet.")
             } else {
                 ForEach(routes) { route in
                     LabeledContent {
@@ -221,9 +206,7 @@ struct GatewaySettingsSection: View {
                             .font(.system(.caption, design: .monospaced))
                             .foregroundStyle(.secondary)
                     } label: {
-                        Text(route.hostname)
-                            .font(.system(.callout, design: .monospaced))
-                            .textSelection(.enabled)
+                        appLink(hostname: route.hostname)
                     }
                 }
                 Button("Refresh list") {
@@ -237,15 +220,14 @@ struct GatewaySettingsSection: View {
     // MARK: Custom routes (development)
 
     private var customRoutesSection: some View {
-        Section {
+        SettingsGroup("Custom routes", caption: "Point extra names at any local port for development — e.g. dev.keg → your app on port 3000. Custom names must end in .keg and lose to an app with the same name.") {
             ForEach(gateway.customRoutes) { route in
                 LabeledContent {
                     Text("→ 127.0.0.1:\(route.port)")
                         .font(.system(.caption, design: .monospaced))
                         .foregroundStyle(.secondary)
                 } label: {
-                    Text(route.hostname)
-                        .font(.system(.callout, design: .monospaced))
+                    appLink(hostname: route.hostname)
                 }
             }
             .onDelete { offsets in
@@ -264,12 +246,6 @@ struct GatewaySettingsSection: View {
                 Button("Add") { addRoute() }
                     .disabled(!addRouteFormIsValid)
             }
-
-            Text("Point extra names at any local port for development — e.g. dev.keg → your app on port 3000. Custom names must end in .keg and lose to an app with the same name.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        } header: {
-            Text("Custom routes")
         }
     }
 
@@ -288,6 +264,22 @@ struct GatewaySettingsSection: View {
         gateway.setCustomRoutes(routes)
         newHostname = ""
         newPort = ""
+    }
+
+    /// A hostname shown as a link that opens the app in the browser. HTTP on
+    /// the proxy port always works; HTTPS is opt-in, so it's not the default.
+    private func appLink(hostname: String) -> some View {
+        let address = "http://\(hostname):\(GatewayConfig.proxyPort)"
+        return Button {
+            if let url = URL(string: address) {
+                NSWorkspace.shared.open(url)
+            }
+        } label: {
+            Text(hostname)
+                .font(.system(.callout, design: .monospaced))
+        }
+        .buttonStyle(.link)
+        .help("Open \(address)")
     }
 
     /// Open Terminal.app and prefill the command. Keg doesn't run sudo'd

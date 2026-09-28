@@ -21,14 +21,18 @@ struct SettingsView: View {
     }
 
     /// Moves the Settings window into the frame captured when settings was
-    /// invoked: same width as the main window, centered over it, and taller
-    /// than the 450pt default. Skipped when this view is embedded in the
-    /// main window itself.
+    /// invoked: sized to fit the form content (the grouped form tops out
+    /// around 690pt, so a 720pt window holds it without adopting the main
+    /// window's width), centered over the main window, and taller than the
+    /// 450pt default. Skipped when this view is embedded in the main window
+    /// itself.
     private struct SettingsWindowFrame: NSViewRepresentable {
         let appState: AppState
 
         /// The height Settings should open at.
         private static let preferredHeight: CGFloat = 640
+        /// The width that fits the settings form content.
+        private static let preferredWidth: CGFloat = 720
 
         func makeNSView(context: Context) -> NSView {
             let view = NSView()
@@ -46,7 +50,7 @@ struct SettingsView: View {
             target.size.height = max(target.height, Self.preferredHeight)
             if let frame = appState.pendingSettingsFrame {
                 appState.pendingSettingsFrame = nil
-                target.size.width = frame.width
+                target.size.width = Self.preferredWidth
                 target.origin.x = frame.midX - target.width / 2
                 target.origin.y = frame.midY - target.height / 2
             }
@@ -70,14 +74,10 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
                 .help("Controls how many sections Keg shows and how much help you get")
 
-                Text(appState.experienceLevel.detail)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                SettingsCaption(appState.experienceLevel.detail)
 
                 HStack {
-                    Text("Not sure? Replay the welcome quick select.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    SettingsCaption("Not sure? Replay the welcome quick select.")
                     Spacer()
                     Button("Show Welcome…") {
                         NotificationCenter.default.post(name: .kegShowWelcome, object: nil)
@@ -97,11 +97,9 @@ struct SettingsView: View {
             }
 
 
-            Section {
+            Section("General") {
                 Toggle("Launch Keg at login", isOn: $loginItem.isEnabled)
-                Text("Starts Keg (and its Docker socket) when you log in")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                SettingsCaption("Starts Keg (and its Docker socket) when you log in")
             }
 
             if AppState.isAgentsEnabled {
@@ -129,79 +127,7 @@ struct SettingsView: View {
 
 
             Section("Container System") {
-                HStack {
-                    switch appState.systemStatus {
-                    case .running(let health):
-                        Circle()
-                            .fill(Color.green)
-                            .frame(width: 10, height: 10)
-                        VStack(alignment: .leading) {
-                            Text("Running")
-                                .font(.headline)
-                            Text("Version: \(health.apiServerVersion)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("Build: \(health.apiServerBuild)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Button("Stop System") {
-                            Task { await appState.stopSystem() }
-                        }
-                        .controlSize(.small)
-
-                    case .stopped:
-                        Circle()
-                            .fill(Color.red)
-                            .frame(width: 10, height: 10)
-                        Text("Stopped")
-                            .font(.headline)
-                        Spacer()
-                        Button("Start System") {
-                            Task { await appState.startSystem() }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-
-                    case .unresponsive:
-                        Circle()
-                            .fill(Color.orange)
-                            .frame(width: 10, height: 10)
-                        VStack(alignment: .leading) {
-                            Text("Unresponsive")
-                                .font(.headline)
-                            Text("Services are running but not answering. Lists will stay empty until it recovers.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Button("Restart Services") {
-                            Task {
-                                await appState.stopSystem()
-                                await appState.startSystem()
-                            }
-                        }
-                        .controlSize(.small)
-
-                    case .error(let message):
-                        Circle()
-                            .fill(Color.orange)
-                            .frame(width: 10, height: 10)
-                        VStack(alignment: .leading) {
-                            Text("Error")
-                                .font(.headline)
-                            Text(message)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Button("Retry") {
-                            Task { await appState.startSystem() }
-                        }
-                        .controlSize(.small)
-                    }
-                }
+                systemStatusCard
 
                 ContainerDataLocationRow()
 
@@ -219,46 +145,17 @@ struct SettingsView: View {
 
             Form {
             Section("Docker API") {
-                HStack {
-                    Circle()
-                        .fill(appState.isDockerAPIRunning ? Color.green : Color.gray)
-                        .frame(width: 10, height: 10)
-                    VStack(alignment: .leading) {
-                        Text(appState.isDockerAPIRunning ? "Running" : "Stopped")
-                            .font(.headline)
-                        HStack(spacing: 4) {
-                            Text(appState.dockerSocketPath)
-                                .font(.system(.caption, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                                .textSelection(.enabled)
-                            Button {
-                                NSPasteboard.general.clearContents()
-                                NSPasteboard.general.setString(appState.dockerSocketPath, forType: .string)
-                            } label: {
-                                Image(systemName: "doc.on.doc")
-                            }
-                            .buttonStyle(.borderless)
-                            .controlSize(.small)
-                            .accessibilityLabel("Copy socket path")
-                        }
-                        HStack(spacing: 4) {
-                            Text("export DOCKER_HOST=unix://\(appState.dockerSocketPath)")
-                                .font(.system(.caption, design: .monospaced))
-                                .foregroundStyle(.tertiary)
-                                .textSelection(.enabled)
-                            Button {
-                                let command = "export DOCKER_HOST=unix://\(appState.dockerSocketPath)"
-                                NSPasteboard.general.clearContents()
-                                NSPasteboard.general.setString(command, forType: .string)
-                            } label: {
-                                Image(systemName: "doc.on.doc")
-                            }
-                            .buttonStyle(.borderless)
-                            .controlSize(.small)
-                            .accessibilityLabel("Copy DOCKER_HOST command")
-                        }
-                    }
-                    Spacer()
+                SettingsStatusCard(
+                    appState.isDockerAPIRunning ? .ok : .inactive,
+                    title: appState.isDockerAPIRunning ? "Running" : "Stopped"
+                ) {
+                    SettingsCopyLine(value: appState.dockerSocketPath, accessibilityLabel: "Copy socket path")
+                    SettingsCopyLine(
+                        value: "export DOCKER_HOST=unix://\(appState.dockerSocketPath)",
+                        emphasis: .subtle,
+                        accessibilityLabel: "Copy DOCKER_HOST command"
+                    )
+                } actions: {
                     if appState.isDockerAPIRunning {
                         Button("Stop") {
                             appState.stopDockerAPI()
@@ -275,12 +172,7 @@ struct SettingsView: View {
 
                 @Bindable var state = appState
                 Toggle("Start Docker API automatically", isOn: $state.dockerAPIAutoStart)
-                Text("Enables Docker CLI compatibility via Unix socket")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                SettingsCaption("Enables Docker CLI compatibility via Unix socket")
             }
             }
             .formStyle(.grouped)
@@ -356,6 +248,54 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
+    private var systemStatusCard: some View {
+        switch appState.systemStatus {
+        case .running(let health):
+            SettingsStatusCard(.ok, title: "Running") {
+                SettingsCaption("Version: \(health.apiServerVersion)")
+                SettingsCaption("Build: \(health.apiServerBuild)")
+            } actions: {
+                Button("Stop System") {
+                    Task { await appState.stopSystem() }
+                }
+                .controlSize(.small)
+            }
+
+        case .stopped:
+            SettingsStatusCard(.stopped, title: "Stopped", detail: { EmptyView() }, actions: {
+                Button("Start System") {
+                    Task { await appState.startSystem() }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            })
+
+        case .unresponsive:
+            SettingsStatusCard(.warning, title: "Unresponsive") {
+                SettingsCaption("Services are running but not answering. Lists will stay empty until it recovers.")
+            } actions: {
+                Button("Restart Services") {
+                    Task {
+                        await appState.stopSystem()
+                        await appState.startSystem()
+                    }
+                }
+                .controlSize(.small)
+            }
+
+        case .error(let message):
+            SettingsStatusCard(.warning, title: "Error") {
+                SettingsCaption(message)
+            } actions: {
+                Button("Retry") {
+                    Task { await appState.startSystem() }
+                }
+                .controlSize(.small)
+            }
+        }
+    }
+
+    @ViewBuilder
     private var agentAPISection: some View {
         if appState.isAgentAuthenticated {
             authenticatedView
@@ -365,21 +305,16 @@ struct SettingsView: View {
     }
 
     private var authenticatedView: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text("Connected")
-                    .font(.headline)
-                Spacer()
+        VStack(alignment: .leading, spacing: SettingsMetrics.groupSpacing) {
+            SettingsStatusCard(.ok, title: "Connected", detail: { EmptyView() }, actions: {
                 Button("Disconnect") {
                     disconnect()
                 }
                 .controlSize(.small)
-            }
+            })
 
             if let storedAPIKeyPreview {
-                LabeledContent("Stored API Key") {
+                SettingsRow("Stored API Key") {
                     Text(storedAPIKeyPreview)
                         .font(.system(.body, design: .monospaced))
                         .foregroundStyle(.secondary)
@@ -421,12 +356,12 @@ struct SettingsView: View {
             }
 
             if let info = accountInfo {
-                LabeledContent("Account") {
+                SettingsRow("Account") {
                     Text(info.email ?? info.userId)
                         .foregroundStyle(.secondary)
                 }
                 if let plan = info.plan {
-                    LabeledContent("Plan") {
+                    SettingsRow("Plan") {
                         Text(plan)
                             .foregroundStyle(.secondary)
                     }
@@ -436,17 +371,10 @@ struct SettingsView: View {
     }
 
     private var unauthenticatedView: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(.red)
-                Text("Not Connected")
-                    .font(.headline)
-            }
+        VStack(alignment: .leading, spacing: SettingsMetrics.groupSpacing) {
+            SettingsStatusCard(.stopped, title: "Not Connected")
 
-            Text("Enter your Claude API key to use Agents")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            SettingsCaption("Enter your Claude API key to use Agents")
 
             SecureField("API Key", text: $apiKeyInput)
                 .textFieldStyle(.roundedBorder)
@@ -585,13 +513,7 @@ private struct ContainerDataLocationRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Data Location")
-                .font(.headline)
-            Text("Where the runtime keeps containers, images, and volumes. Change it while the system is stopped, then use Start System.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
+        SettingsGroup("Data Location", caption: "Where the runtime keeps containers, images, and volumes. Change it while the system is stopped, then use Start System.") {
             HStack(spacing: 10) {
                 Text(effectivePath)
                     .font(.system(.caption, design: .monospaced))
@@ -600,7 +522,7 @@ private struct ContainerDataLocationRow: View {
                     .textSelection(.enabled)
                 if isDefault {
                     Text("default")
-                        .font(.caption2)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
@@ -619,9 +541,7 @@ private struct ContainerDataLocationRow: View {
             }
 
             if isDefault {
-                Text("Using the platform default. Pick a custom folder — for example a dedicated volume — with Browse.")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                SettingsCaption("Using the platform default. Pick a custom folder — for example a dedicated volume — with Browse.")
             }
             if let problem {
                 Text(problem)
@@ -634,7 +554,6 @@ private struct ContainerDataLocationRow: View {
                     .foregroundStyle(.orange)
             }
         }
-        .padding(.vertical, 2)
     }
 
     private func browse() {
@@ -666,56 +585,37 @@ private struct ContainerCLIStatusRow: View {    @State private var resolvedPath:
     private let releasesURL = URL(string: "https://github.com/apple/container/releases")!
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                Circle()
-                    .fill(resolvedPath != nil ? Color.green : Color.red)
-                    .frame(width: 10, height: 10)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(resolvedPath != nil ? "Installed" : "Not Installed")
-                        .font(.headline)
-                    if let path = resolvedPath {
-                        Text(path)
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                            .textSelection(.enabled)
-                    } else {
-                        Text("Keg needs Apple's container CLI to manage containers, images, and Kubernetes.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+        VStack(alignment: .leading, spacing: SettingsMetrics.groupSpacing) {
+            SettingsStatusCard(
+                resolvedPath != nil ? .ok : .stopped,
+                title: resolvedPath != nil ? "Installed" : "Not Installed"
+            ) {
+                if let path = resolvedPath {
+                    Text(path)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                } else {
+                    SettingsCaption("Keg needs Apple's container CLI to manage containers, images, and Kubernetes.")
                 }
-                Spacer()
+            } actions: {
                 Button("Re-check") { resolvedPath = ContainerCLI.resolve() }
                     .controlSize(.small)
             }
 
             if resolvedPath == nil {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 4) {
-                        Text(brewCommand)
-                            .font(.system(.caption, design: .monospaced))
-                            .textSelection(.enabled)
-                        Button {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(brewCommand, forType: .string)
-                        } label: {
-                            Image(systemName: "doc.on.doc")
+                SettingsCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        SettingsCopyLine(value: brewCommand, accessibilityLabel: "Copy install command")
+                        HStack(spacing: 8) {
+                            Button("Open in Terminal") { runBrewInstall() }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                            Button("Download from GitHub") { NSWorkspace.shared.open(releasesURL) }
+                                .controlSize(.small)
                         }
-                        .buttonStyle(.borderless)
-                        .controlSize(.small)
-                        .accessibilityLabel("Copy install command")
-                    }
-                    HStack(spacing: 8) {
-                        Button("Open in Terminal") { runBrewInstall() }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
-                        Button("Download from GitHub") { NSWorkspace.shared.open(releasesURL) }
-                            .controlSize(.small)
                     }
                 }
-                .padding(10)
-                .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 6))
             }
         }
         .padding(.vertical, 4)
@@ -738,59 +638,37 @@ private struct KegCLIStatusRow: View {
     @State private var installer = KegCLIInstaller()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                Circle()
-                    .fill(statusColor)
-                    .frame(width: 10, height: 10)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(statusTitle)
-                        .font(.headline)
-                    Text(statusDetail)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
-                }
-                Spacer()
-                switch installer.state {
-                case .installed:
-                    Button("Uninstall") { installer.uninstall() }
-                        .controlSize(.small)
-                        .disabled(installer.isWorking)
-                case .notInstalled:
-                    Button("Install") { installer.install() }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                        .disabled(installer.isWorking)
-                case .unavailable:
-                    EmptyView()
-                }
+        VStack(alignment: .leading, spacing: SettingsMetrics.groupSpacing) {
+            SettingsStatusCard(statusState, title: statusTitle) {
+                AnyView(Text(statusDetail)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled))
+            } actions: {
+                AnyView(Group {
+                    switch installer.state {
+                    case .installed:
+                        Button("Uninstall") { installer.uninstall() }
+                            .controlSize(.small)
+                            .disabled(installer.isWorking)
+                    case .notInstalled:
+                        Button("Install") { installer.install() }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                            .disabled(installer.isWorking)
+                    case .unavailable:
+                        EmptyView()
+                    }
+                })
             }
 
             if case .notInstalled = installer.state {
-                Text("Adds the `keg` command to your shell — status, ps, images, logs, start/stop/rm, doctor, and `keg open` to jump back into the app. No admin rights needed.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                SettingsCaption("Adds the `keg` command to your shell — status, ps, images, logs, start/stop/rm, doctor, and `keg open` to jump back into the app. No admin rights needed.")
             }
 
             if let hint = installer.pathHint {
-                HStack(spacing: 4) {
-                    Text(hint)
-                        .font(.system(.caption, design: .monospaced))
-                        .textSelection(.enabled)
-                    Button {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(hint, forType: .string)
-                    } label: {
-                        Image(systemName: "doc.on.doc")
-                    }
-                    .buttonStyle(.borderless)
-                    .controlSize(.small)
-                    .accessibilityLabel("Copy PATH line")
-                }
-                Text("Run this in your shell, then restart the terminal.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                SettingsCopyLine(value: hint, accessibilityLabel: "Copy PATH line")
+                SettingsCaption("Run this in your shell, then restart the terminal.")
             }
 
             if let error = installer.lastError {
@@ -803,11 +681,11 @@ private struct KegCLIStatusRow: View {
         .onAppear { installer.refresh() }
     }
 
-    private var statusColor: Color {
+    private var statusState: SettingsStatusCard<AnyView, AnyView>.State {
         switch installer.state {
-        case .installed: return .green
-        case .notInstalled: return .orange
-        case .unavailable: return .gray
+        case .installed: return .ok
+        case .notInstalled: return .warning
+        case .unavailable: return .inactive
         }
     }
 

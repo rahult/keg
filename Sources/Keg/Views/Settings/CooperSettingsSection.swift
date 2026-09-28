@@ -24,8 +24,8 @@ struct CooperSettingsSection: View {
     var body: some View {
         @Bindable var appState = appState
 
-        VStack(alignment: .leading, spacing: 14) {
-            group("Model backend", caption: backendCaption) {
+        VStack(alignment: .leading, spacing: SettingsMetrics.groupSpacing) {
+            SettingsGroup("Model backend", caption: backendCaption) {
                 Picker("", selection: $preference) {
                     ForEach(CooperBackendPreference.allCases) { preference in
                         Text(preference.label).tag(preference)
@@ -33,7 +33,6 @@ struct CooperSettingsSection: View {
                 }
                 .labelsHidden()
                 .pickerStyle(.segmented)
-                .frame(width: 340)
                 .onChange(of: preference) { _, newValue in
                     CooperRemoteConfigStore.savePreference(newValue)
                     scheduleSave()
@@ -44,7 +43,7 @@ struct CooperSettingsSection: View {
                 remoteModelGroup
             }
 
-            group("Permission mode", caption: permissionCaption(for: appState.agentPermissionMode)) {
+            SettingsGroup("Permission mode", caption: permissionCaption(for: appState.agentPermissionMode)) {
                 Picker("", selection: $appState.agentPermissionMode) {
                     ForEach(AgentPermissionMode.allCases) { mode in
                         Text(mode.rawValue).tag(mode)
@@ -52,10 +51,9 @@ struct CooperSettingsSection: View {
                 }
                 .labelsHidden()
                 .pickerStyle(.segmented)
-                .frame(width: 280)
             }
 
-            group("Conversation") {
+            SettingsGroup("Conversation") {
                 HStack(spacing: 10) {
                     Button {
                         isClearing = true
@@ -72,9 +70,7 @@ struct CooperSettingsSection: View {
                     }
                     .disabled(isClearing)
                 }
-                Text("Erases the Cooper transcript (~/.keg/cooper), for whichever backend is active. Cooper starts a fresh conversation; nothing else is affected.")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                SettingsCaption("Erases the Cooper transcript (~/.keg/cooper), for whichever backend is active. Cooper starts a fresh conversation; nothing else is affected.")
             }
 
             privacyFooter
@@ -91,30 +87,32 @@ struct CooperSettingsSection: View {
     // MARK: - Remote model group
 
     private var remoteModelGroup: some View {
-        group("Remote model", caption: remoteCaption) {
-            VStack(alignment: .leading, spacing: 10) {
-                Picker("Provider", selection: $selectedPresetID) {
-                    ForEach(CooperProviderPreset.all) { preset in
-                        Text(preset.name).tag(preset.id)
+        SettingsGroup("Remote model", caption: remoteCaption) {
+            VStack(alignment: .leading, spacing: SettingsMetrics.groupSpacing) {
+                SettingsRow("Provider") {
+                    Picker("", selection: $selectedPresetID) {
+                        ForEach(CooperProviderPreset.all) { preset in
+                            Text(preset.name).tag(preset.id)
+                        }
                     }
-                }
-                .frame(width: 280)
-                .onChange(of: selectedPresetID) { _, newID in
-                    if let preset = CooperProviderPreset.all.first(where: { $0.id == newID }) {
-                        config.baseURL = preset.baseURL
-                        fetchedModels = []
-                        scheduleSave()
+                    .labelsHidden()
+                    .frame(width: SettingsMetrics.pickerWidth)
+                    .onChange(of: selectedPresetID) { _, newID in
+                        if let preset = CooperProviderPreset.all.first(where: { $0.id == newID }) {
+                            config.baseURL = preset.baseURL
+                            fetchedModels = []
+                            scheduleSave()
+                        }
                     }
                 }
 
-                LabeledContent("Server URL") {
+                SettingsRow("Server URL") {
                     TextField("https://api.openai.com/v1", text: $config.baseURL)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 280)
                         .onChange(of: config.baseURL) { _, _ in scheduleSave() }
                 }
 
-                LabeledContent("Model") {
+                SettingsRow("Model") {
                     HStack(spacing: 8) {
                         TextField(modelPlaceholder, text: $config.model)
                             .textFieldStyle(.roundedBorder)
@@ -135,7 +133,7 @@ struct CooperSettingsSection: View {
                 }
 
                 if !fetchedModels.isEmpty {
-                    LabeledContent("Available") {
+                    SettingsRow("Available") {
                         Picker("", selection: Binding(
                             get: { config.model },
                             set: { config.model = $0; scheduleSave() }
@@ -144,7 +142,7 @@ struct CooperSettingsSection: View {
                                 Text(model).tag(model)
                             }
                         }
-                        .frame(width: 280)
+                        .frame(width: SettingsMetrics.pickerWidth)
                         .labelsHidden()
                     }
                 }
@@ -154,40 +152,37 @@ struct CooperSettingsSection: View {
                         .foregroundStyle(.red)
                 }
 
-                LabeledContent("API key") {
+                SettingsRow("API key") {
                     SecureField(preset?.needsKey == false ? "not needed for local servers" : "sk-…", text: $apiKey)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 280)
                         .onChange(of: apiKey) { _, _ in scheduleSave() }
                 }
 
-                LabeledContent("Thinking") {
+                SettingsRow("Thinking") {
                     Picker("", selection: $config.thinking) {
                         ForEach(CooperThinkingPreference.allCases) { thinking in
                             Text(thinking.label).tag(thinking)
                         }
                     }
-                    .frame(width: 280)
+                    .frame(width: SettingsMetrics.pickerWidth)
                     .labelsHidden()
                     .onChange(of: config.thinking) { _, _ in scheduleSave() }
                 }
 
                 DisclosureGroup("Advanced") {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Extra request JSON (merged into every request, overrides everything above — for provider-specific switches like {\"enable_thinking\": false} or {\"temperature\": 0.2}).")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        TextEditor(text: $config.extraBodyJSON)
-                            .font(.system(size: 11, design: .monospaced))
-                            .frame(height: 64)
-                            .scrollContentBackground(.hidden)
-                            .padding(4)
-                            .background(.quinary, in: RoundedRectangle(cornerRadius: 6))
-                            .onChange(of: config.extraBodyJSON) { _, _ in scheduleSave() }
-                        if let issue = CooperRemoteConfig.extraBodyIssue(config.extraBodyJSON) {
-                            Text(issue)
-                                .font(.caption2)
-                                .foregroundStyle(.red)
+                    SettingsCard {
+                        VStack(alignment: .leading, spacing: SettingsMetrics.groupSpacing) {
+                            SettingsCaption("Extra request JSON (merged into every request, overrides everything above — for provider-specific switches like {\"enable_thinking\": false} or {\"temperature\": 0.2}).")
+                            TextEditor(text: $config.extraBodyJSON)
+                                .font(.system(size: 11, design: .monospaced))
+                                .frame(height: 64)
+                                .scrollContentBackground(.hidden)
+                                .onChange(of: config.extraBodyJSON) { _, _ in scheduleSave() }
+                            if let issue = CooperRemoteConfig.extraBodyIssue(config.extraBodyJSON) {
+                                Text(issue)
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
+                            }
                         }
                     }
                     .padding(.vertical, 4)
@@ -201,13 +196,9 @@ struct CooperSettingsSection: View {
     private var privacyFooter: some View {
         let systemAvailability = CooperAvailability.from(systemModel: .default)
         if preference == .onDevice || (preference == .auto && systemAvailability == .ready) {
-            Text("The on-device path runs entirely on Apple's FoundationModels — requests never leave this Mac. Destructive actions always ask, in every mode.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+            SettingsCaption("The on-device path runs entirely on Apple's FoundationModels — requests never leave this Mac. Destructive actions always ask, in every mode.")
         } else {
-            Text("Requests on the remote path go to \(config.hostDisplay.isEmpty ? "the configured server" : config.hostDisplay) and include your Keg state snapshot. The API key is stored in this Mac's Keychain. Destructive actions always ask, in every mode.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+            SettingsCaption("Requests on the remote path go to \(config.hostDisplay.isEmpty ? "the configured server" : config.hostDisplay) and include your Keg state snapshot. The API key is stored in this Mac's Keychain. Destructive actions always ask, in every mode.")
         }
     }
 
@@ -280,19 +271,5 @@ struct CooperSettingsSection: View {
         case .execute:
             "Cooper applies routine actions on its own; destructive actions still ask."
         }
-    }
-
-    private func group(_ name: String, caption: String? = nil, @ViewBuilder content: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(name)
-                .font(.subheadline.weight(.semibold))
-            content()
-            if let caption {
-                Text(caption)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.vertical, 2)
     }
 }

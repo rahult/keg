@@ -649,6 +649,45 @@ DisclosureGroup(isExpanded: $isExpanded) {
 
 ---
 
+## 18. Settings Screen
+
+Every tab is a grouped `Form` (`Section("Title")` headers) whose content is
+built from the shared components in
+`Sources/Keg/Views/Settings/SettingsComponents.swift`. Do not hand-roll rows,
+status displays, or caption styles in Settings — extend the components instead.
+
+| Component | Use for |
+|-----------|---------|
+| `SettingsGroup("Title", caption:)` | Titled group of controls inside a VStack-based section view; optional explanatory caption |
+| `SettingsRow("Label") { control }` | Label column (140pt) + control column (280pt) — the only row layout inside VStack section views; the full-width leading frame defeats the form's centering of fixed-width rows |
+| `SettingsStatusCard(.ok/.stopped/.warning/.inactive/.info, title:)` | Every status display: colored dot + headline + detail + trailing action |
+| `SettingsCopyLine("value")` | Monospaced, selectable values with one-click copy (§4 idiom) |
+| `SettingsCaption("text")` | The one descriptive-text style: `.caption` + `.secondary` |
+| `SettingsCard { }` | Subtle rounded container for auxiliary content (install steps, advanced editors) |
+
+Rules:
+
+- **Spacing rhythm**: 12pt between groups (`SettingsMetrics.groupSpacing`), 4pt
+  group padding, 10pt card padding. No one-off spacing values.
+- **Buttons**: `.controlSize(.small)` everywhere in Settings; the single
+  primary action adds `.borderedProminent`; clipboard copies are always
+  borderless `doc.on.doc` via `SettingsCopyLine`.
+- **Text fields**: `.textFieldStyle(.roundedBorder)`.
+- **Segmented pickers** size naturally (never force them into a fixed width —
+  macOS clips the first segment's label); menu pickers use
+  `SettingsMetrics.pickerWidth`.
+- **Toggles** in VStack section views: `SettingsRow("Label") { Toggle("",
+  isOn: …).labelsHidden() }`. Toggles placed directly in a `Form` keep their
+  native labeled form row.
+- **Native `Form` rows** (direct children of `Section`) stay native:
+  `Picker("Label")`, `Toggle("Label")`, `LabeledContent` — don't wrap them.
+- Never nest a second `Form` inside a tab.
+- macOS 26 quirk: a `TextField` placeholder that looks like a URL renders as a
+  blue AXLink outside the bezel — pre-existing AppKit behavior, not a layout
+  bug.
+
+---
+
 ## Quick Reference: File Checklist
 
 Before submitting a new view, verify:

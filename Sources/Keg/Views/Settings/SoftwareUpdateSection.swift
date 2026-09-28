@@ -11,8 +11,11 @@ struct SoftwareUpdateSection: View {
     var body: some View {
         @Bindable var updater = updater
 
-        VStack(alignment: .leading, spacing: 8) {
-            Toggle("Check for updates automatically", isOn: $updater.automaticallyChecksForUpdates)
+        VStack(alignment: .leading, spacing: SettingsMetrics.groupSpacing) {
+            SettingsRow("Check for updates automatically") {
+                Toggle("", isOn: $updater.automaticallyChecksForUpdates)
+                    .labelsHidden()
+            }
 
             if updater.automaticallyChecksForUpdates {
                 Picker("Check", selection: $updater.checkFrequency) {
@@ -24,19 +27,18 @@ struct SoftwareUpdateSection: View {
                 .fixedSize()
             }
 
-            Toggle("Download and install updates automatically", isOn: $updater.automaticallyDownloadsUpdates)
-                .disabled(!updater.automaticallyChecksForUpdates)
+            SettingsRow("Download and install updates automatically") {
+                Toggle("", isOn: $updater.automaticallyDownloadsUpdates)
+                    .labelsHidden()
+                    .disabled(!updater.automaticallyChecksForUpdates)
+            }
 
-            Text("Automatic updates are installed the next time you quit Keg, so a running container is never interrupted by one.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            SettingsCaption("Automatic updates are installed the next time you quit Keg, so a running container is never interrupted by one.")
 
             Divider()
 
             HStack {
-                Text(lastCheckedDescription)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                SettingsCaption(lastCheckedDescription)
                 Spacer()
                 Button("Check Now") { updater.checkForUpdates() }
                     .controlSize(.small)
