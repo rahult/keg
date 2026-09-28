@@ -18,7 +18,9 @@ enum CooperKnowledge {
         case dockerCompatibility
         case composeSupport
         case appsStore
+        case gateway
         case kegCLI
+        case kegProjects
         case kubernetesCluster
         case runtimeStorage
         case troubleshooting
@@ -32,7 +34,9 @@ enum CooperKnowledge {
         case .dockerCompatibility: return dockerCompatibility
         case .composeSupport: return composeSupport
         case .appsStore: return appsStore
+        case .gateway: return gateway
         case .kegCLI: return kegCLI
+        case .kegProjects: return kegProjects
         case .kubernetesCluster: return kubernetesCluster
         case .runtimeStorage: return runtimeStorage
         case .troubleshooting: return troubleshooting
@@ -152,6 +156,35 @@ enum CooperKnowledge {
       the failing service's container logs.
     """
 
+    private static let gateway = """
+    GATEWAY (memorable app hostnames, http://<name>.keg)
+    - A loopback DNS responder plus a Host-routing proxy inside Keg:
+      installed apps answer at http://<id>.keg:8080 (e.g. memos.keg), so
+      nobody has to remember ports. Entirely local — only this Mac can
+      reach those names.
+    - One-time root step, surfaced by Keg but never run by it: a
+      /etc/resolver/keg file routes *.keg DNS queries to Keg's responder
+      (port 15353; container-apiserver owns 1053/2053). Settings →
+      Gateway shows the exact command with Copy / Open in Terminal.
+    - The proxy (127.0.0.1:8080) routes by Host header to each app's
+      published port; WebSockets and streaming pass through. The app
+      cards show memos.keg:8080 style addresses when the gateway is on;
+      direct 127.0.0.1:<port> keeps working as a fallback.
+    - Setup checks: gateway enabled (Settings → Gateway), the resolver
+      file present, and the proxy running. When names don't resolve,
+      the resolver file is the usual missing piece; when they resolve
+      but hang, the app or the proxy is down — check the app first.
+    - Custom <name>.keg → localhost:port routes for development live in
+      the same Settings tab; an app with the same name wins.
+    - HTTPS opt-in (Settings → Gateway): Keg issues per-app certificates
+      from a local CA (key stays in the login keychain) and serves
+      https://<id>.keg:8443. Trusting the CA needs one system dialog.
+      Wildcards are impossible by design — macOS rejects *.keg
+      wildcard certs even when trusted.
+    - Port-free 443/80 (no :8443/:8080 suffix) is future work; it needs
+      a privileged helper for the privileged ports.
+    """
+
     private static let kegCLI = """
     KEG COMPANION CLI (`keg`)
     - Install from Keg's Settings (or `keg install`); puts `keg` on PATH.
@@ -161,8 +194,42 @@ enum CooperKnowledge {
     - App control: open [section] — sections: containers, images,
       compose, kubernetes, networks, volumes, logs, terminal, dashboard,
       settings; keg://<section> deep links do the same from anywhere.
+    - Repo infra: keg project up|down|status|logs|validate|init — driven
+      by a keg.yaml in the repo (topic: kegProjects). `keg up` and
+      `keg down` are short aliases.
+    - Agent skill: `keg skill install` teaches coding agents the whole
+      workflow; `keg skill show` prints the same handbook.
     - `keg env` prints DOCKER_HOST for full docker CLI workflows;
       `keg version`, `keg uninstall`.
+    """
+
+    private static let kegProjects = """
+    KEG PROJECTS (keg.yaml — container infra for any repo)
+    - A keg.yaml in a repo root declares services; `keg project up`
+      (alias `keg up`) builds or pulls each one and starts them in
+      depends_on order. `keg project down` stops and removes them
+      (data in bind mounts and named volumes always survives).
+    - Service fields: image OR build (context dir, optional dockerfile
+      and args), ports "host:container" (host port must be >1024),
+      environment (KEY=value with ${VAR} / ${VAR:-default} from your
+      shell or the repo's .env), env_file, volumes ("./dir:/path" binds,
+      "name:/path" named volumes), command, entrypoint, workdir,
+      platform (linux/arm64 default), restart, depends_on, labels.
+    - Containers are named <project>-<service>-1 with
+      com.docker.compose.project labels, so they show grouped under the
+      project name in the Compose screen.
+    - No inter-container DNS (same as everywhere in Keg), and published
+      ports listen on the Mac's loopback only — containers cannot reach
+      other containers' published ports (verified 2026-09-27). depends_on
+      is start ordering only; published ports are for tools on the Mac at
+      127.0.0.1:<hostPort>. Keep multi-service projects to independent
+      services, not server+database stacks.
+    - `keg project validate` checks the file cold; `keg project status
+      --json` is machine-readable; `keg project logs <service> [-f]`
+      tails a service. If a container dies at startup, `up` fails with
+      its log tail attached — read it before re-running.
+    - `keg project init` scaffolds a keg.yaml pre-detected for
+      node/python/go/rust/swift/Dockerfile repos.
     """
 
     private static let kubernetesCluster = """
