@@ -269,19 +269,43 @@ final class LateHTTPPipelineBuilder: ChannelInboundHandler, RemovableChannelHand
         self.responderReady = responderReady
     }
 
+    func handlerAdded(context: ChannelHandlerContext) {
+        // Fallback: if parts arrive but the read-complete that triggers the
+        // pipeline build is never seen (the intermittent request-swallow),
+        // force the build after a short delay so an accepted connection can
+        // never sit undispatched until the client gives up. No-op when the
+        // fast path already engaged, and the empty-buffered guard keeps idle
+        // health-check connects untouched.
+        context.eventLoop.scheduleTask(in: .seconds(2)) { [weak self] in
+            guard let self, !self.engaged, !self.buffered.isEmpty else { return }
+            self.logger.warning(
+                "LateHTTPPipelineBuilder: read-complete lost, forcing pipeline build",
+                metadata: ["bufferedParts": "\(self.buffered.count)"]
+            )
+            self.engage(context: context)
+        }
+    }
+
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         if engaged {
             context.fireChannelRead(data)
             return
         }
         buffered.append(data)
+        // Build the pipeline as soon as the first part arrives rather than
+        // gating on read-complete: parts reaching this handler have already
+        // passed the upgrade handler's decision, and the read-complete gate
+        // was the one place a lost event left the connection swallowed.
+        engage(context: context)
     }
 
     func channelReadComplete(context: ChannelHandlerContext) {
-        guard !engaged, !buffered.isEmpty else {
-            context.fireChannelReadComplete()
-            return
-        }
+        engage(context: context)
+        context.fireChannelReadComplete()
+    }
+
+    private func engage(context: ChannelHandlerContext) {
+        guard !engaged, !buffered.isEmpty else { return }
         engaged = true
 
         do {

@@ -127,7 +127,9 @@ final class AppState {
     private var cooperNotedUnresponsive = false
     private var cooperNotedStopped = false
 
-    private let containerClient = ContainerClient()
+    /// Fresh client per access — a stored client's xpc connection goes
+    /// permanently invalid when the apiserver restarts under us.
+    private var containerClient: ContainerClient { ContainerClient() }
     private let agentAutomationService = AgentAutomationService()
     /// The Apps section: curated one-click installs. Loads its catalog and
     /// installation registry lazily (prepare()); never blocks launch.

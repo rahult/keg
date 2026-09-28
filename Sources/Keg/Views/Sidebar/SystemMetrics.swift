@@ -29,7 +29,9 @@ actor SystemMetrics {
 
     private let bytesPerGB = 1_073_741_824.0
     private let cacheInterval: TimeInterval = 2.0
-    private let containerClient = ContainerClient()
+    /// Fresh client per access — a stored client's xpc connection goes
+    /// permanently invalid when the apiserver restarts under us.
+    private var containerClient: ContainerClient { ContainerClient() }
 
     private var cachedMetrics: Metrics?
     private var lastFetch: Date?

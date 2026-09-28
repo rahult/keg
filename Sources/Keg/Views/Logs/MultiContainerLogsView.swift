@@ -29,7 +29,9 @@ final class MultiContainerLogsVM {
     var isPaused = false
     var errorMessage: String?
 
-    private let client = ContainerClient()
+    /// Fresh client per access — a stored client's xpc connection goes
+    /// permanently invalid when the apiserver restarts under us.
+    private var client: ContainerClient { ContainerClient() }
     private var subscriptions: [String: Process] = [:]
     private var buffers: [String: String] = [:]
 

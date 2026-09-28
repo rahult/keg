@@ -48,7 +48,38 @@ struct ContainerListView: View {
     }
 
     var body: some View {
-        Group {
+        VStack(spacing: 0) {
+            if let errorMessage = vm.errorMessage {
+                // A failed refresh (runtime booting, wedged, XPC hiccup) must
+                // never read as "no containers" — say what happened and offer
+                // a retry. Cleared automatically on the next successful pull.
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.yellow)
+                    Text(errorMessage)
+                        .font(.callout)
+                        .lineLimit(2)
+                        .help(errorMessage)
+                    Spacer()
+                    Button("Retry") {
+                        Task { await vm.refresh() }
+                    }
+                    .controlSize(.small)
+                    Button {
+                        vm.errorMessage = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Dismiss error")
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.yellow.opacity(0.08))
+                Divider()
+            }
+            Group {
             if vm.isLoading && vm.containers.isEmpty {
                 ProgressView("Loading containers...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -216,12 +247,19 @@ struct ContainerListView: View {
                     }
                 }
             }
+            }
         }
         .navigationTitle("Containers")
         .searchable(text: $searchText, prompt: "Search containers")
         .searchFocused($isSearchFocused)
         .onChange(of: searchText) { vm.searchText = searchText }
         .onChange(of: selectedContainerIDs) { appState.selectedContainerID = selectedContainerIDs.first }
+        .onChange(of: appState.isSystemRunning) { _, running in
+            // The first refresh can fire while the runtime is still booting
+            // and fail silently into "No Containers Yet" — retry on the
+            // running-transition so the list heals without a relaunch.
+            if running { Task { await vm.refresh() } }
+        }
         .onDeleteCommand {
             if !selectedContainerIDs.isEmpty {
                 showingDeleteConfirmation = true

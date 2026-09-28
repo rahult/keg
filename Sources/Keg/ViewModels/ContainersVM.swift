@@ -32,7 +32,10 @@ final class ContainersVM {
     /// inline sparkline in the list's CPU column.
     var cpuHistory: [String: [Double]] = [:]
 
-    private let client = ContainerClient()
+    /// Fresh client per access: a stored client keeps one xpc_connection_t,
+    /// which goes permanently invalid ("Connection invalid") when the
+    /// apiserver stops/restarts or wasn't registered yet at creation.
+    private var client: ContainerClient { ContainerClient() }
     private var statsTask: Task<Void, Never>?
     private var previousCPU: [String: (usec: UInt64, at: Date)] = [:]
 

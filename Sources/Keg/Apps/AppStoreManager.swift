@@ -112,7 +112,9 @@ final class AppStoreManager {
     var isRefreshingStatuses = false
 
     private let orchestrator = ComposeOrchestrator()
-    private let containerClient = ContainerClient()
+    /// Fresh client per access — a stored client's xpc connection goes
+    /// permanently invalid when the apiserver restarts under us.
+    private var containerClient: ContainerClient { ContainerClient() }
     private var didLoad = false
     private var isSyncingCatalog = false
     /// Set by AppState; supplies gateway URLs for `preferredURL`. Weak

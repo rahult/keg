@@ -394,8 +394,18 @@ public struct KegProjectEngine {
                 for: service, name: serviceName, project: config.name
             )
             progress("preparing \(image) (pulled on demand)")
-            try client.createContainer(request: createRequest, name: containerName)
-            try client.start(id: containerName, timeoutSeconds: 300)
+            do {
+                try client.createContainer(request: createRequest, name: containerName)
+                try client.start(id: containerName, timeoutSeconds: 300)
+            } catch let clientError as UnixSocketHTTPClient.ClientError {
+                // A lost response does not mean a lost operation: the server
+                // may have created/started the container while the client
+                // gave up (seen under load — EAGAIN and slow lists surface
+                // as .timeout). Verify against actual state before failing.
+                let state = try? client.inspect(id: containerName).state.status.lowercased()
+                guard state == "running" else { throw clientError }
+                progress("\(serviceName): create/start response lost — container is running, continuing")
+            }
             progress("starting \(containerName)")
 
             try waitUntilRunning(containerName: containerName, service: serviceName, timeout: options.waitTimeout) { line in

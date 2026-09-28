@@ -42,7 +42,9 @@ final class HealthScoreVM {
         }
     }
 
-    private let client = ContainerClient()
+    /// Fresh client per access — a stored client's xpc connection goes
+    /// permanently invalid when the apiserver restarts under us.
+    private var client: ContainerClient { ContainerClient() }
 
     func refresh() async {
         isLoading = true

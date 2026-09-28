@@ -13,7 +13,11 @@ actor ContainerBridge {
 
     /// Shared XPC connection to container-apiserver. Used for operations the
     /// CLI can't express: real exit codes, exec process control, stats.
-    static let xpc = ContainerClient()
+    /// Fresh client per call — the docker API server outlives runtime
+    /// stop/start cycles, and a stored client's xpc connection goes
+    /// permanently invalid ("Connection invalid") when the apiserver
+    /// restarts underneath it.
+    static var xpc: ContainerClient { ContainerClient() }
 
     /// Exit-code futures for containers started through the Docker API, so
     /// `POST /wait` can report the actual exit code. Stored as a task (not

@@ -9,7 +9,9 @@ struct ContainerStatsView: View {
     @State private var cpuPercent: Double = 0
     @State private var memPercent: Double = 0
 
-    private let client = ContainerClient()
+    /// Fresh client per access — a stored client's xpc connection goes
+    /// permanently invalid when the apiserver restarts under us.
+    private var client: ContainerClient { ContainerClient() }
 
     var body: some View {
         VStack(spacing: 12) {
