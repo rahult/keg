@@ -28,6 +28,10 @@ final class ContainersVM {
     /// containers get entries; computed by `startLiveStats` polling.
     var liveMetrics: [String: LiveContainerMetrics] = [:]
 
+    /// Recent CPU-percent samples per container (oldest first), for the
+    /// inline sparkline in the list's CPU column.
+    var cpuHistory: [String: [Double]] = [:]
+
     private let client = ContainerClient()
     private var statsTask: Task<Void, Never>?
     private var previousCPU: [String: (usec: UInt64, at: Date)] = [:]
@@ -55,6 +59,7 @@ final class ContainersVM {
             // Always fetch all containers, filter in filteredContainers
             containers = try await client.list(filters: .all)
             errorMessage = nil
+            ContainerActivityLog.shared.observe(containers)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -149,7 +154,11 @@ final class ContainersVM {
             let now = Date()
             var percent: Double = 0
             if let prev = previousCPU[container.id], now.timeIntervalSince(prev.at) > 0 {
-                let deltaUsec = Double(usage - prev.usec)
+                // Counters reset when a container restarts; subtracting
+                // would underflow the UInt64 and trap the app (crash seen
+                // 2026-09-25 during app-install churn). Treat a backwards
+                // counter as one fresh sample.
+                let deltaUsec = Double(usage >= prev.usec ? usage - prev.usec : 0)
                 let elapsed = now.timeIntervalSince(prev.at)
                 let cores = max(Double(container.configuration.resources.cpus), 1)
                 percent = max(0, min(deltaUsec / (elapsed * 1_000_000 * cores) * 100, 100 * cores))
@@ -160,10 +169,17 @@ final class ContainersVM {
                 memoryUsedBytes: stats.memoryUsageBytes ?? 0,
                 memoryLimitBytes: stats.memoryLimitBytes ?? 0
             )
+            var history = cpuHistory[container.id] ?? []
+            history.append(percent)
+            if history.count > 30 {
+                history.removeFirst(history.count - 30)
+            }
+            cpuHistory[container.id] = history
         }
         // Drop stale entries for containers that stopped or disappeared
         let valid = Set(containers.filter { $0.status == .running }.map(\.id))
         liveMetrics = liveMetrics.filter { valid.contains($0.key) }
         previousCPU = previousCPU.filter { valid.contains($0.key) }
+        cpuHistory = cpuHistory.filter { valid.contains($0.key) }
     }
 }

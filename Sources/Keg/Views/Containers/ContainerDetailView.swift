@@ -128,6 +128,7 @@ enum ContainerDetailTab: String, CaseIterable, Identifiable {
 
 struct ContainerDetailView: View {
     let containerID: String
+    @Environment(AppState.self) private var appState
     @State private var vm: ContainerDetailVM
     @State private var metricsVM = MetricsHistoryVM()
     @State private var selectedTab: ContainerDetailTab = .overview
@@ -202,7 +203,18 @@ struct ContainerDetailView: View {
     @ViewBuilder
     private func tabContent(_ container: ContainerSnapshot) -> some View {
         switch selectedTab {
-        case .overview:    OverviewTab(container: container, stats: vm.stats, metrics: metricsVM)
+        case .overview:
+            OverviewTab(
+                container: container,
+                stats: vm.stats,
+                metrics: metricsVM,
+                access: ContainerAccessResolver.resolve(
+                    container,
+                    installations: appState.apps.installations,
+                    gatewayEnabled: appState.gateway.isEnabled
+                ),
+                activity: ContainerActivityLog.shared.events(for: container.id)
+            )
         case .environment: EnvironmentTab(container: container)
         case .mounts:      MountsTab(container: container)
         case .files:
@@ -222,6 +234,14 @@ struct ContainerDetailView: View {
 
     @ViewBuilder
     private func headerActions(_ container: ContainerSnapshot) -> some View {
+        Button {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(container.id, forType: .string)
+        } label: {
+            Image(systemName: "doc.on.doc")
+        }
+        .help("Copy full container ID")
+        .accessibilityLabel("Copy container ID")
         if container.status == .running {
             AdaptiveActionButton(title: "Stop", systemImage: "stop.fill") {
                 Task { await vm.stop() }
@@ -266,6 +286,8 @@ private struct OverviewTab: View {
     let container: ContainerSnapshot
     let stats: ContainerStats?
     let metrics: MetricsHistoryVM
+    var access: ContainerAccess?
+    var activity: [ContainerEvent]
 
     var body: some View {
         ScrollView {
@@ -306,6 +328,9 @@ private struct OverviewTab: View {
                 VStack(alignment: .leading, spacing: 16) {
                     SectionGrid("Overview", rows: overviewRows)
                     isolationBanner
+                    if !activity.isEmpty {
+                        recentActivity
+                    }
                     SectionGrid("Image", rows: imageRows)
                     SectionGrid("Network", rows: networkRows)
                     SectionGrid("Resources", rows: resourceRows)
@@ -379,6 +404,47 @@ private struct OverviewTab: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// Lifecycle transitions observed this session (Render-style event
+    /// timeline): explains "why is it down" without digging through logs.
+    private var recentActivity: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Recent Activity")
+                .font(.callout.weight(.semibold))
+            ForEach(activity.prefix(5)) { event in
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(eventColor(event.kind))
+                        .frame(width: 6, height: 6)
+                    Text(event.kind.label)
+                        .font(.caption)
+                    Spacer(minLength: 8)
+                    Text(event.date, format: .relative(presentation: .named))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .help(event.date.formatted(date: .abbreviated, time: .standard))
+                }
+            }
+            if activity.count > 5 {
+                Text("\(activity.count - 5) earlier this session")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(12)
+        .background(.quinary, in: RoundedRectangle(cornerRadius: 8))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Recent activity: \(activity.prefix(5).map(\.kind.label).joined(separator: ", "))")
+    }
+
+    private func eventColor(_ kind: ContainerEvent.Kind) -> Color {
+        switch kind {
+        case .started: return .green
+        case .stopped: return .gray
+        case .stopping: return .orange
+        case .unknown: return .red
+        }
+    }
+
     /// Apple's runtime doesn't return freed memory pages to macOS while the
     /// VM runs (partial ballooning). Say so where the memory numbers are.
     private var memoryReclaimHint: some View {
@@ -410,6 +476,9 @@ private struct OverviewTab: View {
 
     private var networkRows: [SectionGrid.Row] {
         var rows: [SectionGrid.Row] = []
+        if let access {
+            rows.append(.init(access.isGateway ? "Gateway URL" : "Web Address", access.url.absoluteString, copyable: true))
+        }
         if let net = container.networks.first {
             rows.append(.init("Address", net.ipv4Address.description, copyable: true))
             rows.append(.init("Gateway", net.ipv4Gateway.description))
@@ -608,19 +677,53 @@ private struct LogsTab: View {
 
 // MARK: - Stats Tab
 
+/// Sampling runs only while the inspector is open (one point every 2s,
+/// 60 points ≈ 2 minutes), so the honest ranges are short ones.
+private enum StatsRange: String, CaseIterable, Identifiable {
+    case s30 = "Last 30s"
+    case m1 = "Last 1m"
+    case all = "All samples"
+
+    var id: String { rawValue }
+
+    var cutoff: Date? {
+        switch self {
+        case .s30: return Date().addingTimeInterval(-30)
+        case .m1: return Date().addingTimeInterval(-60)
+        case .all: return nil
+        }
+    }
+}
+
 private struct StatsTab: View {
     let metrics: MetricsHistoryVM
+    @State private var range: StatsRange = .all
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                MetricsTimelineView(title: "CPU Time", points: metrics.cpuHistory, color: .blue, unit: "s")
-                MetricsTimelineView(title: "Memory", points: metrics.memoryHistory, color: .green, unit: "%")
-                MetricsTimelineView(title: "Network RX", points: metrics.networkRxHistory, color: .purple, unit: "bps")
-                MetricsTimelineView(title: "Network TX", points: metrics.networkTxHistory, color: .orange, unit: "bps")
+                Picker("Range", selection: $range) {
+                    ForEach(StatsRange.allCases) { range in
+                        Text(range.rawValue).tag(range)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityLabel("Stats time range")
+
+                MetricsTimelineView(title: "CPU Time", points: filtered(metrics.cpuHistory), color: .blue, unit: "s")
+                MetricsTimelineView(title: "Memory", points: filtered(metrics.memoryHistory), color: .green, unit: "%")
+                MetricsTimelineView(title: "Network RX", points: filtered(metrics.networkRxHistory), color: .purple, unit: "bps")
+                MetricsTimelineView(title: "Network TX", points: filtered(metrics.networkTxHistory), color: .orange, unit: "bps")
             }
             .padding(20)
         }
+    }
+
+    private func filtered(_ points: [MetricsHistoryVM.MetricPoint]) -> [MetricsHistoryVM.MetricPoint] {
+        guard let cutoff = range.cutoff else { return points }
+        return points.filter { $0.timestamp >= cutoff }
     }
 }
 

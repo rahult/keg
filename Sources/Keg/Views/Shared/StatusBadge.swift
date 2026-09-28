@@ -5,12 +5,17 @@ struct StatusBadge: View {
 
     let status: String
 
+    /// Color grammar: green = serving, blue = provisioned, yellow = held,
+    /// orange = transitional, gray = at rest. A deliberate stop is a normal
+    /// state, not a failure — red stays reserved for dead/failed/error.
     private var color: Color {
         switch status.lowercased() {
         case "running": return contrast == .increased ? .primary : .green
-        case "stopped", "exited": return contrast == .increased ? .primary : .red
+        case "stopping": return contrast == .increased ? .primary : .orange
         case "created": return contrast == .increased ? .primary : .blue
         case "paused": return contrast == .increased ? .primary : .yellow
+        case "dead", "failed", "error": return contrast == .increased ? .primary : .red
+        case "stopped", "exited": return contrast == .increased ? .primary : .gray
         default: return contrast == .increased ? .primary : .gray
         }
     }
