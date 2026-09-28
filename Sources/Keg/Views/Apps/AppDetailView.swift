@@ -180,7 +180,7 @@ struct AppDetailView: View {
 
                     Spacer()
 
-                    if let url = apps.webURL(for: installation) {
+                    if let url = apps.preferredURL(for: installation) {
                         Button {
                             NSPasteboard.general.clearContents()
                             NSPasteboard.general.setString(url.absoluteString, forType: .string)

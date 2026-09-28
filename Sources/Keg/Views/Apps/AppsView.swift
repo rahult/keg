@@ -245,6 +245,14 @@ struct InstalledAppCard: View {
     private var status: AppStoreManager.AppStatus { apps.status(for: installation.appID) }
     private var icon: String { apps.app(withID: installation.appID)?.icon ?? "shippingbox" }
 
+    /// `memos.keg:8080` when the gateway serves the app, `127.0.0.1:port` otherwise.
+    private var displayAddress: String? {
+        if let url = apps.gatewayURL(for: installation), let host = url.host {
+            return host + (url.port.map { ":\($0)" } ?? "")
+        }
+        return installation.webPort.map { "127.0.0.1:\($0)" }
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             AppIcon(symbolName: icon)
@@ -253,8 +261,8 @@ struct InstalledAppCard: View {
                     .font(.headline)
                 HStack(spacing: 6) {
                     StatusBadge(status: status.label)
-                    if let port = installation.webPort {
-                        Text("127.0.0.1:\(port)")
+                    if let address = displayAddress {
+                        Text(address)
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                             .fontDesign(.monospaced)
@@ -262,7 +270,7 @@ struct InstalledAppCard: View {
                 }
             }
             Spacer()
-            if let url = apps.webURL(for: installation), status == .running {
+            if let url = apps.preferredURL(for: installation), status == .running {
                 Button("Open") {
                     apps.openWebUI(for: installation)
                 }
@@ -285,7 +293,7 @@ struct InstalledAppCard: View {
         .accessibilityAddTraits(.isButton)
         .contextMenu {
             Button("Show Details", action: onOpenDetails)
-            if let url = apps.webURL(for: installation) {
+            if let url = apps.preferredURL(for: installation) {
                 Button("Copy Address") {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(url.absoluteString, forType: .string)

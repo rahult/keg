@@ -140,6 +140,14 @@ struct AppInstallSheet: View {
                                 Text("The app's web page opens at this port. Change it if another app already uses it.")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
+
+                                if apps.gateway?.isEnabled == true,
+                                   let hostname = GatewayRouteTable.appHostname(forAppID: app.id) {
+                                    Label("With the Gateway on, this app also answers at http://\(hostname):\(GatewayConfig.proxyPort)",
+                                          systemImage: "globe")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
 

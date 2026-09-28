@@ -19,3 +19,7 @@ outputs/tools/
 
 # ZCode session scratch
 .zcode/
+
+# Gateway spike artifacts: throwaway PKI (private keys) + compiled probes
+spike/gateway/pki/
+spike/gateway/dnsspike

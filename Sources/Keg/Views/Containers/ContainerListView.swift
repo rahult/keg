@@ -16,6 +16,22 @@ struct ContainerListView: View {
         vm.filteredContainers.map { IdentifiableContainer($0) }
     }
 
+    /// How each container is reachable from the Mac: an installed app's
+    /// Gateway hostname (when the Gateway is on) or its first published port.
+    private var accessByContainer: [String: ContainerAccess] {
+        var out: [String: ContainerAccess] = [:]
+        for container in vm.containers {
+            if let access = ContainerAccessResolver.resolve(
+                container,
+                installations: appState.apps.installations,
+                gatewayEnabled: appState.gateway.isEnabled
+            ) {
+                out[container.id] = access
+            }
+        }
+        return out
+    }
+
     /// Tells the truth about how much of the dataset is on screen — a
     /// running-only filter over 65 containers must never read as data loss.
     private var subtitle: String {
@@ -86,6 +102,31 @@ struct ContainerListView: View {
                     }
                     .width(min: 100, max: 150)
 
+                    TableColumn("URL") { item in
+                        if let access = accessByContainer[item.snapshot.id] {
+                            Button {
+                                NSWorkspace.shared.open(access.url)
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: access.isGateway ? "globe" : "network")
+                                        .font(.caption2)
+                                        .foregroundStyle(access.isGateway ? Color.teal : .secondary)
+                                    Text(access.display)
+                                        .font(.system(.caption, design: .monospaced))
+                                        .lineLimit(1)
+                                        .truncationMode(.tail)
+                                }
+                            }
+                            .buttonStyle(.borderless)
+                            .help("Open \(access.url.absoluteString)")
+                            .accessibilityLabel("Open \(access.display)")
+                        } else {
+                            Text("—")
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .width(min: 110, max: 170)
+
                     TableColumn("Ports") { item in
                         Text(item.snapshot.configuration.publishedPorts.map { "\($0.hostPort):\($0.containerPort)" }.joined(separator: ", "))
                             .font(.system(.caption, design: .monospaced))
@@ -94,17 +135,21 @@ struct ContainerListView: View {
                     .width(min: 80)
 
                     TableColumn("CPU") { item in
-                        if let metrics = vm.liveMetrics[item.snapshot.id] {
-                            Text(String(format: "%.0f%%", metrics.cpuPercent))
-                                .font(.system(.body, design: .monospaced))
-                                .foregroundStyle(metrics.cpuPercent >= 80 ? .red : (metrics.cpuPercent >= 50 ? .orange : .secondary))
-                        } else {
-                            Text(item.snapshot.status == .running ? "…" : "—")
-                                .font(.system(.body, design: .monospaced))
-                                .foregroundStyle(.tertiary)
+                        HStack(spacing: 6) {
+                            InlineSparkline(values: vm.cpuHistory[item.snapshot.id] ?? [], color: .blue)
+                                .frame(width: 40, height: 14)
+                            if let metrics = vm.liveMetrics[item.snapshot.id] {
+                                Text(String(format: "%.0f%%", metrics.cpuPercent))
+                                    .font(.system(.body, design: .monospaced))
+                                    .foregroundStyle(metrics.cpuPercent >= 80 ? .red : (metrics.cpuPercent >= 50 ? .orange : .secondary))
+                            } else {
+                                Text(item.snapshot.status == .running ? "…" : "—")
+                                    .font(.system(.body, design: .monospaced))
+                                    .foregroundStyle(.tertiary)
+                            }
                         }
                     }
-                    .width(min: 56, max: 80)
+                    .width(min: 100, max: 130)
 
                     TableColumn("Memory") { item in
                         if let metrics = vm.liveMetrics[item.snapshot.id] {
@@ -125,8 +170,9 @@ struct ContainerListView: View {
 
                     TableColumn("Started") { item in
                         if let date = item.snapshot.startedDate {
-                            Text(date, format: .dateTime.month(.abbreviated).day().hour().minute())
+                            Text(date, format: .relative(presentation: .named))
                                 .foregroundStyle(.secondary)
+                                .help(date.formatted(date: .abbreviated, time: .standard))
                         }
                     }
                     .width(min: 100)
@@ -150,6 +196,7 @@ struct ContainerListView: View {
                         ContainerContextMenu(
                             id: id,
                             container: container,
+                            access: accessByContainer[id],
                             onRecreate: {
                                 recreateContainer = IdentifiableContainer(container)
                             },
@@ -202,12 +249,13 @@ struct ContainerListView: View {
             ToolbarItem(id: "filter", placement: .automatic) {
                 // Segmented so the active state is always visible — a lone
                 // toggle button read as a static label and hid 64 containers.
+                // Counts preview what each side of the filter holds.
                 Picker("Filter", selection: $vm.showOnlyRunning) {
-                    Text("All").tag(false)
-                    Text("Running").tag(true)
+                    Text("All (\(vm.containers.count))").tag(false)
+                    Text("Running (\(vm.runningCount))").tag(true)
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 150)
+                .frame(width: 200)
                 .help("Limit the list to running containers")
                 .accessibilityHint("Limit the list to running containers")
             }
@@ -385,6 +433,7 @@ struct ContainerListView: View {
 struct ContainerContextMenu: View {
     let id: String
     let container: ContainerSnapshot
+    var access: ContainerAccess?
     let onRecreate: () -> Void
     let onDelete: () -> Void
     let onAskCooper: () -> Void
@@ -403,6 +452,17 @@ struct ContainerContextMenu: View {
             }
         } else {
             Button("Start") { Task { await vm.start(id: id) } }
+        }
+
+        if let access {
+            Button("Open \(access.display)") {
+                NSWorkspace.shared.open(access.url)
+            }
+            Button("Copy URL") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(access.url.absoluteString, forType: .string)
+            }
+            Divider()
         }
 
         Divider()

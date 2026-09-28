@@ -303,6 +303,15 @@ struct SettingsView: View {
 
 
             Form {
+            Section("Gateway") {
+                GatewaySettingsSection()
+            }
+            }
+            .formStyle(.grouped)
+            .tabItem { Label("Gateway", systemImage: "globe") }
+
+
+            Form {
             Section("About") {
                 LabeledContent("App", value: "Keg")
                 LabeledContent("Version", value: AppVersion.displayString)

@@ -27,6 +27,14 @@ let package = Package(
         // NIOHTTPTypesHTTP1 hosts HTTP1ToHTTPServerCodec, needed by the
         // Docker hijack channel to convert classic HTTP parts to HTTPTypes.
         .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.33.0"),
+        // Already in the graph via Hummingbird/containerization; declared so
+        // the Gateway proxy can depend on NIOPosix/NIOCore explicitly.
+        .package(url: "https://github.com/apple/swift-nio.git", from: "2.80.0"),
+        // Gateway TLS: cert issuance (X509), key types (Crypto), and the
+        // NIO TLS handler. swift-nio-ssl is already in the graph.
+        .package(url: "https://github.com/apple/swift-certificates.git", from: "1.0.0"),
+        .package(url: "https://github.com/apple/swift-crypto.git", from: "3.0.0"),
+        .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.25.0"),
     ],
     targets: [
         // Shared logic for the `keg` companion CLI and the app's CLI
@@ -34,7 +42,15 @@ let package = Package(
         // reuse the install-location rules without linking GUI code.
         .target(
             name: "KegCLICore",
+            dependencies: [
+                .product(name: "Yams", package: "Yams"),
+            ],
             path: "Sources/KegCLICore",
+            // The agent skill the `keg skill` commands install; shipped with
+            // the CLI so any machine with `keg` on PATH can install it.
+            resources: [
+                .copy("Resources"),
+            ],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
         .executableTarget(
@@ -55,6 +71,11 @@ let package = Package(
                 .product(name: "ContainerizationOS", package: "containerization"),
                 .product(name: "Hummingbird", package: "hummingbird"),
                 .product(name: "NIOHTTPTypesHTTP1", package: "swift-nio-extras"),
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOPosix", package: "swift-nio"),
+                .product(name: "NIOSSL", package: "swift-nio-ssl"),
+                .product(name: "X509", package: "swift-certificates"),
+                .product(name: "Crypto", package: "swift-crypto"),
                 .product(name: "Yams", package: "Yams"),
                 .product(name: "Sparkle", package: "Sparkle"),
                 .product(name: "SwiftTerm", package: "SwiftTerm"),
@@ -79,6 +100,12 @@ let package = Package(
                 .product(name: "ContainerAPIClient", package: "container"),
                 .product(name: "ContainerResource", package: "container"),
                 .product(name: "ContainerPersistence", package: "container"),
+                .product(name: "ContainerizationOCI", package: "containerization"),
+                .product(name: "X509", package: "swift-certificates"),
+                .product(name: "Crypto", package: "swift-crypto"),
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOPosix", package: "swift-nio"),
+                .product(name: "NIOSSL", package: "swift-nio-ssl"),
             ],
             path: "Tests/KegTests"
         ),

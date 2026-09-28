@@ -38,6 +38,18 @@ final class AppState {
             if case .running = systemStatus, dockerAPIAutoStart, !isDockerAPIRunning {
                 startDockerAPI()
             }
+            // Apps that opted into auto-start: retry on every running-
+            // transition, not only at launch — a runtime that was slow to
+            // come up during ensureReady would otherwise leave its apps
+            // stopped until the next app relaunch. startAutoStartApps skips
+            // already-running apps and dedupes via activeOperations.
+            if case .running = systemStatus {
+                var wasAlreadyRunning = false
+                if case .running = oldValue { wasAlreadyRunning = true }
+                if !wasAlreadyRunning {
+                    Task { await apps.startAutoStartApps() }
+                }
+            }
         }
     }
 
@@ -120,6 +132,9 @@ final class AppState {
     /// The Apps section: curated one-click installs. Loads its catalog and
     /// installation registry lazily (prepare()); never blocks launch.
     let apps = AppStoreManager()
+    /// The Gateway: loopback DNS + Host-routing proxy giving installed apps
+    /// `http://<id>.keg:8080` URLs. Independent of the container runtime.
+    let gateway = GatewayController()
     private var refreshTimer: Timer?
 
     init() {
@@ -148,6 +163,20 @@ final class AppState {
         }
 
         self.isCooperPanelVisible = UserDefaults.standard.bool(forKey: Self.cooperPanelVisibleDefaultsKey)
+
+        // The gateway routes app hostnames to installed apps; the provider
+        // keeps its table in step with the installation registry without
+        // either side owning the other.
+        gateway.routeProvider = { [weak self] in
+            self?.apps.gatewayRouteEntries ?? []
+        }
+        apps.gateway = gateway
+        apps.onRoutesChanged = { [weak self] in
+            self?.gateway.rebuildRouteTable()
+        }
+        if gateway.isEnabled {
+            gateway.start()
+        }
         // Last: captures self, legal only once every stored member exists.
         Task { await cooper.attach(to: self) }
 
@@ -174,6 +203,13 @@ final class AppState {
     /// Bring the container backend and Docker API up without user intervention.
     /// Called from the main window on launch.
     func ensureReady() async {
+        // The gateway is runtime-independent; make sure it's serving whenever
+        // Keg is (init already starts it when enabled, this covers enable-
+        // while-running races and route refreshes after app installs).
+        gateway.rebuildRouteTable()
+        if gateway.isEnabled, !gateway.isProxyRunning {
+            gateway.start()
+        }
         await checkSystemStatus()
         if case .stopped = systemStatus {
             await startSystem()

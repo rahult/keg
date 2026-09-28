@@ -115,6 +115,9 @@ final class AppStoreManager {
     private let containerClient = ContainerClient()
     private var didLoad = false
     private var isSyncingCatalog = false
+    /// Set by AppState; supplies gateway URLs for `preferredURL`. Weak
+    /// because AppState owns both sides.
+    weak var gateway: GatewayController?
 
     // Injectable roots/session so catalog merge and registry sync can be
     // exercised against temp directories in tests.
@@ -122,6 +125,13 @@ final class AppStoreManager {
     var catalogRemoteCacheOverride: URL?
     var catalogRemoteBaseOverride: URL?
     var catalogSession: URLSession = RemoteCatalog.makeSession()
+
+    /// Fired (on the main actor) whenever the installation set or its ports
+    /// change, so the Gateway can refresh its routing table.
+    var onRoutesChanged: (() -> Void)?
+    private func notifyRoutesChanged() {
+        onRoutesChanged?()
+    }
 
     private var userCatalogDirectoryURL: String {
         catalogUserDirectoryOverride ?? Self.userCatalogDirectory
@@ -408,6 +418,7 @@ final class AppStoreManager {
         )
         installations.append(record)
         saveInstallations()
+        notifyRoutesChanged()
         serviceStates[app.id] = await currentState(for: record)
     }
 
@@ -515,6 +526,7 @@ final class AppStoreManager {
         }
         installations.removeAll { $0.appID == installation.appID }
         saveInstallations()
+        notifyRoutesChanged()
         serviceStates[installation.appID] = []
         if deleteData {
             try? FileManager.default.removeItem(atPath: installation.dataRoot)
@@ -598,9 +610,36 @@ final class AppStoreManager {
         return URL(string: "http://127.0.0.1:\(port)\(webUI.path)")
     }
 
+    /// The gateway hostname for an installed app (e.g. `https://memos.keg`'s
+    /// http form) when the gateway is serving it; nil means callers should
+    /// fall back to `webURL`.
+    func gatewayURL(for installation: AppInstallation) -> URL? {
+        guard let app = app(withID: installation.appID), let webUI = app.webUI else { return nil }
+        return gateway?.url(forAppID: installation.appID, webUIPath: webUI.path)
+    }
+
+    /// Preferred public URL: gateway hostname when available, direct port
+    /// otherwise.
+    func preferredURL(for installation: AppInstallation) -> URL? {
+        gatewayURL(for: installation) ?? webURL(for: installation)
+    }
+
     func openWebUI(for installation: AppInstallation) {
-        guard let url = webURL(for: installation) else { return }
+        guard let url = preferredURL(for: installation) else { return }
         NSWorkspace.shared.open(url)
+    }
+
+    // MARK: Gateway routes
+
+    /// Hostname routes for every installed app with a web UI; the
+    /// GatewayController reads these into its routing table.
+    var gatewayRouteEntries: [GatewayRoute] {
+        prepare()
+        return installations.compactMap { installation in
+            guard let port = installation.webPort,
+                  let hostname = GatewayRouteTable.appHostname(forAppID: installation.appID) else { return nil }
+            return GatewayRoute(hostname: hostname, port: port, label: installation.name)
+        }
     }
 
     // MARK: Helpers
