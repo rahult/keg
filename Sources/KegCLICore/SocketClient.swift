@@ -48,8 +48,8 @@ public struct UnixSocketHTTPClient: Sendable {
         try request("GET", path, body: nil)
     }
 
-    public func post(_ path: String, body: Data? = nil) throws -> Response {
-        try request("POST", path, body: body)
+    public func post(_ path: String, body: Data? = nil, timeoutSeconds: Int32? = nil) throws -> Response {
+        try request("POST", path, body: body, timeoutSeconds: timeoutSeconds)
     }
 
     public func delete(_ path: String) throws -> Response {
@@ -57,6 +57,19 @@ public struct UnixSocketHTTPClient: Sendable {
     }
 
     public func request(_ method: String, _ path: String, body: Data? = nil) throws -> Response {
+        try request(method, path, body: body, timeoutSeconds: nil)
+    }
+
+    /// `timeoutSeconds` overrides the socket's default for this call only.
+    /// Long operations (an image pull inside create, a streamed build) run
+    /// far past the 10s interactive default; the timeout is per-recv, so a
+    /// server that keeps streaming never trips it.
+    public func request(
+        _ method: String,
+        _ path: String,
+        body: Data? = nil,
+        timeoutSeconds: Int32? = nil
+    ) throws -> Response {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else {
             throw ClientError.socketFailed(String(cString: strerror(errno)))
@@ -87,7 +100,7 @@ public struct UnixSocketHTTPClient: Sendable {
         }
 
         // Bounded reads/writes so a stuck server can't hang the CLI forever.
-        var timeout = timeval(tv_sec: Int(timeoutSeconds), tv_usec: 0)
+        var timeout = timeval(tv_sec: Int(timeoutSeconds ?? self.timeoutSeconds), tv_usec: 0)
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
         setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
 
@@ -106,8 +119,22 @@ public struct UnixSocketHTTPClient: Sendable {
         }
         guard sent >= 0 else { throw ClientError.sendFailed(String(cString: strerror(errno))) }
         if let body {
-            body.withUnsafeBytes { raw in
-                _ = send(fd, raw.baseAddress, raw.count, 0)
+            // Large bodies (build context tarballs) send in chunks — a
+            // single send() can accept only part of a multi-megabyte write.
+            try body.withUnsafeBytes { raw in
+                var offset = 0
+                while offset < raw.count {
+                    let n = send(fd, raw.baseAddress! + offset, raw.count - offset, 0)
+                    if n > 0 {
+                        offset += n
+                        continue
+                    }
+                    if n < 0, errno == EAGAIN || errno == EINTR {
+                        Thread.sleep(forTimeInterval: 0.05)
+                        continue
+                    }
+                    throw ClientError.sendFailed(String(cString: strerror(errno)))
+                }
             }
         }
 
@@ -115,7 +142,15 @@ public struct UnixSocketHTTPClient: Sendable {
         var buffer = [UInt8](repeating: 0, count: 65536)
         while true {
             let received = recv(fd, &buffer, buffer.count, 0)
-            if received <= 0 { break }
+            if received < 0 {
+                // EAGAIN here means the per-call timeout elapsed with no
+                // bytes — worth naming, not disguising as a bad response.
+                if errno == EAGAIN || errno == EWOULDBLOCK {
+                    throw ClientError.timeout
+                }
+                break
+            }
+            if received == 0 { break }
             collected.append(contentsOf: buffer[0..<received])
             if let parsed = Self.parse(collected), parsed.hasCompleteBody { break }
         }

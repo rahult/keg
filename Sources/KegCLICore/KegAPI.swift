@@ -113,8 +113,8 @@ public struct CLIContainerInspect: Decodable, Sendable {
 public struct KegAPIClient: Sendable {
     public let http: UnixSocketHTTPClient
 
-    public init(socketPath: String) {
-        self.http = UnixSocketHTTPClient(socketPath: socketPath)
+    public init(socketPath: String, timeoutSeconds: Int32 = 10) {
+        self.http = UnixSocketHTTPClient(socketPath: socketPath, timeoutSeconds: timeoutSeconds)
     }
 
     public func ping() throws -> Bool {

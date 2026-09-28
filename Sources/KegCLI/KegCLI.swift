@@ -27,6 +27,11 @@ enum KegCLI {
       stop <id>…             Stop containers
       restart <id>…          Restart containers
       rm [-f] <id>…          Remove containers (-f removes running ones)
+      project <sub>          Repo infra from keg.yaml: init · validate ·
+                             up · status · logs · down (`keg up`, `keg down`
+                             and `keg init` are aliases; see: keg project)
+      skill <sub>            Install/update the keg agent skill for coding
+                             agents (see: keg skill)
       open [section]         Open the Keg app (containers, images, compose,
                              kubernetes, networks, volumes, logs, terminal,
                              dashboard, settings)
@@ -93,6 +98,13 @@ enum KegCLI {
         case "stop": return lifecycle(.stop, operands: operands, socketOverride: socketOverride, print: print)
         case "restart": return lifecycle(.restart, operands: operands, socketOverride: socketOverride, print: print)
         case "rm": return remove(operands: operands, socketOverride: socketOverride, print: print)
+        case "project": return KegCLIProject.run(operands, socketOverride: socketOverride, print: print)
+        case "up", "down", "init":
+            // Project aliases — `keg status`/`keg logs` keep their existing
+            // container-level meaning, so only the non-colliding verbs alias.
+            let subcommand = command
+            return KegCLIProject.run([subcommand] + operands, socketOverride: socketOverride, print: print)
+        case "skill": return KegCLIProject.runSkill(operands, print: print)
         case "open": return openApp(operands: operands, print: print)
         case "install": return install(operands: operands, print: print)
         case "uninstall": return uninstall(print: print)
@@ -109,6 +121,15 @@ enum KegCLI {
         let path = override ?? KegSocketResolver.resolve()
         guard let path else { return nil }
         return KegAPIClient(socketPath: path)
+    }
+
+    /// Doctor diagnoses, so it can afford patience: `container list -a` on
+    /// a machine with many containers outruns the interactive 10s default
+    /// and would otherwise report a healthy runtime as broken.
+    private static func patientClient(_ override: String?) -> KegAPIClient? {
+        let path = override ?? KegSocketResolver.resolve()
+        guard let path else { return nil }
+        return KegAPIClient(socketPath: path, timeoutSeconds: 60)
     }
 
     private static func requireClient(_ override: String?, print: (String) -> Void) -> KegAPIClient? {
@@ -163,7 +184,7 @@ enum KegCLI {
             hint: "open the Keg app, or start the Docker API from Settings → Docker API"
         )
 
-        guard let path = socketPath, let client = client(socketOverride) else {
+        guard let path = socketPath, let client = patientClient(socketOverride) else {
             print("  ✗ remaining checks need the socket")
             return 1
         }
@@ -198,6 +219,19 @@ enum KegCLI {
         )
         if let installed {
             print("     link: \(installed.linkPath)")
+        }
+
+        // 4b. Agent skill — how coding agents learn to drive this CLI.
+        let skillStates = KegSkill.installedDirectories()
+        check(
+            "keg agent skill installed",
+            !skillStates.isEmpty,
+            hint: "run `keg skill install` — coding agents read it to drive keg.yaml infra"
+        )
+        if skillStates.contains(where: { $0.state == .outdated }) {
+            let stale = skillStates.filter { $0.state == .outdated }
+                .map { $0.directory.path }.joined(separator: ", ")
+            print("      → out of date at \(stale) — refresh with `keg skill install`")
         }
 
         // 5. Containers respond

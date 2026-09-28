@@ -70,6 +70,8 @@ bundle: build
 	@test -f $(BUILD_DIR)/kegcli || { echo "❌ keg CLI binary not found. Run 'swift build -c release' (builds all targets)."; exit 1; }
 	@cp $(BUILD_DIR)/kegcli $(SHARED_SUPPORT_BIN)/keg
 	@chmod 755 $(SHARED_SUPPORT_BIN)/keg
+	# The CLI's resource bundle carries the agent skill (keg skill install).
+	@if [ -d "$(BUILD_DIR)/Keg_KegCLICore.bundle" ]; then cp -R "$(BUILD_DIR)/Keg_KegCLICore.bundle" "$(SHARED_SUPPORT_BIN)/"; fi
 	@cp $(ICON_FILE) $(RES_DIR)/Keg.icns
 	@cp $(MENU_BAR_ICON_FILE) $(RES_DIR)/KegMenuBarTemplate.png
 	@test -d $(SPARKLE_FRAMEWORK) || { echo "❌ Sparkle.framework not found. Run 'swift package resolve' first."; exit 1; }
