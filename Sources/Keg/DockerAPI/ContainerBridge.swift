@@ -179,6 +179,13 @@ actor ContainerBridge {
             args += ["-w", workingDir]
         }
 
+        // apple's --entrypoint takes a single token (no space-splitting);
+        // extra entrypoint elements are re-attached in front of the command
+        // below, so argv = entrypoint + cmd still holds.
+        if let entrypoint = req.entrypoint, let first = entrypoint.first, !first.isEmpty {
+            args += ["--entrypoint", first]
+        }
+
         // A requested platform different from the host selects the image
         // variant AND enables Rosetta translation for amd64.
         if let platform = req.platform, !platform.isEmpty, platform != Self.hostPlatform {
@@ -189,9 +196,9 @@ actor ContainerBridge {
             args.append(image)
         }
 
-        if let cmd = req.cmd {
-            args += cmd
-        }
+        var command = req.entrypoint.map { Array($0.dropFirst()) } ?? []
+        command += req.cmd ?? []
+        args += command
 
         return args
     }

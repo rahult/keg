@@ -326,9 +326,6 @@ actor ComposeOrchestrator {
         if service.privileged == true {
             warnings.append("privileged: ignored — containers are already isolated VMs")
         }
-        if service.entrypoint != nil {
-            warnings.append("entrypoint: ignored — use command: instead")
-        }
         return warnings
     }
 
@@ -478,6 +475,13 @@ actor ComposeOrchestrator {
             resolvedImage: resolvedImage
         )
 
+        // Recreate semantics: a container from a previous run — crashed,
+        // exited, or built from an older template — must not wedge `up` on
+        // a name conflict. `down` removes running ones; this catches the
+        // leftovers `down` never sees (auto-start over an exited container).
+        let containerName = service.containerName ?? "\(projectName)-\(serviceName)-1"
+        _ = try? await runLogged(["container", "delete", "-f", containerName], progress: progress)
+
         let (code, output) = try await runLogged(args, progress: progress)
         if code != 0 {
             throw ComposeError.runFailed(serviceName, output)
@@ -540,6 +544,14 @@ actor ComposeOrchestrator {
             args += ["-w", wd]
         }
 
+        // The runtime does not apply the image's WorkingDir to relative
+        // entrypoints/cmds (verified live: linkding's `./bootstrap.sh` and
+        // Uptime Kuma's `extra/entrypoint.sh` both fail on stock configs),
+        // so templates must be able to override with an absolute path.
+        if let entrypoint = service.entrypoint, !entrypoint.isEmpty {
+            args += ["--entrypoint", entrypoint]
+        }
+
         if let deploy = service.deploy, let limits = deploy.resources?.limits {
             if let cpus = limits.cpus { args += ["--cpus", cpus] }
             if let memory = limits.memory { args += ["--memory", memory] }
@@ -548,7 +560,20 @@ actor ComposeOrchestrator {
         args.append(resolvedImage)
 
         if let cmd = service.command {
-            args += ["sh", "-lc", cmd]
+            // Non-login shell on purpose: `-l` sources /etc/profile, which
+            // resets PATH and wipes the image's own ENV additions (broke
+            // linkding's .venv — Django vanished). Images relying on their
+            // ENV must keep it intact.
+            //
+            // With an `entrypoint:` override the runtime composes
+            // process.argv = [entrypoint] + args, so the wrapper's own
+            // program token must NOT be repeated (argv [sh, -c, cmd] after
+            // `--entrypoint /bin/sh` makes dash try to open a file "sh").
+            if service.entrypoint?.hasSuffix("sh") == true {
+                args += ["-c", cmd]
+            } else {
+                args += ["sh", "-c", cmd]
+            }
         }
 
         return args

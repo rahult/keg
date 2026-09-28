@@ -80,6 +80,8 @@ enum BundledAppCatalog {
         linkding:
           image: sissbruecker/linkding:latest
           container_name: kegapp-linkding-app
+          working_dir: /etc/linkding
+          command: /etc/linkding/bootstrap.sh
           ports:
             - "{{.KegWebPort}}:9090"
           environment:
@@ -110,6 +112,8 @@ enum BundledAppCatalog {
         uptime-kuma:
           image: louislam/uptime-kuma:1
           container_name: kegapp-uptime-kuma-app
+          entrypoint: /bin/sh
+          command: exec node /app/server/server.js
           ports:
             - "{{.KegWebPort}}:3001"
           volumes:
@@ -214,6 +218,8 @@ enum BundledAppCatalog {
         umami:
           image: ghcr.io/umami-software/umami:latest
           container_name: kegapp-umami-app
+          entrypoint: /app/docker-entrypoint.sh
+          working_dir: /app
           ports:
             - "{{.KegWebPort}}:3000"
           environment:
