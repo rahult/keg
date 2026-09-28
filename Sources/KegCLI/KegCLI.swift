@@ -30,6 +30,10 @@ enum KegCLI {
       project <sub>          Repo infra from keg.yaml: init · validate ·
                              up · status · logs · down (`keg up`, `keg down`
                              and `keg init` are aliases; see: keg project)
+      db <sub>               Shared database servers (postgres · mysql ·
+                             redis): list · ensure · drop · url · run ·
+                             remove — one container per engine, many
+                             databases inside (see: keg db)
       skill <sub>            Install/update the keg agent skill for coding
                              agents (see: keg skill)
       open [section]         Open the Keg app (containers, images, compose,
@@ -99,6 +103,7 @@ enum KegCLI {
         case "restart": return lifecycle(.restart, operands: operands, socketOverride: socketOverride, print: print)
         case "rm": return remove(operands: operands, socketOverride: socketOverride, print: print)
         case "project": return KegCLIProject.run(operands, socketOverride: socketOverride, print: print)
+        case "db": return KegCLIDatabase.run(operands, socketOverride: socketOverride, print: print)
         case "up", "down", "init":
             // Project aliases — `keg status`/`keg logs` keep their existing
             // container-level meaning, so only the non-colliding verbs alias.

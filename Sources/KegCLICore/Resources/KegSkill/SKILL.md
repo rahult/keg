@@ -1,6 +1,6 @@
 ---
 name: keg
-description: Run any local codebase as containers on macOS with Keg (Apple container microVMs). Use when the user wants to containerize, run, test, or serve a local repo — write a keg.yaml, `keg project up`, verify with status/logs/curl, iterate, then `keg project down`. Also use for questions about the keg CLI, Keg the macOS app, or Apple's `container` runtime.
+description: Run any local codebase as containers on macOS with Keg (Apple container microVMs). Use when the user wants to containerize, run, test, or serve a local repo — write a keg.yaml, `keg project up`, verify with status/logs/curl, iterate, then `keg project down`. Also use for databases (`keg db ensure postgres --database <app>` → connection URL for code running on the Mac), questions about the keg CLI, Keg the macOS app, or Apple's `container` runtime.
 ---
 
 # Keg — container infra for local repos
@@ -104,6 +104,49 @@ container's published port, not even via `192.168.64.1` (verified live
   separate project or on a host already reachable to you, and point the
   app at a host-side address.
 
+## Databases: shared servers, many databases (preferred)
+
+One container per engine — `kegdb-postgres`, `kegdb-mysql`, `kegdb-redis`
+— hosts **many logical databases**, one per app. This is the default
+pattern: you pay one microVM per engine, not one per project, and every
+app still gets an isolated database. (`keg db remove` is the explicit
+escape hatch; a `db:` service inside keg.yaml is for when a project
+genuinely needs a dedicated container.)
+
+```sh
+keg db ensure postgres --database todo_app --user todoapp
+# → creates the shared server on first call, the database and a
+#   per-database login role inside it, then prints:
+#   export DATABASE_URL='postgresql://todoapp:<pw>@127.0.0.1:5432/todo_app'
+
+keg db list                     # servers, ports, and their databases
+keg db url postgres todo_app    # reprint a connection URL
+keg db run postgres -- psql -U keg -d todo_app -c '\dt'   # admin shell
+keg db drop postgres todo_app   # evict clients + drop the database
+```
+
+- **`ensure` is idempotent** — safe to run at the start of every agent
+  session; it creates only what's missing and reprints the URL.
+- URLs are loopback (`127.0.0.1:<port>`): app code and migration tools
+  run **on the Mac** (where agents work anyway) and reach the database
+  directly. Do not try to reach a keg container from another container.
+- Role passwords are generated (or `--password`) and printed once with
+  the URL; the superuser record lives in `~/.keg/db/registry.json` and
+  server data in the runtime volume `kegdb-<engine>-data` (survives
+  `remove` unless `--delete-data`).
+- Redis: no databases to create — `keg db ensure redis` starts the
+  server; use URL path `/0`…`/15` for keyspaces.
+
+Typical full-stack agent flow (e.g. a todo app):
+
+1. `keg db ensure postgres --database todo_app --user todoapp` → URL.
+2. Run the backend on the Mac with `DATABASE_URL` from step 1
+   (`cd backend && npm run dev`) — hot reload works, DB is one hop away.
+3. Frontend dev server likewise on the Mac; browsers hit both at their
+   `127.0.0.1` ports.
+4. Only services that need no peers (a CI worker, a one-off tool) go
+   into `keg.yaml` as containers.
+
 ## Command quick reference
 
     keg project init [--force]      scaffold keg.yaml (stack-detected)
@@ -113,6 +156,10 @@ container's published port, not even via `192.168.64.1` (verified live
     keg project logs <svc> [-f]     service logs (stream with -f)
     keg project down                stop + remove this project's containers
     keg up / keg down / keg init    short aliases of the above
+    keg db ensure <e> [--database]  shared DB server + database, idempotent
+    keg db list | url | drop        inspect / reprint / remove databases
+    keg db run <engine> -- <cmd…>   run a command in the server container
+    keg db remove <engine>          remove the shared server (data kept)
     keg ps [-a] / keg images        raw container/image lists
     keg logs <container> [-f]       any container's logs (by name)
     keg exec <container> <cmd…>     run a command inside a container

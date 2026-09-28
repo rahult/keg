@@ -100,10 +100,13 @@ public struct CLIContainerInspect: Decodable, Sendable {
         }
     }
     public let state: ContainerState
+    /// May be absent depending on what the bridge's inspect includes.
+    public let labels: [String: String]?
 
     enum CodingKeys: String, CodingKey {
         case id = "Id"
         case state = "State"
+        case labels = "Labels"
     }
 }
 
