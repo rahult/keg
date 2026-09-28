@@ -7,6 +7,7 @@ import ContainerResource
 
 struct RunContainerView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppState.self) private var appState
 
     /// Optional prefilled image (e.g. "Run" from the Images list). If it's a
     /// known quick-start image (hello-world, nginx) the whole form is filled
@@ -59,6 +60,11 @@ struct RunContainerView: View {
             Text("Run Container")
                 .font(.headline)
 
+            // Before the form, not after a failed run: a missing kernel
+            // means the pull below would burn bandwidth and then die at
+            // "Fetching kernel". Catch it while the user can still choose.
+            BootKernelWarningBanner()
+
             if let preset, !isRunning, !succeeded {
                 Label(preset.blurb, systemImage: "info.circle.fill")
                     .font(.callout)
@@ -78,6 +84,9 @@ struct RunContainerView: View {
         }
         .padding(20)
         .frame(width: 500)
+        .task {
+            await appState.checkBootKernel()
+        }
         // No root accessibilityLabel here: it used to bleed onto the buttons,
         // making Cancel and Run indistinguishable to assistive tech.
     }
@@ -190,13 +199,21 @@ struct RunContainerView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
+    private var isBootKernelMissing: Bool {
+        if case .missing = appState.bootKernelStatus { return true }
+        return false
+    }
+
     private var canRun: Bool {
-        !imageName.isEmpty && ContainerRunArguments.volumeMountProblems(volumes).isEmpty
+        !imageName.isEmpty
+            && ContainerRunArguments.volumeMountProblems(volumes).isEmpty
+            && !isBootKernelMissing
     }
 
     private var runButtonHelp: String {
         if imageName.isEmpty { return "Enter an image name first" }
         if !ContainerRunArguments.volumeMountProblems(volumes).isEmpty { return "Fix the highlighted volume entry first" }
+        if isBootKernelMissing { return "Install the boot kernel first — new containers can't start without it" }
         return "Download the image if needed and start the container"
     }
 
@@ -224,6 +241,18 @@ struct RunContainerView: View {
                 kill(pid, SIGKILL)
             }
         }
+    }
+
+    /// Translates raw CLI run failures into something actionable. The kernel
+    /// case is the one users hit through no fault of their own: a runtime
+    /// upgrade (container 1.4+) leaves no default registered, and the stock
+    /// error says nothing about how to fix it. Raced checks can still land
+    /// here — the banner may not have appeared yet.
+    static func runFailureMessage(output: String, image: String) -> String {
+        if output.contains("default kernel not configured") {
+            return "The runtime has no boot kernel registered, so \(image) can't start. Install it with the button above (or Settings → Apple Containers → Boot Kernel), then run again."
+        }
+        return output.isEmpty ? "Failed to run \(image)" : output
     }
 
     private func runContainer() {
@@ -282,7 +311,7 @@ struct RunContainerView: View {
                 if status != 0 {
                     errorMessage = wasCancelled
                         ? "Cancelled."
-                        : (output.isEmpty ? "Failed to run \(imageName)" : output)
+                        : Self.runFailureMessage(output: output, image: imageName)
                 } else if !detached {
                     // Foreground demo (hello-world): show what it printed.
                     successOutput = output.trimmingCharacters(in: .whitespacesAndNewlines)

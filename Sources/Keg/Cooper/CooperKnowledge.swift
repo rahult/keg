@@ -25,6 +25,7 @@ enum CooperKnowledge {
         case runtimeStorage
         case troubleshooting
         case quickStarts
+        case agentBackend
     }
 
     static func text(for topic: Topic) -> String {
@@ -41,6 +42,7 @@ enum CooperKnowledge {
         case .runtimeStorage: return runtimeStorage
         case .troubleshooting: return troubleshooting
         case .quickStarts: return quickStarts
+        case .agentBackend: return agentBackend
         }
     }
 
@@ -69,6 +71,13 @@ enum CooperKnowledge {
       means recreate (Keg's Edit & Recreate).
     - Stopping a container must go through the CLI — the HTTP API's stop
       is broken against CLI >= 1.3 (Keg works around this).
+    - Boot kernel: runtime 1.4+ requires an explicitly registered default
+      kernel (`container system kernel set --recommended --force`);
+      until then every run fails with "default kernel not configured for
+      architecture arm64" — typical right after a Homebrew runtime
+      upgrade. Keg detects this and auto-installs the recommended kernel
+      once per session; the Run sheet banner, Health panel, and
+      Settings → Apple Containers keep manual repair buttons for retries.
     """
 
     private static let kegArchitecture = """
@@ -288,5 +297,30 @@ enum CooperKnowledge {
     - "Run something else…": custom image field. Cooper can prefill this
       form via open_run_sheet; nothing runs until the user submits.
     - All quick starts pin the native arm64 platform.
+    """
+
+    private static let agentBackend = """
+    COOPER'S MODEL BACKEND
+    - Two brains, one agent. Preferred: Apple's on-device FoundationModels
+      model. Fallback (or user-forced): any OpenAI-compatible
+      chat-completions server — OpenAI, OpenRouter, Groq, DeepSeek,
+      Mistral, Together, Fireworks, or local Ollama / LM Studio / vLLM.
+    - Selection is in Settings → Cooper → Model backend: On-device,
+      Automatic (on-device first, remote fallback), or Remote server.
+      When the panel header shows a model name, the remote path is live.
+    - Setup: pick a provider preset, fill the server URL and model
+      (the "List" button reads the server's model catalog), paste an API
+      key if the provider needs one. The key is stored in the macOS
+      Keychain, never in plain preferences. Local servers need no key.
+    - Remote-path thinking: Settings → Cooper → Thinking picks low/
+      medium/high reasoning effort, or Off to not request and not show
+      thinking. Thinking renders as a collapsible section and never
+      leaks into the reply. Provider-specific switches (e.g. Qwen
+      enable_thinking, temperature, max_tokens) go in Advanced →
+      Extra Request JSON, merged last into every request.
+    - Privacy: on-device requests never leave the Mac; remote requests
+      go only to the configured server (a local Ollama keeps everything
+      on this machine). Approvals and permission modes apply on both
+      paths identically.
     """
 }

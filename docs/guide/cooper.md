@@ -2,8 +2,11 @@
 
 Cooper is Keg's built-in agent. It answers questions about your containers,
 images, Compose projects, and the runtime — and it can *act* on them with
-your permission. It runs **entirely on-device** using Apple's FoundationModels:
-no cloud calls, no account, and your requests never leave the machine.
+your permission. It prefers Apple's **on-device** model (Apple's
+FoundationModels): no cloud calls, no account, and your requests never leave
+the machine. On Macs where Apple Intelligence is off or unavailable, Cooper
+runs on an OpenAI-compatible model server instead — see
+[Runs without Apple Intelligence](#runs-without-apple-intelligence).
 
 ## Open it
 
@@ -41,3 +44,28 @@ appear right in the conversation.
 - **Settings → Cooper → Clear Conversation** erases it and starts fresh.
 - The first turn after opening the panel can take a few seconds while the
   on-device model loads; later turns are fast.
+
+## Runs without Apple Intelligence
+
+Cooper doesn't stop working when Apple Intelligence does. If the on-device
+model is unavailable — turned off, this Mac isn't eligible, or the model
+assets are still downloading — Cooper automatically runs on any
+**OpenAI-compatible model server** instead:
+
+- **One-click provider presets**: OpenAI, OpenRouter, Groq, DeepSeek,
+  Mistral, Together, Fireworks, and local Ollama / LM Studio / vLLM —
+  or any custom `chat/completions` endpoint.
+- **Same agent, same guardrails**: tool calling, permission modes, and
+  approval cards work identically; only the brain changes. Cooper gets
+  every tool at once on this path (no per-topic tool subsets).
+- **Thinking models**: Cooper requests reasoning (low/medium/high) for
+  models that support it, separates thinking from the answer (shown as a
+  collapsible "Thinking" section), and never lets `<think>` tags leak into
+  the reply. Provider-specific switches (Qwen's `enable_thinking`,
+  temperature, `max_tokens`) fit in the Advanced *Extra Request JSON* field.
+- **Privacy**: the API key is stored in this Mac's Keychain — never in
+  plain preferences — and requests go only to the server you choose.
+  Pointing Cooper at a local Ollama keeps everything on this machine.
+- **Set it up**: Settings → Cooper → Model backend → *Remote server* (or
+  leave *Automatic*, which uses on-device first and falls back). Cooper's
+  panel shows which model is answering.

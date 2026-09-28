@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.8.2] — 2026-09-23
+
+### Fixed
+- **Opening a container's Logs no longer crashes the app** — picking Logs from the tab dropdown of a running container quit Keg outright, via two independent faults on the same path: the log-follow task parked on a `Duration` (`Task.sleep(for: .seconds(Int.max))`) that overflows the concurrency runtime's clock math and traps seconds after the tab opens; and the view's toolbar items were declared from inside the inspector column, which throws inside AppKit's NSToolbar insertion on macOS 26 the moment the tab mounts. The level filter, Follow toggle, Copy All, Clear, and the search field are now an inline control row inside the Logs view; the Files tab's Upload/Refresh and the Environment tab's variable search moved inline for the same reason — inspector-embedded views no longer touch the window toolbar at all.
+
+### Added
+- **Boot-kernel auto-repair** — builds on 0.7.1's one-click repair: Keg now installs the recommended kernel by itself when it finds no default registered (once per session; the manual repair buttons in the Run sheet, Health panel, and Settings stay for retries). The repair also heals the start path — with no kernel registered the runtime aborts `container system start` at an interactive install prompt that can never be answered, which read as a mysterious start failure after every `brew upgrade container`; Keg now detects that abort, repairs, and retries Start on its own.
+
+## [0.8.1] — 2026-09-22
+
+### Fixed
+- **Image sizes respect the configured data location** — the Images list (and the Docker API's size field) read the store from the Data Location set in Settings instead of always assuming the default (`~/Library/Application Support/com.apple.container`). On machines that keep container data on another volume, every image silently showed only its compressed download size (nginx:latest: ~62 MB) instead of its real on-disk footprint — compressed blobs plus the unpacked ext4 snapshot (~1.42 GB). Default-location installs were unaffected.
+
+## [0.8.0] — 2026-09-22
+
+### Added
+- **Cooper runs without Apple Intelligence** — a second brain: any OpenAI-compatible chat-completions server (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, or local Ollama / LM Studio / vLLM). When the on-device model is unavailable — Apple Intelligence turned off, this Mac not eligible, or its model assets still downloading — Cooper automatically switches to the configured remote server; Settings → Cooper → Model backend can also force either path, and the panel header shows which model is answering. Tool calling, permission modes, approval cards, and the repeat-call guard are identical on both paths (the remote model gets every tool at once — no small-model tool subsets).
+- **Remote model setup** — provider presets with a one-click server URL, a "List" button that reads the server's model catalog, and the API key stored in the macOS Keychain (never in plain preferences). A "Set Up a Remote Model…" recovery path appears in the Cooper panel when Apple Intelligence is off and nothing is configured yet.
+- **Thinking-model support** on the remote path — request-side `reasoning_effort` (low/medium/high, sent only when explicitly chosen since providers reject unsupported values); response-side reasoning is separated from the answer whether the server streams `reasoning_content`/`reasoning` fields or the model inlines `<think>` tags, including tags split across stream chunks. Thinking renders as a collapsible section; "Off" neither requests nor shows it. Provider-specific switches (Qwen `enable_thinking`, temperature, `max_tokens`) go through an Advanced *Extra Request JSON* field merged last into every request.
+- Cooper's knowledge base covers its own backends (new `agent_backend` topic), and the guide documents the fallback.
+
+### Fixed
+- Remote-path robustness: context-overflow replies retry with a hard-trimmed history that never leaves tool results orphaned from their calls (the message shape providers reject); 429s back off exponentially; 401/404/5xx surface the server's own error message with actionable copy.
+
+## [0.7.1] — 2026-09-21
+
+### Added
+- **Boot-kernel setup & repair** — container runtime 1.4+ requires an explicitly registered default boot kernel and refuses to start any new container with "default kernel not configured for architecture arm64" until one exists — exactly where a Homebrew runtime upgrade (`brew upgrade container`) leaves an otherwise healthy install, with nothing but the raw CLI error as a hint. Keg now detects the missing registration and offers a one-click **Install Recommended Kernel** (runs `container system kernel set --recommended --force`, pinned to your data location) in the three places users meet the problem: the Run sheet — before the image pull is wasted, with Run disabled until fixed — the Health panel, and Settings → Apple Containers. **Reinstall** re-fetches the recommended kernel after future runtime upgrades, a raw CLI kernel failure in a run is translated into an actionable message (for the race past the precheck), and Cooper's knowledge base covers the condition.
+
 ## [0.7.0] — 2026-09-21
 
 ### Added

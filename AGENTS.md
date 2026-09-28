@@ -66,7 +66,8 @@ Cooper is a local agent on Apple's FoundationModels framework (`SystemLanguageMo
 - **Context budget**: static persona instructions never change (transcript compatibility); live state goes in the per-turn prompt as a compact `CooperSnapshot`; transcripts are trimmed (`CooperController.trimmed`) on overflow and retried once; `GenerationError`/`LanguageModelError` (26/27 respectively) drive backoff on rate-limit and friendly copy on refusals.
 - **Repeat-call guard**: the 4th identical tool call in a turn is refused with change-your-approach guidance.
 - **Persistence**: `~/.keg/cooper/{transcript.json,messages.json}`; the session rehydrates from the Codable `Transcript` on next launch. Stage tracing in `~/.keg/cooper/debug.log` (`CooperController.debugLog`).
-- Sessions are always built via `LanguageModelSession(model: .default, ...)` so an alternative backend (e.g. MLX via the 27-era `LanguageModel` protocol) can be added without re-architecture.
+- **Remote backend** (`Sources/Keg/Cooper/Remote/`): when the on-device model is unavailable (Apple Intelligence off / ineligible / not ready) — or the user forces it in Settings → Cooper — turns run against **any OpenAI-compatible chat-completions server** (OpenAI, OpenRouter, Groq, DeepSeek, Ollama, LM Studio, vLLM, …). Config (`CooperRemoteConfig`) lives in `UserDefaults` key `cooper.remote` + `cooper.remote.backend`; the API key in the Keychain (`CooperKeychain`, service `com.keg.cooper`). Backend choice is resolved purely in `CooperBackendResolver.resolve` (auto = on-device first, remote fallback). The remote path: no router pass (a capable model gets all 16 tools as `CooperToolSpec`s with JSON schemas, calling the same `CooperGateway` — the permission gate/approvals/repeat-guard are brain-independent), OpenAI function calling with streamed `tool_calls` fragments (`CooperToolCallAccumulator`), SSE parsing in `CooperOpenAIBackend.turn`, its own persisted history (`~/.keg/cooper/remote-transcript.json`, trimmed by `CooperChatHistory.trimmed` which never leaves tool results without their calls). **Thinking mode**: request-side sends `reasoning_effort` only for explicit low/medium/high (never for off/default — providers 400 on unsupported values); response-side strips reasoning out of the visible reply whether the server streams `reasoning_content`/`reasoning` fields or the model inlines `<think>` tags (`CooperThinkStream` is delta-safe: tags split across chunks are held back and reassembled); thinking renders as a collapsed disclosure in the panel. Provider-specific switches (Qwen `enable_thinking`, temperature, `max_tokens`) go through the Extra Request JSON setting, merged last into every request body. A live E2E of the loop exists (`CooperRemoteLiveTests`, opt-in via `KEG_RUN_COOPER_REMOTE_E2E=1`).
+- On-device sessions are always built via `LanguageModelSession(model: .default, ...)`; the remote path is the second brain, not a replacement, and switching backends never mixes the two persisted histories.
 - The dormant cloud-agent stacks (`Sources/Keg/Agent/`, `Sources/Keg/Agents/`) are unrelated and still gated off by `keg.showAgents`; Cooper reuses only `AgentPermissionMode` from AppState.
 
 ## Apps Store (one-click self-host installs)
@@ -115,7 +116,7 @@ The Gateway gives installed apps memorable addresses (`http://memos.keg:8080`, o
 
 The runtime's data location (app-root) is **per-machine and configurable**: Settings → Container System → Data Location (`UserDefaults` key `container.app-root`; empty = stock `~/.container`). `AppState.startSystem()` passes `--app-root <path>` when set, preflights that the path exists (a missing volume must surface an error, never spin up an empty runtime), and the Health dashboard shows the location the running apiserver actually reports (from the XPC health check's `appRoot`). This dev machine is configured to **`/Volumes/Atlas/Containers`** — a separate volume holding the user's real containers/images/volumes. Don't "fix" a missing-containers symptom by re-initializing `~/.container`; the data lives at the configured root.
 
-**Never invoke the bare `container` CLI un-anchored on this machine.** The CLI resolves its root from the plist the last `container system start` wrote: an un-anchored `container system start` rewrites the launchd registration to the stock root (`~/Library/Application Support/com.apple.container`) and from then on every CLI-side write (image unpacks, container scaffolding) lands there while XPC operations keep landing on the real apiserver — a silent split-brain that looks exactly like data loss. Always pass `--app-root /Volumes/Atlas/Containers` (or export `CONTAINER_APP_ROOT`); `ContainerCLI.makeProcess` pins this env for all Keg-originated calls.
+**Never invoke the bare `container` CLI un-anchored on this machine.** The CLI resolves its root from the plist the last `container system start` wrote: an un-anchored `container system start` rewrites the launchd registration to the stock root (`~/Library/Application Support/com.apple.container`) and from then on every CLI-side write (image unpacks, container scaffolding) lands there while XPC operations keep landing on the real apiserver — a silent split-brain that looks exactly like data loss. Always pass `--app-root /Volumes/Atlas/Containers`. **For `container system start` the argument is required and the env var is NOT enough** (verified 2026-09-23: `CONTAINER_APP_ROOT` env does not reach the launchd registration — the service silently came up at the stock root; only the `--app-root` argument gets baked in). The env var is fine for non-start ops (`ContainerCLI.makeProcess` pins it for all Keg-originated calls, and `startSystem` passes `appRootArguments`).
 
 ## Build & Run
 
@@ -124,7 +125,12 @@ make app          # Build Keg.app
 make open         # Build and launch
 make test         # Run tests
 swift build -c release  # Build binary only
+make hooks        # Activate versioned git hooks (core.hooksPath githooks)
 ```
+
+## Git Hooks
+
+`githooks/post-commit` (active via `make hooks` → `core.hooksPath githooks`, local config per clone) starts a **background** `make app` after every commit — macOS notification on pass/fail, full log at `.git/keg-build.log`, lock-guarded so commit bursts start one build. Skips during rebase/amend chains. Expect the notification a couple of minutes after committing; a failed build means the commit you just made doesn't compile.
 
 ## Current Capabilities
 
@@ -140,7 +146,8 @@ swift build -c release  # Build binary only
 - **Gateway**: loopback DNS + Host-routing proxy — installed apps answer at `http://<id>.keg:8080` (opt-in, Settings → Gateway)
 - Kubernetes cluster lifecycle
 - Menu bar popover, settings
-- Cooper: on-device agent (FoundationModels) in an inspector panel — observe, guide (section navigation), and gated container/image/compose/app/runtime actions
+- Cooper: agent in an inspector panel — on-device via FoundationModels, with an OpenAI-compatible fallback (any provider) for Macs where Apple Intelligence is off; observe, guide (section navigation), and gated container/image/compose/app/runtime actions
+- Boot-kernel setup: detects an unregistered default kernel (container runtime 1.4+ refuses to start containers without one — typical after a Homebrew upgrade) and **auto-repairs it once per session** (`container system kernel set --recommended --force`, triggered from `checkBootKernel` and after `startSystem`); Run sheet, Health panel, and Settings → Apple Containers keep manual repair buttons for retries (`BootKernel.swift`, `BootKernelStatusViews.swift`)
 
 ## Known Limitations
 
