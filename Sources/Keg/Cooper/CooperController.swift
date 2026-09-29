@@ -77,6 +77,11 @@ final class CooperController {
 
     private weak var appState: AppState?
     private let gateway: CooperGateway
+
+    /// The gateway behind every agent-driven operation. Agent sessions
+    /// (`AgentService`) share this instance so their approval cards surface
+    /// in the same Cooper panel with the same handler.
+    var agentSessionGateway: CooperGateway { gateway }
     private var streamTask: Task<Void, Never>?
     private var savedTranscript: Transcript?
     /// The remote path's own conversation (OpenAI message shapes), kept

@@ -480,9 +480,10 @@ final class SessionInboxVM {
     var showFlaggedOnly = false
     private var workflowStates: [String: SessionWorkflowState] = [:]
 
-    func load(client: ManagedAgentsClient?) async {
+    func load(client: ManagedAgentsClient?, store: SessionStore? = nil) async {
         guard let client else {
-            items = []
+            // No cloud client: list sessions from the local runtime's log.
+            await loadLocal(store: store)
             return
         }
 
@@ -521,6 +522,33 @@ final class SessionInboxVM {
             items = allItems
         } catch {
             self.error = error.localizedDescription
+        }
+    }
+
+    /// Local runtime sessions, from the append-only session log store.
+    func loadLocal(store explicitStore: SessionStore? = nil) async {
+        isLoading = true
+        defer { isLoading = false }
+
+        guard let store = explicitStore ?? (try? SessionStore()) else {
+            items = []
+            return
+        }
+
+        let sessions = (try? await store.loadAllSessions()) ?? []
+        items = sessions.map { session in
+            InboxItem(
+                id: session.id,
+                sessionID: session.id,
+                agentID: session.agentId,
+                agentName: "Local",
+                workflowStatus: .inbox,
+                isFlagged: session.isFlagged,
+                lastMessage: nil,
+                remoteStatus: session.status,
+                updatedAt: session.updatedAt,
+                createdAt: session.createdAt
+            )
         }
     }
 

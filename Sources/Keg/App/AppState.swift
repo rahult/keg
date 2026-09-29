@@ -124,6 +124,17 @@ final class AppState {
     /// to `self` at the end of init: the controller and its gateway only
     /// hold weak references, so this creates no retain cycle.
     let cooper: CooperController
+
+    /// The local agent runtime (Tranche 1). Shares Cooper's gateway so
+    /// agent-session approval cards surface in the same panel. Cached on
+    /// first access (`@Observable` forbids `lazy`).
+    private var cachedAgentService: AgentService?
+    var agentService: AgentService {
+        if let cachedAgentService { return cachedAgentService }
+        let service = AgentService.production(appState: self, gateway: cooper.agentSessionGateway)
+        cachedAgentService = service
+        return service
+    }
     private var cooperNotedUnresponsive = false
     private var cooperNotedStopped = false
 
@@ -772,12 +783,13 @@ final class AppState {
         }
     }
 
-    /// Agents feature is shelved: all agent UI (menu bar status, Settings
-    /// API section, dashboard discovery card) is hidden unless explicitly
-    /// re-enabled, e.g. `defaults write <bundle-id> keg.showAgents true`.
-    /// Capability stays in the codebase; this only hides the surface.
+    /// Agents section visibility. Tranche 1 (local agent runtime) un-gated
+    /// the feature: it is visible by default, and a user can explicitly hide
+    /// it with `defaults write <bundle-id> keg.showAgents false`. (The key
+    /// predates the un-gate, when it meant "show"; absent now means show.)
     static var isAgentsEnabled: Bool {
-        UserDefaults.standard.bool(forKey: "keg.showAgents")
+        guard let value = UserDefaults.standard.object(forKey: "keg.showAgents") else { return true }
+        return (value as? Bool) ?? true
     }
 
     /// Sections hidden in Getting Started mode. Everything stays reachable

@@ -127,17 +127,15 @@ struct SessionDetailView: View {
     
     private func loadSessionData() async {
         await vm.loadLocalState()
-        if let client = await appState.agentClient {
-            await vm.loadEvents(client: client)
-            appState.updateAgentServiceReachability(for: vm.error)
-        }
+        let client = await appState.agentClient
+        await vm.loadEvents(client: client)
+        appState.updateAgentServiceReachability(for: client == nil ? nil : vm.error)
     }
 
     private func loadEvents() async {
-        if let client = await appState.agentClient {
-            await vm.loadEvents(client: client)
-            appState.updateAgentServiceReachability(for: vm.error)
-        }
+        let client = await appState.agentClient
+        await vm.loadEvents(client: client)
+        appState.updateAgentServiceReachability(for: client == nil ? nil : vm.error)
     }
 
     private var currentIssue: AgentIssuePresentation? {
@@ -666,7 +664,9 @@ final class SessionDetailVM {
 
     func loadEvents(client: ManagedAgentsClient?) async {
         guard let client else {
-            error = "Not authenticated"
+            // No cloud client (not authenticated / local-only runtime):
+            // the session log written by AgentRunner is the transcript.
+            await loadLocalEvents()
             return
         }
 
@@ -676,6 +676,25 @@ final class SessionDetailVM {
         do {
             events = try await client.getEvents(sessionId: session.id)
             await appendActivity(kind: "refresh", message: "Transcript refreshed in Keg")
+        } catch {
+            self.error = AgentIssuePresentation(error: error).message
+        }
+    }
+
+    /// Load events from the local append-only session log (the source of
+    /// truth for sessions run by the local runtime).
+    func loadLocalEvents(store explicitStore: SessionStore? = nil) async {
+        isLoading = true
+        defer { isLoading = false }
+
+        guard let store = explicitStore ?? (try? SessionStore()) else {
+            self.error = "Local session store is unavailable."
+            return
+        }
+
+        do {
+            events = try await store.loadEvents(forSession: session.id)
+            await appendActivity(kind: "refresh", message: "Transcript loaded from local session log")
         } catch {
             self.error = AgentIssuePresentation(error: error).message
         }

@@ -6,6 +6,7 @@ import Foundation
 actor SessionStore {
     private let sessionsDirectory: URL
     private let encoder: JSONEncoder
+    private let lineEncoder: JSONEncoder
     private let decoder: JSONDecoder
 
     init(sessionsDirectory: URL? = nil) throws {
@@ -15,6 +16,11 @@ actor SessionStore {
         self.encoder = JSONEncoder()
         self.encoder.dateEncodingStrategy = .iso8601
         self.encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+
+        // JSONL must be one record per line — the pretty printer above is for
+        // session.json only.
+        self.lineEncoder = JSONEncoder()
+        self.lineEncoder.dateEncodingStrategy = .iso8601
 
         self.decoder = JSONDecoder()
         self.decoder.dateDecodingStrategy = .iso8601
@@ -108,7 +114,7 @@ actor SessionStore {
         try Self.createDirectoryIfNeeded(at: sessionDir)
 
         let eventsFile = sessionDir.appendingPathComponent("events.jsonl")
-        let eventData = try encoder.encode(event)
+        let eventData = try lineEncoder.encode(event)
         var eventLine = String(data: eventData, encoding: .utf8)! + "\n"
 
         // Append to file
