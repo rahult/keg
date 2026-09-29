@@ -134,9 +134,15 @@ struct GatewaySettingsSection: View {
     private func trustCertificate() {
         isWorkingTLS = true
         Task {
-            let result = try? await gateway.installCertificateTrust()
-            trustVerified = (result == true)
-            isWorkingTLS = false
+            defer { isWorkingTLS = false }
+            // Green only when the independent CFNetwork probe agrees —
+            // exit-code success alone can lie (the trust dialog can be
+            // approved while the cert never lands in the keychain).
+            guard (try? await gateway.installCertificateTrust()) == true else {
+                trustVerified = false
+                return
+            }
+            trustVerified = await gateway.verifyHTTPS()
         }
     }
 

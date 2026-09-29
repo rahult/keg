@@ -366,6 +366,84 @@ final class GatewayTests: XCTestCase {
         XCTAssertFalse(dnsNames.contains(where: { $0.hasPrefix("*") }), "wildcards are rejected by macOS — never issue them")
     }
 
+    // MARK: - Trust install (macOS 26 regression)
+
+    /// `security add-trusted-cert` without `-k` exits 0 on macOS 26 but
+    /// silently imports nothing — the cert must be imported into the login
+    /// keychain explicitly, then trusted there, then confirmed present.
+    /// All verbs/flags used here must stay available on every macOS the
+    /// app targets (26+) — the regression lived in the *newest* OS, so
+    /// newest-API convenience is exactly what to avoid.
+    func testTrustInstallPlanImportsThenTrustsInExplicitKeychain() {
+        let plan = GatewayTrust.installPlan(
+            caCertificatePath: "/tmp/keg-ca.pem",
+            loginKeychainPath: "/Users/test/Library/Keychains/login.keychain-db"
+        )
+        XCTAssertEqual(
+            plan.findArguments,
+            ["find-certificate", "-c", "Keg Local CA", "/Users/test/Library/Keychains/login.keychain-db"]
+        )
+        XCTAssertEqual(
+            plan.importArguments,
+            ["import", "/tmp/keg-ca.pem", "-k", "/Users/test/Library/Keychains/login.keychain-db"]
+        )
+        XCTAssertEqual(
+            plan.trustArguments,
+            ["add-trusted-cert", "-k", "/Users/test/Library/Keychains/login.keychain-db",
+             "-r", "trustRoot", "-p", "ssl", "/tmp/keg-ca.pem"]
+        )
+    }
+
+    func testTrustInstallSucceedsOnlyWhenCertIsConfirmable() {
+        // Fresh install: import ran and succeeded.
+        XCTAssertTrue(
+            GatewayTrust.installSucceeded(presentBeforeImport: false, importExit: 0, trustExit: 0, confirmExit: 0)
+        )
+        // Re-run: pre-check found the CA, import skipped (nil).
+        XCTAssertTrue(
+            GatewayTrust.installSucceeded(presentBeforeImport: true, importExit: nil, trustExit: 0, confirmExit: 0)
+        )
+        // The macOS 26 broken flow: every step "succeeds" but the cert is
+        // not findable afterwards — must report failure, not green.
+        XCTAssertFalse(
+            GatewayTrust.installSucceeded(presentBeforeImport: false, importExit: 0, trustExit: 0, confirmExit: 1)
+        )
+        XCTAssertFalse(
+            GatewayTrust.installSucceeded(presentBeforeImport: true, importExit: nil, trustExit: 0, confirmExit: 1)
+        )
+    }
+
+    func testTrustInstallFailsOnRealImportFailure() {
+        XCTAssertFalse(
+            GatewayTrust.installSucceeded(
+                presentBeforeImport: false,
+                importExit: 1,
+                trustExit: 0,
+                confirmExit: 0
+            )
+        )
+    }
+
+    func testTrustInstallFailsWhenUserDeclines() {
+        XCTAssertFalse(
+            GatewayTrust.installSucceeded(presentBeforeImport: false, importExit: 0, trustExit: 128, confirmExit: 0)
+        )
+        XCTAssertFalse(
+            GatewayTrust.installSucceeded(presentBeforeImport: true, importExit: nil, trustExit: 128, confirmExit: 0)
+        )
+    }
+
+    func testKeychainPathNormalizationStripsQuotesAndWhitespace() {
+        XCTAssertEqual(
+            GatewayTrust.normalizedKeychainPath("  \"/Users/test/Library/Keychains/login.keychain-db\"\n"),
+            "/Users/test/Library/Keychains/login.keychain-db"
+        )
+        XCTAssertEqual(
+            GatewayTrust.normalizedKeychainPath(""),
+            NSHomeDirectory() + "/Library/Keychains/login.keychain-db"
+        )
+    }
+
     func testTLSProxyCompletesVerifiedHandshakeAndRelays() async throws {
         let upstream = try TestUpstream { _ in
             Data("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok".utf8)
