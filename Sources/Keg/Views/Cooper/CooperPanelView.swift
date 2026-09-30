@@ -312,7 +312,6 @@ struct CooperPanelView: View {
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                     Button("Set Up a Remote Model…") {
-                        appState.captureSettingsFrame()
                         openSettings()
                     }
                 }

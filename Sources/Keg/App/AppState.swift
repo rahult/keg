@@ -58,16 +58,6 @@ final class AppState {
     /// user closes it (a `Window` scene never recreates its window).
     weak var mainWindow: NSWindow?
 
-    /// Where the Settings window should open: the main window's frame,
-    /// captured whenever settings is invoked. Nil = default placement.
-    var pendingSettingsFrame: CGRect?
-
-    /// Remembers the main window's frame so the Settings window can open
-    /// top-left aligned with it (adopted by SettingsView's frame accessor).
-    func captureSettingsFrame() {
-        pendingSettingsFrame = mainWindow?.frame
-    }
-
     // Area navigation
     var currentArea: AppArea = .keg
     var selectedKegSection: KegSection = .containers

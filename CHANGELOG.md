@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.4] — 2026-10-01
+
+### Changed
+- **Settings, redesigned around a sidebar** — the seven-toolbar-tab preferences window is now a NavigationSplitView settings window in the macOS System Settings idiom: a grouped sidebar (General / Runtime / Features) with an orange attention badge on Apple Containers when the boot kernel is unregistered, and panes of stacked groups. Rows use the convergent anatomy from the reference apps (Linear, Buffer, Vercel, Railway): label + one-line description with the control trailing right, hairline separators in 10pt-radius cards, status cards crowning each pane with the primary action in a trailing header slot, and destructive actions quarantined in red-tinted danger groups at the bottom. Every group carries a one-sentence explanatory caption; About gains website/repository/releases links and a copyable version. Removes the NSView frame hack (window gets a proper default size), the fixed 140/280 label/control grid, and the per-tab layout inconsistencies it papered over (two copy idioms, GroupBox outlier, AnyView-erased status cards, hand-rolled boot-kernel dot layout). Conventions documented in DESIGN.md §18.
+
 ## [0.8.3] — 2026-09-28
 
 ### Changed

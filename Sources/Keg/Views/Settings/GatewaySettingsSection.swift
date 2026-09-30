@@ -41,39 +41,41 @@ struct GatewaySettingsSection: View {
             addressSection
 
             customRoutesSection
+
+            dangerGroup
         }
         .padding(.vertical, 4)
     }
 
     // MARK: Status
 
+    @ViewBuilder
     private var gatewayStatusCard: some View {
         @Bindable var gateway = appState.gateway
-        return SettingsStatusCard(gatewayState, title: gateway.isEnabled ? gateway.statusSummary : "Off") {
-            AnyView(SettingsCaption("Installed apps answer at memorable hostnames — http://memos.keg:\(GatewayConfig.proxyPort) instead of 127.0.0.1:5230"))
-        } actions: {
-            AnyView(Toggle("Enable", isOn: $gateway.isEnabled)
-                .toggleStyle(.switch))
+        let healthy = gateway.isProxyRunning && gateway.isDNSRunning
+        SettingsStatusCard(
+            gateway.isEnabled ? (healthy ? .ok : .warning) : .inactive,
+            title: gateway.isEnabled ? gateway.statusSummary : "Off"
+        ) {
+            SettingsCaption("Installed apps answer at memorable hostnames — http://memos.keg:\(GatewayConfig.proxyPort) instead of 127.0.0.1:5230")
+        } headerAction: {
+            Toggle("Enable", isOn: $gateway.isEnabled)
+                .toggleStyle(.switch)
         }
-    }
-
-    /// Dot per service health: green only when enabled AND both services
-    /// are up, orange when enabled but something is down, gray when off.
-    private var gatewayState: SettingsStatusCard<AnyView, AnyView>.State {
-        guard gateway.isEnabled else { return .inactive }
-        return (gateway.isProxyRunning && gateway.isDNSRunning) ? .ok : .warning
     }
 
     // MARK: HTTPS (opt-in)
 
     private var httpsSection: some View {
         SettingsGroup("HTTPS", caption: "Serves https://<name>.keg:\(GatewayConfig.tlsPort) per app. Opt-in — HTTP on :\(GatewayConfig.proxyPort) keeps working with or without it.") {
-            SettingsRow("HTTPS") {
-                Toggle("", isOn: Binding(
-                    get: { gateway.isHTTPSPermitted },
-                    set: { gateway.isHTTPSPermitted = $0 }
-                ))
-                .labelsHidden()
+            SettingsCard {
+                SettingsValueRow("Enable HTTPS", description: "Issue a local certificate per app name.", isLast: true) {
+                    Toggle("Enable HTTPS", isOn: Binding(
+                        get: { gateway.isHTTPSPermitted },
+                        set: { gateway.isHTTPSPermitted = $0 }
+                    ))
+                    .labelsHidden()
+                }
             }
 
             if gateway.isHTTPSPermitted {
@@ -226,22 +228,7 @@ struct GatewaySettingsSection: View {
     // MARK: Custom routes (development)
 
     private var customRoutesSection: some View {
-        SettingsGroup("Custom routes", caption: "Point extra names at any local port for development — e.g. dev.keg → your app on port 3000. Custom names must end in .keg and lose to an app with the same name.") {
-            ForEach(gateway.customRoutes) { route in
-                LabeledContent {
-                    Text("→ 127.0.0.1:\(route.port)")
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                } label: {
-                    appLink(hostname: route.hostname)
-                }
-            }
-            .onDelete { offsets in
-                var routes = gateway.customRoutes
-                routes.remove(atOffsets: offsets)
-                gateway.setCustomRoutes(routes)
-            }
-
+        SettingsGroup("Custom routes", caption: "Point extra names at any local port for development — e.g. dev.keg → your app on port 3000. Custom names must end in .keg and lose to an app with the same name. Removing a route lives in the Danger group below.") {
             HStack {
                 TextField("name.keg", text: $newHostname)
                     .textFieldStyle(.roundedBorder)
@@ -251,6 +238,34 @@ struct GatewaySettingsSection: View {
                     .frame(width: 80)
                 Button("Add") { addRoute() }
                     .disabled(!addRouteFormIsValid)
+            }
+        }
+    }
+
+    // MARK: Danger zone
+
+    @ViewBuilder
+    private var dangerGroup: some View {
+        if !gateway.customRoutes.isEmpty {
+            SettingsGroup("Danger", caption: "Removing a custom route takes effect immediately; apps are unaffected.", isDanger: true) {
+                SettingsCard {
+                    VStack(spacing: 0) {
+                        ForEach(Array(gateway.customRoutes.enumerated()), id: \.element.id) { index, route in
+                            SettingsValueRow(
+                                route.hostname,
+                                description: "→ 127.0.0.1:\(route.port)",
+                                isLast: index == gateway.customRoutes.count - 1
+                            ) {
+                                Button("Remove", role: .destructive) {
+                                    var routes = gateway.customRoutes
+                                    routes.removeAll { $0.id == route.id }
+                                    gateway.setCustomRoutes(routes)
+                                }
+                                .controlSize(.small)
+                            }
+                        }
+                    }
+                }
             }
         }
     }

@@ -56,52 +56,25 @@ struct BootKernelWarningBanner: View {
 
 /// Full status card for Settings → Apple Containers: the registered kernel
 /// (or missing/legacy state), the one-click repair, and a manual re-check.
+/// Rebuilt on `SettingsStatusCard` — the five states below only provide the
+/// detail content and the header actions.
 struct BootKernelStatusCard: View {
     @Environment(AppState.self) private var appState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 12) {
-                Circle()
-                    .fill(statusColor)
-                    .frame(width: 10, height: 10)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(statusTitle)
-                        .font(.headline)
-                    Text(statusDetail)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                if appState.isInstallingBootKernel {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    switch appState.bootKernelStatus {
-                    case .missing:
-                        Button("Install Recommended Kernel") {
-                            Task { await appState.installRecommendedBootKernel() }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                    case .ok:
-                        // Re-downloads the runtime's recommended kernel — the
-                        // refresh path when a brew upgrade moves the runtime
-                        // past the registered kernel.
-                        Button("Reinstall") {
-                            Task { await appState.installRecommendedBootKernel() }
-                        }
-                        .controlSize(.small)
-                    case .unchecked, .legacyRuntime, .unknown:
-                        EmptyView()
-                    }
-                    Button("Re-check") {
-                        Task { await appState.checkBootKernel() }
-                    }
-                    .controlSize(.small)
-                }
-            }
+        SettingsStatusCard(statusState, title: statusTitle, detail: { detailContent }, headerAction: { headerActionContent })
+        .padding(.vertical, 4)
+        .task {
+            await appState.checkBootKernel()
+        }
+    }
 
+    @ViewBuilder
+    private var detailContent: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(statusDetail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
             if appState.isInstallingBootKernel {
                 Text("Downloading the runtime's recommended kernel — this can take a minute on a slow connection.")
                     .font(.caption)
@@ -113,17 +86,44 @@ struct BootKernelStatusCard: View {
                     .foregroundStyle(notice.isError ? Color.red : Color.green)
             }
         }
-        .padding(.vertical, 4)
-        .task {
-            await appState.checkBootKernel()
+    }
+
+    @ViewBuilder
+    private var headerActionContent: some View {
+        if appState.isInstallingBootKernel {
+            ProgressView()
+                .controlSize(.small)
+        } else {
+            switch appState.bootKernelStatus {
+            case .missing:
+                Button("Install Recommended Kernel") {
+                    Task { await appState.installRecommendedBootKernel() }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            case .ok:
+                // Re-downloads the runtime's recommended kernel — the
+                // refresh path when a brew upgrade moves the runtime
+                // past the registered kernel.
+                Button("Reinstall") {
+                    Task { await appState.installRecommendedBootKernel() }
+                }
+                .controlSize(.small)
+            case .unchecked, .legacyRuntime, .unknown:
+                EmptyView()
+            }
+            Button("Re-check") {
+                Task { await appState.checkBootKernel() }
+            }
+            .controlSize(.small)
         }
     }
 
-    private var statusColor: Color {
+    private var statusState: SettingsStatusState {
         switch appState.bootKernelStatus {
-        case .ok: return .green
-        case .missing: return .orange
-        case .unchecked, .legacyRuntime, .unknown: return .gray
+        case .ok: return .ok
+        case .missing: return .warning
+        case .unchecked, .legacyRuntime, .unknown: return .inactive
         }
     }
 

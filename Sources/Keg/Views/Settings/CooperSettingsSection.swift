@@ -53,27 +53,9 @@ struct CooperSettingsSection: View {
                 .pickerStyle(.segmented)
             }
 
-            SettingsGroup("Conversation") {
-                HStack(spacing: 10) {
-                    Button {
-                        isClearing = true
-                        Task {
-                            await appState.cooper.clearConversation()
-                            isClearing = false
-                            clearedNotice = true
-                            try? await Task.sleep(for: .seconds(3))
-                            clearedNotice = false
-                        }
-                    } label: {
-                        if isClearing { ProgressView().controlSize(.small) }
-                        Text("Clear Conversation")
-                    }
-                    .disabled(isClearing)
-                }
-                SettingsCaption("Erases the Cooper transcript (~/.keg/cooper), for whichever backend is active. Cooper starts a fresh conversation; nothing else is affected.")
-            }
-
             privacyFooter
+
+            dangerGroup
         }
         .padding(.vertical, 4)
         .task {
@@ -84,89 +66,123 @@ struct CooperSettingsSection: View {
         }
     }
 
+    // MARK: - Danger zone
+
+    private var dangerGroup: some View {
+        SettingsGroup("Danger", caption: "Erases the Cooper transcript for whichever backend is active. Cooper starts a fresh conversation; nothing else is affected.", isDanger: true) {
+            SettingsValueRow("Clear Conversation", description: clearedNotice ? "Conversation cleared." : "Erases the Cooper transcript.", isLast: true) {
+                Button(role: .destructive) {
+                    isClearing = true
+                    Task {
+                        await appState.cooper.clearConversation()
+                        isClearing = false
+                        clearedNotice = true
+                        try? await Task.sleep(for: .seconds(3))
+                        clearedNotice = false
+                    }
+                } label: {
+                    if isClearing { ProgressView().controlSize(.small) }
+                    Text("Clear Conversation")
+                }
+                .disabled(isClearing)
+            }
+        }
+    }
+
     // MARK: - Remote model group
 
     private var remoteModelGroup: some View {
         SettingsGroup("Remote model", caption: remoteCaption) {
             VStack(alignment: .leading, spacing: SettingsMetrics.groupSpacing) {
-                SettingsRow("Provider") {
-                    Picker("", selection: $selectedPresetID) {
-                        ForEach(CooperProviderPreset.all) { preset in
-                            Text(preset.name).tag(preset.id)
-                        }
-                    }
-                    .labelsHidden()
-                    .frame(width: SettingsMetrics.pickerWidth)
-                    .onChange(of: selectedPresetID) { _, newID in
-                        if let preset = CooperProviderPreset.all.first(where: { $0.id == newID }) {
-                            config.baseURL = preset.baseURL
-                            fetchedModels = []
-                            scheduleSave()
-                        }
-                    }
-                }
-
-                SettingsRow("Server URL") {
-                    TextField("https://api.openai.com/v1", text: $config.baseURL)
-                        .textFieldStyle(.roundedBorder)
-                        .onChange(of: config.baseURL) { _, _ in scheduleSave() }
-                }
-
-                SettingsRow("Model") {
-                    HStack(spacing: 8) {
-                        TextField(modelPlaceholder, text: $config.model)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 200)
-                            .onChange(of: config.model) { _, _ in scheduleSave() }
-                        Button {
-                            fetchModels()
-                        } label: {
-                            if isFetchingModels {
-                                ProgressView().controlSize(.small)
-                            } else {
-                                Text("List")
+                SettingsCard {
+                    VStack(spacing: 0) {
+                        SettingsValueRow("Provider", description: "Pick a preset or keep Custom.") {
+                            Picker("Provider", selection: $selectedPresetID) {
+                                ForEach(CooperProviderPreset.all) { preset in
+                                    Text(preset.name).tag(preset.id)
+                                }
+                            }
+                            .labelsHidden()
+                            .frame(width: SettingsMetrics.pickerWidth)
+                            .onChange(of: selectedPresetID) { _, newID in
+                                if let preset = CooperProviderPreset.all.first(where: { $0.id == newID }) {
+                                    config.baseURL = preset.baseURL
+                                    fetchedModels = []
+                                    scheduleSave()
+                                }
                             }
                         }
-                        .disabled(isFetchingModels || !CooperRemoteConfig.isValidBaseURL(config.baseURL))
-                        .help("Ask the server for its available models")
-                    }
-                }
 
-                if !fetchedModels.isEmpty {
-                    SettingsRow("Available") {
-                        Picker("", selection: Binding(
-                            get: { config.model },
-                            set: { config.model = $0; scheduleSave() }
-                        )) {
-                            ForEach(fetchedModels, id: \.self) { model in
-                                Text(model).tag(model)
+                        SettingsValueRow("Server URL", description: "The server's OpenAI-compatible endpoint.") {
+                            TextField("https://api.openai.com/v1", text: $config.baseURL)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: SettingsMetrics.pickerWidth)
+                                .onChange(of: config.baseURL) { _, _ in scheduleSave() }
+                        }
+
+                        SettingsValueRow("Model", description: "The model id Cooper asks for.") {
+                            TextField(modelPlaceholder, text: $config.model)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: SettingsMetrics.pickerWidth)
+                                .onChange(of: config.model) { _, _ in scheduleSave() }
+                                .overlay(alignment: .trailing) {
+                                    Button {
+                                        fetchModels()
+                                    } label: {
+                                        if isFetchingModels {
+                                            ProgressView().controlSize(.mini)
+                                        } else {
+                                            Image(systemName: "list.bullet")
+                                        }
+                                    }
+                                    .buttonStyle(.borderless)
+                                    .controlSize(.small)
+                                    .padding(.trailing, 6)
+                                    .disabled(isFetchingModels || !CooperRemoteConfig.isValidBaseURL(config.baseURL))
+                                    .help("Ask the server for its available models")
+                                }
+                        }
+
+                        if !fetchedModels.isEmpty {
+                            SettingsValueRow("Available", description: "Models the server reported.") {
+                                Picker("Available", selection: Binding(
+                                    get: { config.model },
+                                    set: { config.model = $0; scheduleSave() }
+                                )) {
+                                    ForEach(fetchedModels, id: \.self) { model in
+                                        Text(model).tag(model)
+                                    }
+                                }
+                                .frame(width: SettingsMetrics.pickerWidth)
+                                .labelsHidden()
                             }
                         }
-                        .frame(width: SettingsMetrics.pickerWidth)
-                        .labelsHidden()
-                    }
-                }
-                if let fetchError {
-                    Text(fetchError)
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                }
+                        if let fetchError {
+                            SettingsValueRow(isLast: true) {
+                                Text(fetchError)
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
+                            }
+                        }
 
-                SettingsRow("API key") {
-                    SecureField(preset?.needsKey == false ? "not needed for local servers" : "sk-…", text: $apiKey)
-                        .textFieldStyle(.roundedBorder)
-                        .onChange(of: apiKey) { _, _ in scheduleSave() }
-                }
+                        SettingsValueRow("API key", description: preset?.needsKey == false ? "Not needed for local servers." : "Stored in this Mac's Keychain.") {
+                            SecureField(preset?.needsKey == false ? "not needed for local servers" : "sk-…", text: $apiKey)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: SettingsMetrics.pickerWidth)
+                                .onChange(of: apiKey) { _, _ in scheduleSave() }
+                        }
 
-                SettingsRow("Thinking") {
-                    Picker("", selection: $config.thinking) {
-                        ForEach(CooperThinkingPreference.allCases) { thinking in
-                            Text(thinking.label).tag(thinking)
+                        SettingsValueRow("Thinking", description: "How much reasoning to request, when the server supports it.", isLast: true) {
+                            Picker("Thinking", selection: $config.thinking) {
+                                ForEach(CooperThinkingPreference.allCases) { thinking in
+                                    Text(thinking.label).tag(thinking)
+                                }
+                            }
+                            .frame(width: SettingsMetrics.pickerWidth)
+                            .labelsHidden()
+                            .onChange(of: config.thinking) { _, _ in scheduleSave() }
                         }
                     }
-                    .frame(width: SettingsMetrics.pickerWidth)
-                    .labelsHidden()
-                    .onChange(of: config.thinking) { _, _ in scheduleSave() }
                 }
 
                 DisclosureGroup("Advanced") {

@@ -1,5 +1,7 @@
 import SwiftUI
 
+/// Settings → Software Update: Sparkle's automatic-check controls and a
+/// manual check, in the shared value-row anatomy.
 struct SoftwareUpdateSection: View {
     @Environment(SoftwareUpdater.self) private var updater
 
@@ -12,37 +14,43 @@ struct SoftwareUpdateSection: View {
         @Bindable var updater = updater
 
         VStack(alignment: .leading, spacing: SettingsMetrics.groupSpacing) {
-            SettingsRow("Check for updates automatically") {
-                Toggle("", isOn: $updater.automaticallyChecksForUpdates)
-                    .labelsHidden()
-            }
+            SettingsGroup("Updates", caption: "Automatic updates are installed the next time you quit Keg, so a running container is never interrupted by one.") {
+                SettingsCard {
+                    VStack(spacing: 0) {
+                        SettingsValueRow("Check for updates automatically", description: "Looks for a new version in the background.") {
+                            Toggle("Check for updates automatically", isOn: $updater.automaticallyChecksForUpdates)
+                                .labelsHidden()
+                        }
 
-            if updater.automaticallyChecksForUpdates {
-                Picker("Check", selection: $updater.checkFrequency) {
-                    ForEach(UpdateCheckFrequency.allCases) { frequency in
-                        Text(frequency.label).tag(frequency)
+                        if updater.automaticallyChecksForUpdates {
+                            SettingsValueRow("Check frequency", description: "How often Keg asks the update server.") {
+                                Picker("Check frequency", selection: $updater.checkFrequency) {
+                                    ForEach(UpdateCheckFrequency.allCases) { frequency in
+                                        Text(frequency.label).tag(frequency)
+                                    }
+                                }
+                                .labelsHidden()
+                                .pickerStyle(.menu)
+                                .fixedSize()
+                            }
+                        }
+
+                        SettingsValueRow("Download and install updates automatically", description: "Installs in the background, applied on the next quit.", isLast: true) {
+                            Toggle("Download and install updates automatically", isOn: $updater.automaticallyDownloadsUpdates)
+                                .labelsHidden()
+                                .disabled(!updater.automaticallyChecksForUpdates)
+                        }
                     }
                 }
-                .pickerStyle(.menu)
-                .fixedSize()
             }
 
-            SettingsRow("Download and install updates automatically") {
-                Toggle("", isOn: $updater.automaticallyDownloadsUpdates)
-                    .labelsHidden()
-                    .disabled(!updater.automaticallyChecksForUpdates)
-            }
-
-            SettingsCaption("Automatic updates are installed the next time you quit Keg, so a running container is never interrupted by one.")
-
-            Divider()
-
-            HStack {
-                SettingsCaption(lastCheckedDescription)
-                Spacer()
-                Button("Check Now") { updater.checkForUpdates() }
-                    .controlSize(.small)
-                    .disabled(!updater.canCheckForUpdates)
+            SettingsGroup("Manual check", caption: lastCheckedDescription) {
+                HStack {
+                    Spacer()
+                    Button("Check Now") { updater.checkForUpdates() }
+                        .controlSize(.small)
+                        .disabled(!updater.canCheckForUpdates)
+                }
             }
         }
         .padding(.vertical, 4)

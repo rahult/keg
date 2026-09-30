@@ -20,19 +20,18 @@ struct KubernetesSettingsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: SettingsMetrics.groupSpacing) {
-            HStack {
-                statusView
-                Spacer()
-                Button {
-                    Task { await refresh() }
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-                .controlSize(.small)
-            }
+            statusView
 
-            CopyableRow(label: "Cluster container", value: clusterID)
-            CopyableRow(label: "Kubeconfig", value: kubeconfigPath)
+            SettingsCard {
+                VStack(spacing: 0) {
+                    SettingsValueRow("Cluster container") {
+                        SettingsCopyLine(value: clusterID, accessibilityLabel: "Copy cluster container name")
+                    }
+                    SettingsValueRow("Kubeconfig", description: "Point kubectl here with export KUBECONFIG.", isLast: true) {
+                        SettingsCopyLine(value: kubeconfigPath, accessibilityLabel: "Copy kubeconfig path")
+                    }
+                }
+            }
 
             switch status {
             case .absent:
@@ -84,12 +83,21 @@ struct KubernetesSettingsSection: View {
                     .font(.headline)
             }
         case .absent:
-            SettingsStatusCard(.inactive, title: "No cluster")
+            SettingsStatusCard(.inactive, title: "No cluster", headerAction: { refreshButton })
         case .running:
-            SettingsStatusCard(.ok, title: "Cluster running")
+            SettingsStatusCard(.ok, title: "Cluster running", headerAction: { refreshButton })
         case .stopped:
-            SettingsStatusCard(.warning, title: "Cluster stopped")
+            SettingsStatusCard(.warning, title: "Cluster stopped", headerAction: { refreshButton })
         }
+    }
+
+    private var refreshButton: some View {
+        Button {
+            Task { await refresh() }
+        } label: {
+            Label("Refresh", systemImage: "arrow.clockwise")
+        }
+        .controlSize(.small)
     }
 
     private func refresh() async {

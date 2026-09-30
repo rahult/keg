@@ -8,7 +8,7 @@ struct PlatformSetupCard: View {
     @State private var showFailed = false
 
     var body: some View {
-        GroupBox {
+        SettingsCard {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
                     Image(systemName: "shippingbox.circle.fill")
@@ -87,7 +87,6 @@ struct PlatformSetupCard: View {
                     }
                 }
             }
-            .padding(4)
         }
         .accessibilityElement(children: .contain)
     }

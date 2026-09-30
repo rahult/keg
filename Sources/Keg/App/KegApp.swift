@@ -193,12 +193,8 @@ struct KegApp: App {
                 .disabled(!updater.canCheckForUpdates)
             }
 
-            // Opens the Settings window centered over the main window (the
-            // frame is captured by AppState, used by SettingsView) instead
-            // of letting macOS drop it mid-screen.
             CommandGroup(replacing: .appSettings) {
                 Button("Settings…") {
-                    appState.captureSettingsFrame()
                     openSettingsWindow()
                 }
                 .keyboardShortcut(",", modifiers: .command)
@@ -297,6 +293,8 @@ struct KegApp: App {
                 .environment(appState)
                 .environment(updater)
         }
+        .defaultSize(width: 780, height: 620)
+        .windowResizability(.contentMinSize)
     }
 }
 

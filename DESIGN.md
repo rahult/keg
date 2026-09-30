@@ -651,37 +651,46 @@ DisclosureGroup(isExpanded: $isExpanded) {
 
 ## 18. Settings Screen
 
-Every tab is a grouped `Form` (`Section("Title")` headers) whose content is
-built from the shared components in
+Settings is a `NavigationSplitView` window (the macOS 26 System Settings
+idiom), not a tabbed `Form`: a grouped sidebar (`SettingsNavList` — General /
+Runtime / Features section headers, SF Symbol icon + label per row, orange
+attention badge for panes that need it, e.g. an unregistered boot kernel) and
+stacked pane groups in the detail column. The same `SettingsView` is embedded
+as the main window's `.settings` detail; the sidebar column is constrained
+(`min: 200, ideal: 220`) and the detail collapses gracefully when the column
+is narrow. Every pane is built from the shared components in
 `Sources/Keg/Views/Settings/SettingsComponents.swift`. Do not hand-roll rows,
-status displays, or caption styles in Settings — extend the components instead.
+status displays, or caption styles in Settings — extend the components
+instead.
 
 | Component | Use for |
 |-----------|---------|
-| `SettingsGroup("Title", caption:)` | Titled group of controls inside a VStack-based section view; optional explanatory caption |
-| `SettingsRow("Label") { control }` | Label column (140pt) + control column (280pt) — the only row layout inside VStack section views; the full-width leading frame defeats the form's centering of fixed-width rows |
-| `SettingsStatusCard(.ok/.stopped/.warning/.inactive/.info, title:)` | Every status display: colored dot + headline + detail + trailing action |
+| `SettingsGroup("Title", caption:, isDanger:)` | Titled group of controls in a pane; the caption (one sentence, what this group controls) is mandatory for new groups. `isDanger: true` tints the title red for bottom "Danger" groups that hold destructive controls |
+| `SettingsValueRow("Label", description:, isLast:) { control }` | The one row layout: leading label + caption description, control trailing right, hairline separator between stacked rows. Stack rows in a `VStack(spacing: 0)` inside a `SettingsCard`; `isLast: true` on the final row |
+| `SettingsStatusCard(.ok/.stopped/.warning/.inactive/.info, title:, detail:, headerAction:)` | Every status display: colored dot + headline + detail lines, with the pane's primary action in the trailing header slot. Status cards crown their pane — status sits on top |
 | `SettingsCopyLine("value")` | Monospaced, selectable values with one-click copy (§4 idiom) |
 | `SettingsCaption("text")` | The one descriptive-text style: `.caption` + `.secondary` |
-| `SettingsCard { }` | Subtle rounded container for auxiliary content (install steps, advanced editors) |
+| `SettingsCard { }` | Subtle rounded container (corner radius 10) for value-row stacks and auxiliary content (install steps, advanced editors) |
 
 Rules:
 
 - **Spacing rhythm**: 12pt between groups (`SettingsMetrics.groupSpacing`), 4pt
-  group padding, 10pt card padding. No one-off spacing values.
+  group padding, 10pt card padding, 8pt value-row padding. No one-off spacing
+  values.
 - **Buttons**: `.controlSize(.small)` everywhere in Settings; the single
-  primary action adds `.borderedProminent`; clipboard copies are always
-  borderless `doc.on.doc` via `SettingsCopyLine`.
+  primary action adds `.borderedProminent`; destructive controls use
+  `role: .destructive` and live in a bottom `isDanger` group, never inline
+  with everyday controls. Clipboard copies are always borderless `doc.on.doc`
+  via `SettingsCopyLine`.
 - **Text fields**: `.textFieldStyle(.roundedBorder)`.
 - **Segmented pickers** size naturally (never force them into a fixed width —
   macOS clips the first segment's label); menu pickers use
   `SettingsMetrics.pickerWidth`.
-- **Toggles** in VStack section views: `SettingsRow("Label") { Toggle("",
-  isOn: …).labelsHidden() }`. Toggles placed directly in a `Form` keep their
-  native labeled form row.
-- **Native `Form` rows** (direct children of `Section`) stay native:
-  `Picker("Label")`, `Toggle("Label")`, `LabeledContent` — don't wrap them.
-- Never nest a second `Form` inside a tab.
+- **Toggles** are the trailing control of a `SettingsValueRow`, with the row
+  label and description carrying the meaning (`.labelsHidden()` on the
+  toggle itself).
+- Never use a fixed label/control column grid — the trailing control
+  right-aligns and sizes naturally.
 - macOS 26 quirk: a `TextField` placeholder that looks like a URL renders as a
   blue AXLink outside the bezel — pre-existing AppKit behavior, not a layout
   bug.
