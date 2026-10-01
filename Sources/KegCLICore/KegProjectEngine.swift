@@ -12,6 +12,12 @@ public struct KegContainerCreateRequest: Encodable, Sendable {
     public let entrypoint: [String]?
     public let workingDir: String?
     public let platform: String?
+    /// Interactive-attach fields (nil = omit from the wire body, the
+    /// default for services). Sandboxes set all three true so a later
+    /// interactive exec gets a live stdin/pty path.
+    public let openStdin: Bool?
+    public let stdinOnce: Bool?
+    public let tty: Bool?
     public let hostConfig: HostConfig
 
     public struct HostConfig: Encodable, Sendable {
@@ -63,6 +69,9 @@ public struct KegContainerCreateRequest: Encodable, Sendable {
         case entrypoint = "Entrypoint"
         case workingDir = "WorkingDir"
         case platform = "Platform"
+        case openStdin = "OpenStdin"
+        case stdinOnce = "StdinOnce"
+        case tty = "Tty"
         case hostConfig = "HostConfig"
     }
 
@@ -74,6 +83,9 @@ public struct KegContainerCreateRequest: Encodable, Sendable {
         entrypoint: [String]?,
         workingDir: String?,
         platform: String?,
+        openStdin: Bool? = nil,
+        stdinOnce: Bool? = nil,
+        tty: Bool? = nil,
         hostConfig: HostConfig
     ) {
         self.image = image
@@ -83,6 +95,9 @@ public struct KegContainerCreateRequest: Encodable, Sendable {
         self.entrypoint = entrypoint
         self.workingDir = workingDir
         self.platform = platform
+        self.openStdin = openStdin
+        self.stdinOnce = stdinOnce
+        self.tty = tty
         self.hostConfig = hostConfig
     }
 

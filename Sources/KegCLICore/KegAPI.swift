@@ -102,11 +102,38 @@ public struct CLIContainerInspect: Decodable, Sendable {
     public let state: ContainerState
     /// May be absent depending on what the bridge's inspect includes.
     public let labels: [String: String]?
+    /// Config.Image — the image reference the container was created from.
+    public let config: ContainerConfig?
+
+    public struct ContainerConfig: Decodable, Sendable {
+        public let image: String?
+        /// Create-time labels. Keg's bridge carries them here (from the
+        /// container's stored config) rather than in a top-level Labels
+        /// field, so label consumers must look in both places.
+        public let labels: [String: String]?
+        enum CodingKeys: String, CodingKey {
+            case image = "Image"
+            case labels = "Labels"
+        }
+    }
 
     enum CodingKeys: String, CodingKey {
         case id = "Id"
         case state = "State"
         case labels = "Labels"
+        case config = "Config"
+    }
+
+    /// Labels merged from both inspect locations: the canonical top-level
+    /// `Labels` wins per key, with `Config.Labels` as the fallback (the
+    /// bridge populates the latter only). Empty when the bridge omits
+    /// labels entirely.
+    public var effectiveLabels: [String: String] {
+        var merged = config?.labels ?? [:]
+        for (key, value) in labels ?? [:] {
+            merged[key] = value
+        }
+        return merged
     }
 }
 
