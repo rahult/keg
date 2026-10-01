@@ -338,6 +338,13 @@ struct TraceDetailView: View {
             }
         }
         .frame(width: 720, height: 640)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Close") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                    .help("Close trace (Esc)")
+            }
+        }
         .task {
             await load()
         }
