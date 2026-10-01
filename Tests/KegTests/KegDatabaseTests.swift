@@ -11,7 +11,8 @@ final class KegDatabaseTests: XCTestCase {
     func testEngineLookup() throws {
         XCTAssertEqual(try KegDatabaseEngine.engine("postgres").id, "postgres")
         XCTAssertEqual(try KegDatabaseEngine.engine("Postgres").id, "postgres")
-        XCTAssertEqual(KegDatabaseEngine.all.count, 3)
+        XCTAssertEqual(try KegDatabaseEngine.engine("ClickHouse").id, "clickhouse")
+        XCTAssertEqual(KegDatabaseEngine.all.count, 4)
         XCTAssertThrowsError(try KegDatabaseEngine.engine("oracle"))
     }
 
@@ -96,6 +97,45 @@ final class KegDatabaseTests: XCTestCase {
         XCTAssertEqual(KegDatabaseStatements.listDatabasesCommand(engine: e, superuser: "", password: ""), [])
     }
 
+    func testClickHouseStatements() {
+        let e = KegDatabaseEngine.clickhouse
+        XCTAssertEqual(e.defaultPort, 8123, "HTTP interface, not native TCP 9000")
+        XCTAssertEqual(e.dataContainerPath, "/var/lib/clickhouse")
+        XCTAssertEqual(
+            KegDatabaseStatements.databaseExistsCommand(engine: e, name: "kegtraces", superuser: "default", password: ""),
+            ["clickhouse-client", "--query", "EXISTS DATABASE kegtraces"]
+        )
+        XCTAssertEqual(
+            KegDatabaseStatements.createDatabaseCommand(engine: e, name: "kegtraces", superuser: "default", password: ""),
+            ["clickhouse-client", "--query", "CREATE DATABASE IF NOT EXISTS kegtraces"]
+        )
+        XCTAssertEqual(
+            KegDatabaseStatements.dropDatabaseCommand(engine: e, name: "kegtraces", superuser: "default", password: ""),
+            ["clickhouse-client", "--query", "DROP DATABASE IF EXISTS kegtraces SYNC"]
+        )
+        XCTAssertEqual(
+            KegDatabaseStatements.readinessCommand(engine: e, superuser: "default", password: ""),
+            ["clickhouse-client", "--query", "SELECT 1"]
+        )
+        XCTAssertEqual(
+            KegDatabaseStatements.listDatabasesCommand(engine: e, superuser: "default", password: ""),
+            ["clickhouse-client", "--query", "SHOW DATABASES"]
+        )
+        // No role support: the builder no-ops like every non-postgres engine.
+        XCTAssertEqual(
+            KegDatabaseStatements.createRoleCommand(engine: e, role: "app", password: "pw", database: "app", superuser: "default"),
+            []
+        )
+    }
+
+    func testClickHouseNameValidationIsReused() throws {
+        // ClickHouse relies on the shared strict validator (bare names in
+        // SQL), so anything it accepts must be injection-safe bare.
+        let name = try KegDatabaseNames.validateDatabaseName("KegTraces_1")
+        XCTAssertEqual(name, "kegtraces_1")
+        XCTAssertThrowsError(try KegDatabaseNames.validateDatabaseName("bad;name"))
+    }
+
     // MARK: - URLs
 
     func testURLs() throws {
@@ -114,6 +154,24 @@ final class KegDatabaseTests: XCTestCase {
         XCTAssertEqual(
             KegDatabaseURLs.url(engine: .redis, server: server, database: "2"),
             "redis://127.0.0.1:5433/2"
+        )
+        // ClickHouse speaks the HTTP interface, so the URL is http:// with
+        // the database as a query param (default user needs no password).
+        let chServer = KegDatabaseServer(
+            engine: "clickhouse", containerName: "kegdb-clickhouse", port: 8123,
+            superuser: "default", password: "", volume: "kegdb-clickhouse-data"
+        )
+        XCTAssertEqual(
+            KegDatabaseURLs.url(engine: .clickhouse, server: chServer, database: "kegtraces"),
+            "http://127.0.0.1:8123/?database=kegtraces"
+        )
+        XCTAssertEqual(
+            KegDatabaseURLs.url(engine: .clickhouse, server: chServer, database: ""),
+            "http://127.0.0.1:8123/"
+        )
+        XCTAssertEqual(
+            KegDatabaseURLs.display(engine: .clickhouse, server: chServer, database: "kegtraces"),
+            "http://127.0.0.1:8123/?database=kegtraces"
         )
     }
 
@@ -199,6 +257,20 @@ final class KegDatabaseTests: XCTestCase {
         let hostConfig = object["HostConfig"] as? [String: Any]
         XCTAssertNotNil(hostConfig?["PortBindings"])
         XCTAssertEqual(hostConfig?["Binds"] as? [String], ["kegdb-mysql-data:/var/lib/mysql"])
+    }
+
+    func testClickHouseCreateRequestShape() {
+        let request = KegDatabaseContainers.createRequest(
+            engine: .clickhouse, port: 8124, superuser: "default", password: ""
+        )
+        XCTAssertEqual(request.image, "clickhouse/clickhouse-server:24.8-alpine")
+        XCTAssertEqual(request.platform, "linux/arm64")
+        XCTAssertEqual(request.env, ["CLICKHOUSE_SKIP_USER_SETUP=1"], "without it the entrypoint locks the default user to in-VM localhost")
+        XCTAssertEqual(request.hostConfig.binds, ["kegdb-clickhouse-data:/var/lib/clickhouse"])
+        XCTAssertEqual(request.hostConfig.portBindings["8123/tcp"]?.first?.hostPort, "8124")
+        XCTAssertEqual(request.hostConfig.portBindings["8123/tcp"]?.first?.hostIP, "127.0.0.1")
+        XCTAssertEqual(request.labels[KegDatabaseContainers.engineLabel], "clickhouse")
+        XCTAssertEqual(request.labels[KegDatabaseContainers.portLabel], "8124")
     }
 
     // MARK: - Port probe polarity (regression: bind success = FREE)

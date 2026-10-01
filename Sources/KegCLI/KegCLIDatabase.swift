@@ -63,7 +63,7 @@ enum KegCLIDatabase {
               remove <engine>          Stop + remove the shared server (data kept)
                 --delete-data          Also erase the server's data volume
 
-            engines: postgres · mysql · redis
+            engines: postgres · mysql · redis · clickhouse
             Databases are reached from the Mac at 127.0.0.1:<port> — containers
             cannot reach each other, so app code runs on the host (or uses a
             keg.yaml service when it needs no peers).
@@ -95,7 +95,7 @@ enum KegCLIDatabase {
                 let names = (result?.stdout ?? "")
                     .split(separator: "\n")
                     .map(String.init)
-                    .filter { $0 != "postgres" }
+                    .filter { engine.id == "clickhouse" ? !["default", "system"].contains($0) : $0 != "postgres" }
                 dbList = names.isEmpty ? "—" : names.joined(separator: ", ")
             } else {
                 dbList = "—"
@@ -162,7 +162,7 @@ enum KegCLIDatabase {
                 default: engine.defaultPort,
                 busy: KegPortProbe.busyPorts(from: engine.defaultPort, count: 20)
             )
-            let superuser = engine.id == "postgres" ? "keg" : "root"
+            let superuser = engine.id == "postgres" ? "keg" : (engine.id == "clickhouse" ? "default" : "root")
             let password = passwordOption ?? randomToken()
             print("creating \(engine.containerName) (\(engine.image), 127.0.0.1:\(port))")
             let request = KegDatabaseContainers.createRequest(
@@ -414,7 +414,7 @@ enum KegCLIDatabase {
             engine: engine.id,
             containerName: engine.containerName,
             port: port,
-            superuser: labels["com.keg.db.superuser"] ?? (engine.id == "postgres" ? "keg" : "root"),
+            superuser: labels["com.keg.db.superuser"] ?? (engine.id == "postgres" ? "keg" : (engine.id == "clickhouse" ? "default" : "root")),
             password: labels["com.keg.db.password"] ?? "",
             volume: engine.volumeName()
         )

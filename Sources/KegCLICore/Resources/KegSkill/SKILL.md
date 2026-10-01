@@ -106,8 +106,8 @@ container's published port, not even via `192.168.64.1` (verified live
 
 ## Databases: shared servers, many databases (preferred)
 
-One container per engine — `kegdb-postgres`, `kegdb-mysql`, `kegdb-redis`
-— hosts **many logical databases**, one per app. This is the default
+One container per engine — `kegdb-postgres`, `kegdb-mysql`, `kegdb-redis`,
+`kegdb-clickhouse` — hosts **many logical databases**, one per app. This is the default
 pattern: you pay one microVM per engine, not one per project, and every
 app still gets an isolated database. (`keg db remove` is the explicit
 escape hatch; a `db:` service inside keg.yaml is for when a project
@@ -136,6 +136,10 @@ keg db drop postgres todo_app   # evict clients + drop the database
   `remove` unless `--delete-data`).
 - Redis: no databases to create — `keg db ensure redis` starts the
   server; use URL path `/0`…`/15` for keyspaces.
+- ClickHouse: `keg db ensure clickhouse --database kegtraces` →
+  `http://127.0.0.1:8123/?database=kegtraces` (HTTP interface; the
+  default user has no password). Use `keg db run clickhouse --
+  clickhouse-client --query '…'` for admin queries.
 
 Typical full-stack agent flow (e.g. a todo app):
 

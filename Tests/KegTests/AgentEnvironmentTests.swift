@@ -15,7 +15,7 @@ final class AgentEnvironmentTests: XCTestCase {
 
     private func makeRecipe() -> WorldRecipe {
         WorldRecipe(
-            repo: RepoRef(url: "https://github.com/example/demo.git", branch: "main", commit: "abc123"),
+            repo: RepoRef(url: "/tmp/keg-test-repo", branch: "main", commit: "abc123"),
             kegYAML: "name: demo\nservices:\n  web:\n    image: nginx:alpine\n",
             env: ["NODE_ENV": "test"],
             databases: []

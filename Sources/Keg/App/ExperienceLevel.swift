@@ -294,6 +294,16 @@ enum SectionHelpGuide {
                 firstSteps: [],
                 tip: nil
             )
+        case .traces:
+            return SectionHelpContent(
+                title: "Traces",
+                beginner: "A recorded timeline of everything each agent run did — messages, tool calls, and results.",
+                technical: "ClickHouse-backed event waterfall mirrored from agent session logs, queryable per trace.",
+                firstSteps: [
+                    "Run an agent session, then open its trace to replay the execution",
+                ],
+                tip: nil
+            )
         case .sources:
             return SectionHelpContent(
                 title: "Sources",

@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Managed agents: New Session flow + live streaming (Tranche 1 polish)** — the Agents area is now reachable (an area picker tops the sidebar; previously the only entry was a dismissable dashboard promo) and Agents → Sessions hosts the session inbox: a "New Session…" sheet takes a repo (local folder or Git URL), non-secret env vars, an editable keg.yaml seeded from stack detection, a brain choice (Auto/Cooper/pi), and a first instruction, then creates and launches the session. Live event streaming during a turn (new `SessionStore.updates()` AsyncStream) renders events as they land; the session detail opens in a sheet with the structured event rows.
+- **Managed agents: Push for Review (Tranche 2)** — "Push for Review…" on a session commits its workspace on a `keg/<slug>` branch, pushes, and opens a draft PR via `gh` (gh owns auth; Keg never touches tokens). The `.kegsession` bundle (event log + world recipe + workspace diff + metadata) rides the branch at `.keg/session.kegsession`, and the PR body embeds replay instructions. The recipe is persisted per session (`recipe.json` sidecar). Failures surface in a banner with Retry; success shows a copyable PR URL.
+- Live E2E verified 2026-10-01 against a real repo (github.com/rahult/keg-agent-e2e): New Session (Git URL) → world provisioned in a real microVM → Cooper remote brain turn (over a local Ollama) with permission-gated tool execution → completed session log → draft PR opened by the app.
+- **`keg db` ClickHouse engine** — `keg db ensure clickhouse --database <name>` runs the shared-engine pattern (one `kegdb-clickhouse` microVM, named volume `kegdb-clickhouse-data`) on the HTTP interface at 127.0.0.1:8123; `keg db url clickhouse <name>` prints `http://127.0.0.1:8123/?database=<name>`. Image `clickhouse/clickhouse-server:24.8-alpine` (arm64). Quirk baked in: `CLICKHOUSE_SKIP_USER_SETUP=1` — without it the entrypoint rewrites the passwordless `default` user to localhost-only inside the VM and every Mac-side HTTP call fails AUTHENTICATION_FAILED.
+- **Traces: agent-execution trace store + viewer (Langfuse/Braintrust-style)** — every agent session is mirrored into ClickHouse (`kegtraces.trace_events`, MergeTree ordered by trace_id/event_index) via `Sources/Keg/Traces/TraceStore.swift`: live ingest through the session store's update stream plus one-time backfill of existing session logs. Agents → Traces (new sidebar section) lists traces with status/events/duration and opens a waterfall detail — user/assistant/tool/tool_result rows with inputs, outputs, errors, per-step timestamps and deltas. A ClickHouse outage degrades traces, never sessions (all writes best-effort, logged to `~/.keg/cooper/debug.log`).
+
+### Fixed
+- **TraceStore INSERT builder emitted an unterminated VALUES row** — the closing `)` was missing; ClickHouse reported it as a misleading DateTime64 parse error at the last column. Caught by live backfill, not the unit tests (assertions matched on statement prefixes). The statement is also trimmed of trailing whitespace before sending (ValuesBlockInputFormat is picky about trailing newlines).
+- **The Agents area was unreachable** — `AreaPicker` was dead code and neither the sidebar nor the detail column switched on `currentArea`; the picker now tops the sidebar and both sides switch.
+- **Session detail no longer aborts the window** — it renders in a sheet instead of `.inspector`, which triggered the macOS 27 "Update Constraints in Window pass" AppKit exception (verified live in `~/.keg/exceptions.log`).
+- **Session worlds no longer publish ports** — the scaffold templates' fixed 8080/3000 collided with the Gateway proxy or another session's world, and the runtime failed the whole provision on the bind error (visible in the Docker API log as `bind: Address already in use`); session scaffolds now strip `ports:`.
+- **Git-URL sessions start as a clone** — `AgentWorkspace.materialize` clones remote repos into the workspace, so push-for-review shares history with the remote's default branch (a fresh `git init` produced unrelated histories GitHub refused to open PRs for).
+
 ## [0.8.4] — 2026-10-01
 
 ### Changed

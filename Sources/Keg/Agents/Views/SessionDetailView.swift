@@ -77,6 +77,9 @@ struct SessionDetailView: View {
         .task {
             await loadSessionData()
         }
+        .onDisappear {
+            vm.stopLiveUpdates()
+        }
         .onChange(of: vm.error) { _, newValue in
             appState.updateAgentServiceReachability(for: newValue)
         }
@@ -116,6 +119,8 @@ struct SessionDetailView: View {
                 ) {
                     if vm.exportError != nil {
                         vm.exportError = nil
+                    } else if vm.pushError != nil {
+                        vm.pushError = nil
                     } else {
                         vm.error = nil
                         appState.updateAgentServiceReachability(for: nil)
@@ -128,13 +133,14 @@ struct SessionDetailView: View {
     private func loadSessionData() async {
         await vm.loadLocalState()
         let client = await appState.agentClient
-        await vm.loadEvents(client: client)
+        await vm.loadEvents(client: client, service: appState.agentService)
+        await vm.updateHandoffAvailability(service: appState.agentService)
         appState.updateAgentServiceReachability(for: client == nil ? nil : vm.error)
     }
 
     private func loadEvents() async {
         let client = await appState.agentClient
-        await vm.loadEvents(client: client)
+        await vm.loadEvents(client: client, service: appState.agentService)
         appState.updateAgentServiceReachability(for: client == nil ? nil : vm.error)
     }
 
@@ -145,6 +151,9 @@ struct SessionDetailView: View {
     private var bannerIssue: AgentIssuePresentation? {
         if let exportError = vm.exportError {
             return AgentIssuePresentation(message: exportError)
+        }
+        if let pushError = vm.pushError {
+            return AgentIssuePresentation(message: pushError)
         }
         return vm.error != nil && vm.events.isEmpty ? currentIssue : nil
     }
@@ -200,12 +209,27 @@ struct SessionDetailView: View {
                 Spacer()
                 
                 VStack(alignment: .trailing, spacing: 4) {
-                    StatusBadge(status: session.status.rawValue.capitalized)
-                    
+                    StatusBadge(status: vm.sessionStatus.rawValue.capitalized)
+
                     let duration = session.updatedAt.timeIntervalSince(session.createdAt)
                     Text(formatDuration(duration))
                         .font(.caption)
                         .foregroundStyle(.secondary)
+
+                    Button {
+                        Task { await vm.pushForReview(service: appState.agentService) }
+                    } label: {
+                        Label(
+                            vm.isPushingForReview ? "Pushing…" : "Push for Review…",
+                            systemImage: "tray.and.arrow.up"
+                        )
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .disabled(!vm.canPushForReview || vm.isPushingForReview)
+                    .help(vm.canPushForReview
+                          ? "Commit the session's work and open a draft pull request."
+                          : (vm.handoffDisabledReason ?? "Push for review is unavailable."))
                 }
             }
             
@@ -231,6 +255,18 @@ struct SessionDetailView: View {
                 Text("\(vm.events.count) events")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            if let prURL = vm.pushedPRURL {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text("Draft PR opened.")
+                        .font(.caption)
+                    SettingsCopyLine(value: prURL, emphasis: .standard, accessibilityLabel: "Copy pull request URL")
+                    Spacer()
+                }
+                .accessibilityElement(children: .combine)
             }
 
             workflowSection
@@ -277,15 +313,40 @@ struct SessionDetailView: View {
                         EventRow(event: event, isLast: index == vm.displayEvents.count - 1)
                             .id(index)
                     }
+                    if vm.isStreaming {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Working…")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 16)
+                        .id("working-indicator")
+                    }
                 }
                 .padding()
             }
             .onChange(of: vm.events.count) { _, _ in
-                if let lastIndex = vm.displayEvents.indices.last {
+                scrollToBottom(proxy: proxy)
+            }
+            .onChange(of: vm.isStreaming) { _, isStreaming in
+                if isStreaming {
+                    scrollToBottom(proxy: proxy)
+                } else if let lastIndex = vm.displayEvents.indices.last {
                     withAnimation {
                         proxy.scrollTo(lastIndex, anchor: .bottom)
                     }
                 }
+            }
+        }
+    }
+
+    private func scrollToBottom(proxy: ScrollViewProxy) {
+        if let lastIndex = vm.displayEvents.indices.last {
+            withAnimation {
+                proxy.scrollTo(lastIndex, anchor: .bottom)
             }
         }
     }
@@ -612,6 +673,23 @@ final class SessionDetailVM {
     var exportError: String?
     var workflowState: SessionWorkflowState
     var activityEntries: [SessionActivityEntry] = []
+    /// Live status, refreshed from the log's session record while streaming.
+    var sessionStatus: SessionStatus
+    /// True while consuming the store's update stream (a turn is in flight).
+    var isStreaming = false
+    /// Tranche 2 handoff: whether "Push for Review…" can run, and why not.
+    var canPushForReview = false
+    var handoffDisabledReason: String?
+    var isPushingForReview = false
+    var pushedPRURL: String?
+    var pushError: String?
+
+    /// Number of events expected to already be present when the next
+    /// streamed append for this session arrives. Baseline-loaded from the
+    /// log; each delivered update advances it, so an append that raced the
+    /// subscription (and is therefore already in `events`) is skipped.
+    private var expectedNext = 0
+    private var updateTask: Task<Void, Never>?
     
     var displayEvents: [SessionEvent] {
         events
@@ -637,6 +715,101 @@ final class SessionDetailVM {
     init(session: Session) {
         self.session = session
         self.workflowState = SessionWorkflowState(sessionId: session.id)
+        self.sessionStatus = session.status
+    }
+
+    // MARK: - Handoff (Tranche 2)
+
+    /// Probe prerequisites so the button can disable with an explanation
+    /// instead of failing mid-push. Best-effort: every failure mode maps to
+    /// a reason string.
+    func updateHandoffAvailability(service: AgentService) async {
+        let workspace = await AgentWorkspace().workspacePath(sessionId: session.id)
+        let workspaceExists = FileManager.default.fileExists(atPath: workspace.path)
+        let recipe = try? await service.loadRecipe(forSession: session.id)
+        let recipeIsGitHub = recipe.flatMap { GitHubRemote.parse($0.repo.url) != nil } ?? false
+        // If the workspace is itself a git repo, the push can resolve the
+        // remote from its origin even when the recipe points at a folder.
+        let workspaceIsRepo = FileManager.default.fileExists(
+            atPath: workspace.appendingPathComponent(".git").path
+        )
+        let ghAvailable = await Handoff().toolAvailable("gh")
+        let verdict = Handoff.readiness(
+            hasRecipe: recipe != nil,
+            workspaceExists: workspaceExists,
+            recipeIsGitHub: recipeIsGitHub,
+            workspaceIsRepo: workspaceIsRepo,
+            ghAvailable: ghAvailable
+        )
+        canPushForReview = verdict.ready
+        handoffDisabledReason = verdict.reason
+    }
+
+    /// Commit the workspace on `keg/<slug>`, push, and open the draft PR.
+    /// Errors land in `pushError`; success in `pushedPRURL`.
+    func pushForReview(service: AgentService) async {
+        guard !isPushingForReview else { return }
+        isPushingForReview = true
+        pushError = nil
+        defer { isPushingForReview = false }
+        do {
+            let result = try await service.pushForReview(sessionId: session.id)
+            pushedPRURL = result.prURL
+        } catch {
+            pushError = (error as? LocalizedError)?.errorDescription
+                ?? error.localizedDescription
+        }
+    }
+
+    // MARK: - Live streaming
+
+    /// Subscribe to the service's log-update stream and append this
+    /// session's events as they land on disk. The log stays the source of
+    /// truth: a baseline load through the same store precedes streaming,
+    /// terminal session status ends the stream. No-op for sessions already
+    /// in a terminal state.
+    func startLiveUpdates(service: AgentService) async {
+        guard updateTask == nil, !sessionStatus.isTerminal else { return }
+        let stream = await service.updates()
+        // Baseline through the same store the runner writes through; any
+        // append that raced the subscription is already on disk.
+        if let baseline = try? await service.loadEvents(forSession: session.id) {
+            events = baseline
+        }
+        expectedNext = events.count
+        isStreaming = true
+        updateTask = Task { [weak self] in
+            guard let self else { return }
+            defer {
+                self.isStreaming = false
+                // Only clear the slot we own: when stopLiveUpdates cancelled
+                // us it already did (and may have started a new stream).
+                if !Task.isCancelled {
+                    self.updateTask = nil
+                }
+            }
+            for await update in stream {
+                switch update {
+                case .event(let sessionId, let event):
+                    guard sessionId == self.session.id else { continue }
+                    if self.events.count == self.expectedNext {
+                        self.events.append(event)
+                    }
+                    self.expectedNext += 1
+                case .sessionSaved(let saved):
+                    guard saved.id == self.session.id else { continue }
+                    self.sessionStatus = saved.status
+                    if saved.status.isTerminal { return }
+                }
+            }
+        }
+    }
+
+    /// End the stream (view disappearing, or a consumer replacing it).
+    func stopLiveUpdates() {
+        updateTask?.cancel()
+        updateTask = nil
+        isStreaming = false
     }
 
     func loadLocalState() async {
@@ -662,11 +835,14 @@ final class SessionDetailVM {
         }
     }
 
-    func loadEvents(client: ManagedAgentsClient?) async {
+    func loadEvents(client: ManagedAgentsClient?, service: AgentService? = nil) async {
         guard let client else {
             // No cloud client (not authenticated / local-only runtime):
             // the session log written by AgentRunner is the transcript.
             await loadLocalEvents()
+            if let service {
+                await startLiveUpdates(service: service)
+            }
             return
         }
 
@@ -694,6 +870,7 @@ final class SessionDetailVM {
 
         do {
             events = try await store.loadEvents(forSession: session.id)
+            expectedNext = events.count
             await appendActivity(kind: "refresh", message: "Transcript loaded from local session log")
         } catch {
             self.error = AgentIssuePresentation(error: error).message

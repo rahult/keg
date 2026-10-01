@@ -125,6 +125,25 @@ final class AppState {
         cachedAgentService = service
         return service
     }
+
+    /// ClickHouse mirror of the session logs, powering the trace viewer.
+    /// Fully optional: every ingest/backfill failure is swallowed and
+    /// logged, so a ClickHouse outage leaves sessions and the app working.
+    /// Readable app-wide (`private(set)`) so the Traces view can query it.
+    private(set) var traceStore: TraceStore?
+
+    /// Start tracing after the agent service exists. Guarded end-to-end —
+    /// nothing here may fail the app.
+    private func wireTraceStore() {
+        let store = TraceStore()
+        traceStore = store
+        let service = agentService
+        Task { await store.startIngest(service: service) }
+        Task {
+            guard let sessionStore = try? SessionStore() else { return }
+            await store.backfill(store: sessionStore)
+        }
+    }
     private var cooperNotedUnresponsive = false
     private var cooperNotedStopped = false
 
@@ -182,6 +201,7 @@ final class AppState {
         }
         // Last: captures self, legal only once every stored member exists.
         Task { await cooper.attach(to: self) }
+        wireTraceStore()
 
         // DISABLED (launch-stall + repeated keychain prompts): the eager
         // keychain migration/read below runs on the main actor and its
@@ -899,6 +919,7 @@ enum AgentSection: String, CaseIterable, Identifiable {
     case useCases = "Use Cases"
     case agents = "Agents"
     case sessions = "Sessions"
+    case traces = "Traces"
     case sources = "Sources"
     case skills = "Skills"
 
@@ -910,6 +931,7 @@ enum AgentSection: String, CaseIterable, Identifiable {
         case .useCases: return "wand.and.stars"
         case .agents: return "person.2.badge.gearshape"
         case .sessions: return "clock"
+        case .traces: return "waveform.path.ecg.rectangle"
         case .sources: return "square.stack.3d.up"
         case .skills: return "book"
         }

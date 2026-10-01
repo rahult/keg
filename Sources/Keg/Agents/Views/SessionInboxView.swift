@@ -12,6 +12,7 @@ struct SessionInboxView: View {
     @State private var searchText = ""
     @State private var showingBulkActionMenu = false
     @State private var isLoading = false
+    @State private var showingNewSession = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,6 +35,15 @@ struct SessionInboxView: View {
         .navigationTitle("Session Inbox")
         .searchable(text: $searchText, prompt: "Search sessions")
         .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showingNewSession = true
+                } label: {
+                    Label("New Session", systemImage: "plus")
+                }
+                .keyboardShortcut("n", modifiers: .command)
+            }
+
             ToolbarItem(placement: .automatic) {
                 Button {
                     Task { await refresh() }
@@ -58,10 +68,36 @@ struct SessionInboxView: View {
                 }
             }
         }
+        .sheet(isPresented: $showingNewSession) {
+            NewAgentSessionSheet {
+                Task { await refresh() }
+            }
+            .padding(0)
+        }
+        // Detail in a sheet, not `.inspector`: a root-level inspector on
+        // this split view triggers AppKit's "Update Constraints in Window
+        // pass" loop and aborts the window on macOS 27 (same reason the
+        // Cooper panel is a hand-composed HStack column — see MainView).
+        .sheet(isPresented: .init(
+            get: { detailSession != nil },
+            set: { if !$0 { selectedIDs.removeAll() } }
+        )) {
+            if let session = detailSession {
+                SessionDetailView(session: session, agent: nil)
+                    .padding(20)
+                    .frame(width: 640, height: 700)
+            }
+        }
         .task {
             await refresh()
         }
         .onChange(of: searchText) { _, _ in }
+    }
+
+    /// The single selected local session, shown in the detail sheet.
+    private var detailSession: Session? {
+        guard selectedIDs.count == 1, let id = selectedIDs.first else { return nil }
+        return vm.localSession(id: id)
     }
 
     // MARK: - Filter Bar
@@ -257,7 +293,14 @@ struct SessionInboxView: View {
         ContentUnavailableView {
             Label("No Sessions", systemImage: "tray")
         } description: {
-            Text("Sessions matching your filter will appear here")
+            Text(vm.items.isEmpty
+                ? "Start a session to run an agent on a repo in its own containers."
+                : "No sessions match the current filter.")
+        } actions: {
+            Button("New Session…") {
+                showingNewSession = true
+            }
+            .buttonStyle(.borderedProminent)
         }
     }
 
@@ -479,6 +522,9 @@ final class SessionInboxVM {
     var error: String?
     var showFlaggedOnly = false
     private var workflowStates: [String: SessionWorkflowState] = [:]
+    /// Local-runtime session records, kept so the view can open a detail
+    /// detail sheet (the cloud client path has no local detail yet).
+    private(set) var localSessions: [Session] = []
 
     func load(client: ManagedAgentsClient?, store: SessionStore? = nil) async {
         guard let client else {
@@ -489,6 +535,7 @@ final class SessionInboxVM {
 
         isLoading = true
         defer { isLoading = false }
+        localSessions = []
 
         do {
             let storedStates = try await AgentStorage.shared.loadSessionWorkflowStates()
@@ -532,10 +579,12 @@ final class SessionInboxVM {
 
         guard let store = explicitStore ?? (try? SessionStore()) else {
             items = []
+            localSessions = []
             return
         }
 
         let sessions = (try? await store.loadAllSessions()) ?? []
+        localSessions = sessions
         items = sessions.map { session in
             InboxItem(
                 id: session.id,
@@ -550,6 +599,10 @@ final class SessionInboxVM {
                 createdAt: session.createdAt
             )
         }
+    }
+
+    func localSession(id: String) -> Session? {
+        localSessions.first { $0.id == id }
     }
 
     func toggleFlag(for sessionID: String) async {

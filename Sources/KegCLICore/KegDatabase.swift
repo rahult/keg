@@ -79,7 +79,24 @@ public struct KegDatabaseEngine: Sendable, Equatable {
         adminCLI: "redis-cli"
     )
 
-    public static let all: [KegDatabaseEngine] = [.postgres, .mysql, .redis]
+    public static let clickhouse = KegDatabaseEngine(
+        id: "clickhouse",
+        displayName: "ClickHouse",
+        image: "clickhouse/clickhouse-server:24.8-alpine",
+        scheme: "clickhouse",
+        // The HTTP interface — app-side clients (curl, JDBC/HTTP drivers,
+        // clickhouse-connect) speak it; the native TCP protocol (9000) is
+        // left unpublished.
+        defaultPort: 8123,
+        dataContainerPath: "/var/lib/clickhouse",
+        // The default user ships with no password in default config —
+        // fine for loopback dev.
+        superuserEnv: "",
+        passwordEnv: "",
+        adminCLI: "clickhouse-client"
+    )
+
+    public static let all: [KegDatabaseEngine] = [.postgres, .mysql, .redis, .clickhouse]
 
     public static func engine(_ id: String) throws -> KegDatabaseEngine {
         let key = id.lowercased()
@@ -161,6 +178,11 @@ public enum KegDatabaseStatements {
         case "mysql":
             return [engine.adminCLI, "-u", superuser, "-p\(password)", "-Nse",
                     "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='\(name)'"]
+        case "clickhouse":
+            // clickhouse-client needs --query; EXISTS DATABASE prints 1/0
+            // (TabSeparated). Names are pre-validated ([a-z0-9_]), so they
+            // are safe bare in ClickHouse SQL.
+            return [engine.adminCLI, "--query", "EXISTS DATABASE \(name)"]
         default:
             return [engine.adminCLI, "ping"]
         }
@@ -174,6 +196,8 @@ public enum KegDatabaseStatements {
         case "mysql":
             return [engine.adminCLI, "-u", superuser, "-p\(password)", "-e",
                     "CREATE DATABASE IF NOT EXISTS \(mysqlIdent(name))"]
+        case "clickhouse":
+            return [engine.adminCLI, "--query", "CREATE DATABASE IF NOT EXISTS \(name)"]
         default:
             return [engine.adminCLI, "ping"]
         }
@@ -192,6 +216,10 @@ public enum KegDatabaseStatements {
         case "mysql":
             return [engine.adminCLI, "-u", superuser, "-p\(password)", "-e",
                     "DROP DATABASE IF EXISTS \(mysqlIdent(name))"]
+        case "clickhouse":
+            // SYNC makes the drop synchronous (Atomic engine default) so a
+            // fast re-create of the same name cannot race the cleanup.
+            return [engine.adminCLI, "--query", "DROP DATABASE IF EXISTS \(name) SYNC"]
         default:
             return [engine.adminCLI, "ping"]
         }
@@ -222,6 +250,8 @@ public enum KegDatabaseStatements {
             return ["pg_isready", "-U", superuser, "-q"]
         case "mysql":
             return ["mysqladmin", "-u", superuser, "-p\(password)", "ping"]
+        case "clickhouse":
+            return [engine.adminCLI, "--query", "SELECT 1"]
         default:
             return [engine.adminCLI, "ping"]
         }
@@ -236,6 +266,8 @@ public enum KegDatabaseStatements {
         case "mysql":
             return [engine.adminCLI, "-u", superuser, "-p\(password)", "-Nse",
                     "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql','sys','information_schema','performance_schema') ORDER BY SCHEMA_NAME"]
+        case "clickhouse":
+            return [engine.adminCLI, "--query", "SHOW DATABASES"]
         default:
             return []
         }
@@ -251,6 +283,12 @@ public enum KegDatabaseURLs {
             return "postgresql://\(server.superuser):\(server.password)@127.0.0.1:\(server.port)/\(database)"
         case "mysql":
             return "mysql://\(server.superuser):\(server.password)@127.0.0.1:\(server.port)/\(database)"
+        case "clickhouse":
+            // App-side clients speak the HTTP interface, so the URL is
+            // http:// (engine.scheme stays "clickhouse" for display labels).
+            return database.isEmpty
+                ? "http://127.0.0.1:\(server.port)/"
+                : "http://127.0.0.1:\(server.port)/?database=\(database)"
         default:
             let index = KegDatabaseNames.redisIndex(database)
             return "redis://127.0.0.1:\(server.port)/\(index)"
@@ -262,6 +300,10 @@ public enum KegDatabaseURLs {
         switch engine.id {
         case "redis":
             return "redis://127.0.0.1:\(server.port)/\(KegDatabaseNames.redisIndex(database))"
+        case "clickhouse":
+            return database.isEmpty
+                ? "http://127.0.0.1:\(server.port)/"
+                : "http://127.0.0.1:\(server.port)/?database=\(database)"
         default:
             return "\(engine.scheme)://\(server.superuser)@127.0.0.1:\(server.port)/\(database)"
         }
@@ -396,6 +438,14 @@ public enum KegDatabaseContainers {
             ]
         case "mysql":
             env = ["MYSQL_ROOT_PASSWORD=\(password)"]
+        case "clickhouse":
+            // The image's entrypoint "hardens" the stock passwordless
+            // `default` user to localhost-only inside the VM when no
+            // CLICKHOUSE_USER/PASSWORD is set (verified live: curl from the
+            // Mac got AUTHENTICATION_FAILED). Skipping user setup leaves the
+            // stock users.xml — passwordless default user, full network
+            // access — right for loopback dev.
+            env = ["CLICKHOUSE_SKIP_USER_SETUP=1"]
         default:
             env = []
         }

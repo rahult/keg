@@ -462,14 +462,18 @@ struct DetailView: View {
     @SceneStorage("main.sidebar-visible") private var isSidebarVisible = true
 
     var body: some View {
-        KegDetailView()
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // The standard sidebar toggle disappears once the sidebar
-            // collapses (.detailOnly), leaving no way to reopen it. Provide
-            // our own toggle in that state so the sidebar is always
-            // recoverable. Hidden while the sidebar is visible to avoid
-            // duplicating the standard toggle.
-            .toolbar {
+        if appState.currentArea == .agents {
+            AgentAreaView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            KegDetailView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // The standard sidebar toggle disappears once the sidebar
+                // collapses (.detailOnly), leaving no way to reopen it. Provide
+                // our own toggle in that state so the sidebar is always
+                // recoverable. Hidden while the sidebar is visible to avoid
+                // duplicating the standard toggle.
+                .toolbar {
                 ToolbarItem(placement: .navigation) {
                     if !isSidebarVisible {
                         Button {
@@ -495,6 +499,7 @@ struct DetailView: View {
                     .accessibilityLabel("Toggle Cooper")
                 }
             }
+        }
     }
 }
 
@@ -555,7 +560,11 @@ struct AgentAreaView: View {
         case .agents:
             AgentListView()
         case .sessions:
-            SessionListView()
+            // The inbox covers both the cloud client (when authenticated)
+            // and the local runtime's session log (when not).
+            SessionInboxView()
+        case .traces:
+            TracesView()
         case .sources:
             SourceListView()
         case .skills:

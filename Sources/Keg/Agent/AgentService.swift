@@ -51,6 +51,34 @@ actor AgentService {
         activeSessions[id]
     }
 
+    // MARK: - Live projection (Tranche 1 streaming)
+
+    /// Subscribe to log writes. Passthrough to the store the runner writes
+    /// through, so consumers see appends as they land on disk. Paired with
+    /// `loadEvents(forSession:)` as the baseline: subscribe first, then load.
+    nonisolated func updates() async -> AsyncStream<SessionLogUpdate> {
+        await store.updates()
+    }
+
+    /// Read a session's event log through the same store the runner writes
+    /// through, so a baseline load and a live stream can never disagree.
+    func loadEvents(forSession sessionId: String) async throws -> [SessionEvent] {
+        try await store.loadEvents(forSession: sessionId)
+    }
+
+    /// The recipe the session ran with (persisted by `runTurn`); nil for
+    /// sessions that predate recipe persistence.
+    func loadRecipe(forSession sessionId: String) async throws -> WorldRecipe? {
+        try await store.loadRecipe(forSession: sessionId)
+    }
+
+    /// Tranche 2 handoff: commit the session's workspace on a `keg/<slug>`
+    /// branch and open a draft PR via `gh` (which owns auth — no tokens
+    /// in-app). The `.kegsession` bundle rides the branch.
+    func pushForReview(sessionId: String) async throws -> Handoff.HandoffResult {
+        try await Handoff().pushForReview(sessionId: sessionId, store: store)
+    }
+
     // MARK: - Turns
 
     /// Provision the session's world and run one turn, recording every
@@ -66,6 +94,10 @@ actor AgentService {
         }
 
         try await transition(sessionId: sessionId, to: .running)
+        // Sidecar for Tranche 2+ (handoff/cloud push): keep the recipe the
+        // session ran with. A failure here must not kill the turn — the
+        // workspace materialization re-writes keg.yaml regardless.
+        try? await store.saveRecipe(recipe, forSession: sessionId)
         do {
             _ = try await provisioner.provision(sessionId: sessionId, recipe: recipe)
             let runner = AgentRunner(store: store, workspace: workspace)

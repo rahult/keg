@@ -54,6 +54,14 @@ public enum SessionStatus: String, Codable, Sendable {
     case completed
     case failed
     case cancelled
+
+    /// A session in this state will never run again; live streams can end.
+    public var isTerminal: Bool {
+        switch self {
+        case .completed, .failed, .cancelled: return true
+        case .pending, .running: return false
+        }
+    }
 }
 
 /// Craft-style workflow status for session inbox (Todo → In Progress → Needs Review → Done)

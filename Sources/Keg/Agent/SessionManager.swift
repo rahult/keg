@@ -1,6 +1,15 @@
 import Foundation
 
-// MARK: - Session Store (Persistence)
+// MARK: - Store Updates (live projection)
+
+/// A write to the session log, published after it lands on disk. The log
+/// stays the source of truth — this is only a live projection for views
+/// that want to reflect appends without re-reading the file (Tranche 1
+/// streaming). Consumers filter by session id.
+enum SessionLogUpdate: Sendable {
+    case event(sessionId: String, event: SessionEvent)
+    case sessionSaved(Session)
+}
 
 /// Handles persisting session data and events to disk
 actor SessionStore {
@@ -8,6 +17,7 @@ actor SessionStore {
     private let encoder: JSONEncoder
     private let lineEncoder: JSONEncoder
     private let decoder: JSONDecoder
+    private var updateContinuations: [UUID: AsyncStream<SessionLogUpdate>.Continuation] = [:]
 
     init(sessionsDirectory: URL? = nil) throws {
         let baseDir = sessionsDirectory ?? Self.defaultSessionsDirectory()
@@ -39,6 +49,40 @@ actor SessionStore {
         }
     }
 
+    // MARK: - Subscriptions
+
+    /// Live projection of log writes. Events appended (by the runner or any
+    /// other writer) arrive as `.event`; every `saveSession` lands as
+    /// `.sessionSaved` (status transitions included). The stream is
+    /// unbounded and never finishes on its own — cancel the consuming task.
+    /// Registration is async, so append a baseline load after subscribing;
+    /// appends that race the registration are already on disk and covered
+    /// by that load.
+    func updates() -> AsyncStream<SessionLogUpdate> {
+        AsyncStream(SessionLogUpdate.self, bufferingPolicy: .unbounded) { continuation in
+            let id = UUID()
+            continuation.onTermination = { [weak self] _ in
+                guard let self else { return }
+                Task { await self.removeUpdateContinuation(id: id) }
+            }
+            Task { await self.addUpdateContinuation(id: id, continuation: continuation) }
+        }
+    }
+
+    private func addUpdateContinuation(id: UUID, continuation: AsyncStream<SessionLogUpdate>.Continuation) {
+        updateContinuations[id] = continuation
+    }
+
+    private func removeUpdateContinuation(id: UUID) {
+        updateContinuations.removeValue(forKey: id)
+    }
+
+    private func publish(_ update: SessionLogUpdate) {
+        for continuation in updateContinuations.values {
+            continuation.yield(update)
+        }
+    }
+
     // MARK: - Session Persistence
 
     func saveSession(_ session: Session) async throws {
@@ -48,6 +92,7 @@ actor SessionStore {
         let metadataFile = sessionDir.appendingPathComponent("session.json")
         let data = try encoder.encode(session)
         try data.write(to: metadataFile, options: .atomic)
+        publish(.sessionSaved(session))
     }
 
     func loadSession(id: String) async throws -> Session? {
@@ -128,6 +173,7 @@ actor SessionStore {
         } else {
             try eventLine.write(to: eventsFile, atomically: true, encoding: .utf8)
         }
+        publish(.event(sessionId: sessionId, event: event))
     }
 
     func appendEvents(_ events: [SessionEvent], toSession sessionId: String) async throws {
@@ -171,6 +217,30 @@ actor SessionStore {
         if FileManager.default.fileExists(atPath: eventsFile.path) {
             try FileManager.default.removeItem(at: eventsFile)
         }
+    }
+
+    // MARK: - Recipe Persistence (Tranche 2 handoff)
+
+    /// The world recipe a session was run with, persisted alongside the
+    /// log so handoff/cloud-push can reconstruct the session's world
+    /// without re-reading the workspace. Additive: the log stays the
+    /// source of truth; this is a convenience sidecar.
+    func saveRecipe(_ recipe: WorldRecipe, forSession sessionId: String) async throws {
+        let sessionDir = sessionsDirectory.appendingPathComponent(sessionId, isDirectory: true)
+        try Self.createDirectoryIfNeeded(at: sessionDir)
+        let data = try encoder.encode(recipe)
+        try data.write(to: sessionDir.appendingPathComponent("recipe.json"), options: .atomic)
+    }
+
+    func loadRecipe(forSession sessionId: String) async throws -> WorldRecipe? {
+        let recipeFile = sessionsDirectory
+            .appendingPathComponent(sessionId, isDirectory: true)
+            .appendingPathComponent("recipe.json")
+
+        guard FileManager.default.fileExists(atPath: recipeFile.path) else {
+            return nil
+        }
+        return try decoder.decode(WorldRecipe.self, from: Data(contentsOf: recipeFile))
     }
 }
 

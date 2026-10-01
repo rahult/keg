@@ -7,7 +7,7 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            SystemDashboardView(compact: isCompact)
+            AreaPicker()
                 .padding(.horizontal, isCompact ? 0 : 12)
                 .padding(.top, 12)
                 .padding(.bottom, 8)
@@ -15,7 +15,19 @@ struct SidebarView: View {
             Divider()
                 .padding(.horizontal, isCompact ? 0 : 12)
 
-            KegSidebarContent(compact: isCompact)
+            if appState.currentArea == .agents {
+                AgentSidebarContent()
+            } else {
+                SystemDashboardView(compact: isCompact)
+                    .padding(.horizontal, isCompact ? 0 : 12)
+                    .padding(.top, 12)
+                    .padding(.bottom, 8)
+
+                Divider()
+                    .padding(.horizontal, isCompact ? 0 : 12)
+
+                KegSidebarContent(compact: isCompact)
+            }
         }
         .listStyle(.sidebar)
         .navigationTitle("Keg")
@@ -350,7 +362,7 @@ struct AgentSidebarContent: View {
     }
 
     private let sections: [SidebarSection] = [
-        SidebarSection(name: "Overview", items: [.dashboard, .useCases, .sessions]),
+        SidebarSection(name: "Overview", items: [.dashboard, .useCases, .sessions, .traces]),
         SidebarSection(name: "Manage", items: [.agents, .skills, .sources]),
     ]
 
