@@ -6,7 +6,7 @@ import Darwin
 // MARK: - Why sandboxes
 //
 // `keg sandbox run` launches an agent harness (default: pi, the
-// @mariozechner/pi-coding-agent npm package) inside a Keg microVM container
+// @earendil-works/pi-coding-agent npm package) inside a Keg microVM container
 // with the user's repo bind-mounted at /work, attached to the terminal.
 // The harness is just a command: `--harness claude -- some args` runs any
 // CLI the same way, which is what makes this harness-agnostic.
