@@ -361,6 +361,6 @@ final class KegSandboxTests: XCTestCase {
         let url = try XCTUnwrap(SandboxImageBuilder.dockerfileURL(), "sandbox Dockerfile must be locatable")
         let text = try String(contentsOf: url, encoding: .utf8)
         XCTAssertTrue(text.contains("FROM node:22-alpine"), text)
-        XCTAssertTrue(text.contains("@mariozechner/pi-coding-agent"), text)
+        XCTAssertTrue(text.contains("@earendil-works/pi-coding-agent"), text)
     }
 }
