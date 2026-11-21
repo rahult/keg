@@ -36,7 +36,7 @@ jobs:
 
       # The site is hand-written HTML with no build step, so the directory
       # ships as-is. site/CNAME is what points keg.rahultrikha.com here.
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: site
 
