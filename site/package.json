@@ -1,0 +1,9 @@
+{
+  "name": "keg-site",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Keg marketing site — static HTML, no build step",
+  "scripts": {
+    "dev": "python3 -m http.server ${PORT:-7100}"
+  }
+}

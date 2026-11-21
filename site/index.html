@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keg — Containers on your Mac, deploys to your server</title>
+<meta name="description" content="Keg runs containers and Compose files on your Mac, answers Docker's API, and moves a service to a server you run. A native app with the keg command inside. Open source.">
+<meta property="og:title" content="Keg — Containers on your Mac, deploys to your server">
+<meta property="og:description" content="Containers, Compose and Docker's API on your Mac, in a native app. A container starts in milliseconds. Deploys wait for your approval. Open source.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://keg.rahultrikha.com/">
+<meta property="og:image" content="https://keg.rahultrikha.com/og-cover.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Keg — Containers on your Mac, deploys to your server">
+<meta name="twitter:description" content="Containers, Compose and Docker's API on your Mac, in a native app. A container starts in milliseconds. Deploys wait for your approval. Open source.">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --paper: #fcfcf9;
+  --paper-2: #efefe4;
+  --ink: #181818;
+  --ink-2: #55534b;
+  --ink-3: #8a8779;
+  --line: #cfccc0;
+  --line-soft: #e2dfd4;
+  --accent: #ff550c;
+  --accent-ink: #d64305;
+  --plate: #101014;
+  --plate-line: rgba(255,255,255,0.08);
+  --plate-text: #e8e8ee;
+  --plate-dim: #7d7d8e;
+  --serif: 'Newsreader', Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--sans);
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.6;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+::selection { background: var(--ink); color: var(--paper); }
+a { color: inherit; text-decoration: none; }
+
+/* Ruled page frame — vertical hairlines at the content margins */
+.frame {
+  max-width: 1180px;
+  margin: 0 auto;
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  min-height: 100dvh;
+  position: relative;
+}
+@media (max-width: 1240px) {
+  .frame { margin: 0 20px; border-left: none; border-right: none; }
+}
+
+/* ─── Masthead ─── */
+.masthead {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(252,252,249,0.88);
+  backdrop-filter: blur(12px) saturate(1.1);
+  -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  border-bottom: 1px solid var(--line);
+}
+.masthead-inner {
+  max-width: 1180px; margin: 0 auto;
+  display: flex; align-items: center; gap: 32px;
+  padding: 0 32px; height: 58px;
+}
+.wordmark {
+  font-family: var(--serif); font-weight: 600; font-size: 1.45rem;
+  letter-spacing: -0.02em; line-height: 1;
+}
+.wordmark .deg { color: var(--accent); }
+.masthead nav { display: flex; gap: 26px; margin-left: auto; }
+.masthead nav a {
+  font-family: var(--mono); font-size: 0.7rem; font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2);
+  padding: 4px 0; position: relative; transition: color 0.25s;
+}
+.masthead nav a::after {
+  content: ''; position: absolute; left: 0; bottom: 0; height: 1px; width: 100%;
+  background: var(--ink); transform: scaleX(0); transform-origin: left;
+  transition: transform 0.35s var(--ease);
+}
+.masthead nav a:hover { color: var(--ink); }
+.masthead nav a:hover::after { transform: scaleX(1); }
+.masthead .dl {
+  font-family: var(--mono); font-size: 0.7rem; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--paper); background: var(--ink);
+  padding: 9px 18px; border-radius: 3px;
+  display: inline-flex; align-items: center; gap: 8px;
+  transition: background 0.25s, transform 0.15s;
+}
+.masthead .dl:hover { background: var(--accent-ink); }
+.masthead .dl:active { transform: scale(0.97); }
+@media (max-width: 860px) { .masthead nav { display: none; } .masthead .dl { margin-left: auto; } }
+@media (max-width: 600px) {
+  .masthead-inner { padding: 0 20px; gap: 16px; }
+  .masthead .dl { padding: 8px 13px; font-size: 0.64rem; letter-spacing: 0.08em; }
+}
+
+/* ─── Hero ─── */
+.hero {
+  padding: 96px 32px 72px;
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 40px;
+}
+.kicker {
+  font-family: var(--mono); font-size: 0.7rem; font-weight: 500;
+  letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent-ink);
+  display: flex; align-items: center; gap: 12px; margin-bottom: 28px;
+  flex-wrap: wrap; row-gap: 8px;
+}
+.kicker::before { content: ''; width: 32px; height: 1px; background: var(--accent); flex: none; }
+.hero h1 {
+  font-family: var(--serif); font-weight: 500;
+  font-size: clamp(3rem, 7.2vw, 5.6rem);
+  line-height: 1.02; letter-spacing: -0.025em;
+  max-width: 15ch;
+}
+.hero h1 em { font-style: italic; font-weight: 400; color: var(--accent-ink); }
+.hero-sub {
+  font-size: 1.08rem; color: var(--ink-2); max-width: 46ch;
+  line-height: 1.7; margin-top: 26px;
+}
+.hero-specs {
+  display: flex; flex-wrap: wrap; gap: 0; margin-top: 34px;
+  border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft);
+  width: fit-content;
+}
+.hero-specs span {
+  font-family: var(--mono); font-size: 0.68rem; font-weight: 500;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2);
+  padding: 10px 18px;
+}
+.hero-specs span + span { border-left: 1px solid var(--line-soft); }
+.hero-actions { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 36px; }
+.btn {
+  font-family: var(--mono); font-size: 0.74rem; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 15px 26px; border-radius: 3px; cursor: pointer;
+  transition: background 0.25s, color 0.25s, border-color 0.25s, transform 0.15s;
+}
+.btn:active { transform: scale(0.97); }
+.btn .arr { transition: transform 0.3s var(--ease); }
+.btn:hover .arr { transform: translate(2px, 1px); }
+.btn-primary { background: var(--ink); color: var(--paper); border: 1px solid var(--ink); }
+.btn-primary:hover { background: var(--accent-ink); border-color: var(--accent-ink); }
+.btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+.btn-ghost:hover { border-color: var(--ink); }
+
+/* ─── Figure plates (real screenshots) ─── */
+.figure { padding: 56px 32px 64px; border-bottom: 1px solid var(--line); }
+.fig-cap {
+  font-family: var(--mono); font-size: 0.68rem; font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3);
+  display: flex; justify-content: space-between; gap: 8px 16px;
+  margin-bottom: 14px; flex-wrap: wrap;
+}
+.fig-cap span { min-width: 0; }
+.fig-cap .fig-no { color: var(--accent-ink); }
+
+.shot {
+  position: relative;
+  background: var(--plate);
+  border: 1px solid var(--ink);
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0 1px 0 rgba(24,24,24,0.08), 0 16px 44px -18px rgba(24,24,24,0.28);
+}
+.shot img {
+  display: block; width: 100%; height: 100%;
+  object-fit: cover; object-position: top center;
+  border-radius: 4px;
+}
+/* floating mono annotation tags */
+.tag {
+  position: absolute;
+  font-family: var(--mono); font-size: 0.62rem; font-weight: 500;
+  letter-spacing: 0.08em; color: var(--plate-text);
+  background: rgba(16,16,20,0.82);
+  border: 1px solid rgba(255,255,255,0.14);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  padding: 5px 10px; border-radius: 100px;
+  white-space: nowrap;
+}
+.tag .dot { color: #34d399; }
+.tag-tr { top: 20px; right: 20px; }
+.tag-bl { bottom: 20px; left: 20px; }
+.tag-tl { top: 20px; left: 20px; }
+
+/* aspect boxes — real screenshots keep their natural aspect */
+.ratio-auto img { height: auto; }
+
+/* ─── Screenshot gallery — mosaic ─── */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+}
+.g-item { min-width: 0; }
+.g-item .fig-cap { margin-bottom: 12px; }
+.g-span2 { grid-column: 1 / -1; }
+@media (max-width: 768px) {
+  .gallery { grid-template-columns: 1fr; }
+  .g-span2 { grid-column: auto; }
+}
+
+/* ─── Stats band ─── */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--line); }
+.stat { padding: 44px 32px 40px; }
+.stat + .stat { border-left: 1px solid var(--line); }
+.stat-val { font-family: var(--serif); font-weight: 500; font-size: 3.1rem; letter-spacing: -0.03em; line-height: 1; }
+.stat-val .unit { font-size: 1.15rem; color: var(--ink-3); font-style: italic; font-weight: 400; }
+.stat-label { font-family: var(--mono); font-size: 0.64rem; font-weight: 500; color: var(--ink-3); letter-spacing: 0.14em; text-transform: uppercase; margin-top: 12px; }
+@media (max-width: 860px) {
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .stat:nth-child(odd) { border-left: none; }
+  .stat:nth-child(n+3) { border-top: 1px solid var(--line); }
+}
+
+/* ─── Sections ─── */
+.section { padding: 72px 32px 80px; border-bottom: 1px solid var(--line); }
+.sec-head { display: flex; align-items: baseline; gap: 20px; margin-bottom: 14px; }
+.sec-no { font-family: var(--mono); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.14em; color: var(--accent-ink); }
+.sec-title { font-family: var(--serif); font-weight: 500; font-size: clamp(1.9rem, 4vw, 2.9rem); letter-spacing: -0.02em; line-height: 1.1; }
+.sec-desc { font-size: 1rem; color: var(--ink-2); max-width: 52ch; line-height: 1.7; margin-bottom: 48px; }
+.sec-desc code { font-family: var(--mono); font-size: 0.86rem; color: var(--ink); background: var(--paper-2); padding: 1px 5px; border-radius: 3px; }
+
+/* Feature ledger — hairline grid, no cards */
+.ledger { display: grid; grid-template-columns: repeat(2, 1fr); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.ledger-item { padding: 30px 28px 32px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); transition: background 0.3s; }
+.ledger-item:hover { background: var(--paper-2); }
+.ledger-idx { font-family: var(--mono); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.14em; color: var(--ink-3); margin-bottom: 16px; display: flex; justify-content: space-between; }
+.ledger-item:hover .ledger-idx { color: var(--accent-ink); }
+.ledger-item h3 { font-family: var(--serif); font-weight: 500; font-size: 1.28rem; letter-spacing: -0.01em; margin-bottom: 8px; }
+.ledger-item p { font-size: 0.88rem; color: var(--ink-2); line-height: 1.65; }
+.ledger-item p code { font-family: var(--mono); font-size: 0.78rem; color: var(--ink); background: var(--paper-2); padding: 1px 5px; border-radius: 3px; }
+@media (max-width: 768px) { .ledger { grid-template-columns: 1fr; } }
+
+/* Code listings — print style */
+.listings { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+@media (max-width: 860px) { .listings { grid-template-columns: 1fr; } }
+.listing { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--paper-2); }
+.listing-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.listing-title { font-family: var(--mono); font-size: 0.64rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
+.listing-no { font-family: var(--mono); font-size: 0.64rem; font-weight: 600; letter-spacing: 0.1em; color: var(--accent-ink); }
+.listing-body {
+  padding: 20px 22px; font-family: var(--mono); font-size: 0.76rem;
+  line-height: 1.95; overflow-x: auto; white-space: pre; color: var(--ink);
+}
+.listing-body .p { color: var(--accent-ink); font-weight: 600; }
+.listing-body .c { color: var(--ink); }
+.listing-body .o { color: var(--ink-2); }
+.listing-body .d { color: var(--ink-3); font-style: italic; }
+.listing-body .w { color: #8a5a00; }
+
+/* Steps */
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+@media (max-width: 860px) { .steps { grid-template-columns: 1fr; } }
+.step { padding: 30px 28px 32px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.step-num { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 2.6rem; color: var(--accent-ink); line-height: 1; margin-bottom: 18px; }
+.step h3 { font-family: var(--serif); font-weight: 500; font-size: 1.2rem; margin-bottom: 8px; }
+.step p { font-size: 0.88rem; color: var(--ink-2); line-height: 1.65; margin-bottom: 18px; }
+.step-code { font-family: var(--mono); font-size: 0.7rem; color: var(--ink); background: var(--paper-2); border: 1px solid var(--line-soft); padding: 14px 16px; border-radius: 4px; line-height: 1.85; white-space: pre; overflow-x: auto; }
+
+/* Comparison table — ruled, no pills */
+.cmp-wrap { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.cmp-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.cmp { width: 100%; border-collapse: collapse; min-width: 640px; }
+.cmp th { font-family: var(--mono); font-size: 0.66rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); text-align: left; padding: 14px 22px; border-bottom: 1px solid var(--line); background: var(--paper-2); }
+.cmp th.keg { color: var(--accent-ink); }
+.cmp td { padding: 13px 22px; font-size: 0.88rem; color: var(--ink-2); border-bottom: 1px solid var(--line-soft); }
+.cmp tr:last-child td { border-bottom: none; }
+.cmp td:first-child { font-family: var(--mono); font-size: 0.68rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+.cmp td.keg { color: var(--ink); font-weight: 600; }
+.cmp tbody tr { transition: background 0.2s; }
+.cmp tbody tr:hover { background: var(--paper-2); }
+
+/* CTA */
+.cta { padding: 96px 32px 104px; border-bottom: 1px solid var(--line); }
+.cta h2 { font-family: var(--serif); font-weight: 500; font-size: clamp(2.2rem, 5vw, 3.6rem); letter-spacing: -0.02em; line-height: 1.08; max-width: 20ch; }
+.cta h2 em { font-style: italic; font-weight: 400; color: var(--accent-ink); }
+.cta p { font-size: 1rem; color: var(--ink-2); margin-top: 20px; max-width: 46ch; }
+.cta .hero-actions { margin-top: 40px; }
+
+/* Colophon footer */
+.colophon { padding: 36px 32px 44px; display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: start; }
+.colophon .fine { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.08em; color: var(--ink-3); line-height: 2; text-transform: uppercase; }
+.colophon .links { display: flex; gap: 26px; }
+.colophon .links a { font-family: var(--mono); font-size: 0.66rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2); border-bottom: 1px solid var(--line); padding-bottom: 2px; transition: color 0.25s, border-color 0.25s; }
+.colophon .links a:hover { color: var(--accent-ink); border-color: var(--accent); }
+@media (max-width: 768px) { .colophon { grid-template-columns: 1fr; } }
+
+/* Listing cursor blink */
+.cursor::after { content: '▋'; color: var(--accent-ink); animation: blink 1.1s step-start infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Focus */
+a:focus-visible, .btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+@media (max-width: 600px) {
+  .hero, .figure, .section, .cta { padding-left: 22px; padding-right: 22px; }
+  .colophon { padding-left: 22px; padding-right: 22px; }
+  .stat { padding: 32px 22px; }
+  .hero h1 { font-size: 2.7rem; }
+  .stat-val { font-size: 2.4rem; }
+  .tag { font-size: 0.56rem; padding: 4px 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .cursor::after { animation: none; }
+  .btn:hover .arr { transform: none; }
+  *, *::before, *::after { transition-duration: 0.01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- Masthead -->
+<header class="masthead">
+  <div class="masthead-inner">
+    <a href="#" class="wordmark">Keg<span class="deg">.</span></a>
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#tour">Tour</a>
+      <a href="#docker">Docker</a>
+      <a href="#compose">Compose</a>
+      <a href="#ship">Ship</a>
+      <a href="#compare">Speed</a>
+      <a href="https://github.com/rahult/keg#readme">Docs</a>
+    </nav>
+    <a href="https://github.com/rahult/keg/releases/latest/download/Keg.dmg" class="dl">Download <span>↓</span></a>
+  </div>
+</header>
+
+<div class="frame">
+
+<!-- Hero -->
+<section class="hero">
+  <div>
+    <div class="kicker">Containers · Compose · Deploys · Native macOS</div>
+    <h1>Run it on your Mac.<br><em>Ship it to your server.</em></h1>
+    <p class="hero-sub">Keg builds images, runs containers and Compose files, answers Docker's API, and moves a service from your laptop to a server you run. One native app with the keg command inside. No Docker underneath.</p>
+    <div class="hero-specs">
+      <span>macOS 15+</span>
+      <span>Apple silicon</span>
+      <span>Linux servers</span>
+      <span>Apache 2.0</span>
+    </div>
+    <div class="hero-actions">
+      <a href="https://github.com/rahult/keg/releases/latest/download/Keg.dmg" class="btn btn-primary">Download for Mac <span class="arr">↓</span></a>
+      <a href="#tour" class="btn btn-ghost">Take the tour <span class="arr">→</span></a>
+    </div>
+  </div>
+</section>
+
+<!-- Fig. 01 -->
+<figure class="figure">
+  <figcaption class="fig-cap">
+    <span><span class="fig-no">Fig. 01</span> — Containers, Keg for macOS</span>
+    <span>SwiftUI · live charts</span>
+  </figcaption>
+  <div class="shot ratio-auto">
+    <img src="screenshots/containers.png" alt="Keg's Containers view listing twelve containers with image, status, processor and memory use and links that open them by name; below, live charts of the selected worker container's processor, memory and processes, and how it was made" loading="eager" width="1320" height="860">
+    <span class="tag tag-tr"><span class="dot">●</span> 10 running</span>
+    <span class="tag tag-bl">web.keg.localhost · opens by name</span>
+  </div>
+</figure>
+
+<!-- Stats band -->
+<div class="stats">
+  <div class="stat"><div class="stat-val">5<span class="unit">ms</span></div><div class="stat-label">Run a container</div></div>
+  <div class="stat"><div class="stat-val">0.9<span class="unit">s</span></div><div class="stat-label">Cold boot to first container</div></div>
+  <div class="stat"><div class="stat-val">45<span class="unit">ms</span></div><div class="stat-label">Wake from sleep</div></div>
+  <div class="stat"><div class="stat-val">8<span class="unit">×</span></div><div class="stat-label">Faster docker run</div></div>
+</div>
+
+<!-- 01 Features -->
+<section class="section" id="features">
+  <div class="sec-head"><span class="sec-no">01</span><h2 class="sec-title">From first container to production.</h2></div>
+  <p class="sec-desc">Containers, images, volumes, Compose and Docker's API for the work on your Mac. Environments, change sets and approvals for moving it to a server. The same app and the same command for both.</p>
+  <div class="ledger">
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 01</span><span>Speed</span></div>
+      <h3>Containers in Milliseconds</h3>
+      <p>A container runs to its end in about 5&nbsp;ms through the keg command. From nothing, booting the Linux machine and running the first container takes under a second.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 02</span><span>Idle</span></div>
+      <h3>Asleep When Idle</h3>
+      <p>With nothing running for a minute the Linux machine is paused and uses no processor. A command, or a connection to one of its ports, wakes it in about 45&nbsp;ms.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 03</span><span>Compat</span></div>
+      <h3>Docker's API</h3>
+      <p>Keg answers Docker's API on a socket of its own. Run <code>keg docker use</code> and docker, docker compose, editors and test libraries talk to Keg as they are. There is no Docker underneath.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 04</span><span>Stacks</span></div>
+      <h3>Compose Files, As Written</h3>
+      <p><code>keg compose up</code> or <code>docker compose up</code>: health checks, depends_on, service names, volumes and builds, from the file you already have.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 05</span><span>Names</span></div>
+      <h3>Names, Not Ports</h3>
+      <p>Anything with a port opens by name: <code>web.keg.localhost</code> for a container called web. Over HTTPS too, from a certificate authority that can vouch only for those names.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 06</span><span>Machines</span></div>
+      <h3>Linux Machines</h3>
+      <p>A Linux system to work in, kept until you remove it. What you install stays, your folders are in it at the same paths, and what you start in it is on localhost.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 07</span><span>Releases</span></div>
+      <h3>Services That Move</h3>
+      <p>A <code>keg.yaml</code> describes a service once. Keg builds it, releases it, and promotes the exact image from your Mac to a server you run. It never rebuilds on the way.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 08</span><span>Approval</span></div>
+      <h3>Changes You Approve</h3>
+      <p>Every deploy is a change set: what would change, and the checks it passed. Environments that ask for a person wait for one, in the app, the browser or with <code>keg approve</code>, and the app notifies you when one starts to wait.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 09</span><span>Deploys</span></div>
+      <h3>Deploys With No Gap</h3>
+      <p>A new release starts beside the old one, must pass its health check, and only then takes the traffic. One that fails never takes the port, and the old one carries on.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 10</span><span>Sharing</span></div>
+      <h3>Share Through Your Own Server</h3>
+      <p><code>keg share web --via server</code> opens what runs on your Mac at an HTTPS name on a server you run, with a Let's Encrypt certificate. No service in between.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 11</span><span>Security</span></div>
+      <h3>Vulnerability Check</h3>
+      <p>Check an image's Alpine, Debian or Ubuntu packages against the open vulnerability database, from the app or with <code>keg scan</code>. Only package names and versions are sent.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 12</span><span>Agents</span></div>
+      <h3>A Place for Agents</h3>
+      <p><code>keg agents --connect claude</code> gives a coding agent a sandbox, machines of its own and a way to propose releases. The daemon holds it to what it was given; it cannot approve.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 13</span><span>Cluster</span></div>
+      <h3>Kubernetes</h3>
+      <p><code>keg k8s start</code>, or a button in the app, runs one node of k3s with its state in a volume, ready in seconds once the image is here. The app lists its pods and services.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 14</span><span>Moving in</span></div>
+      <h3>Bring Your Images</h3>
+      <p><code>keg migrate</code> brings images and named volumes over from Docker Desktop, OrbStack or Colima. Nothing there is changed.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 15</span><span>App</span></div>
+      <h3>One App, Nothing Else to Install</h3>
+      <p>The Mac app carries the keg command and the Linux machine inside it, updates itself, and follows your Mac's language, in thirty-eight. On any machine, <code>keg ui</code> is the same in a browser.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 16</span><span>License</span></div>
+      <h3>Open Source</h3>
+      <p>Apache 2.0. No account, no seat licenses, no telemetry.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 02 Tour -->
+<section class="section" id="tour">
+  <div class="sec-head"><span class="sec-no">02</span><h2 class="sec-title">The grand tour.</h2></div>
+  <p class="sec-desc">Twenty real screens, nothing mocked: two services deployed from a folder, one change waiting for approval, a database, a cache, a worker, a Compose project, a Kubernetes cluster, a Linux machine, and a second node to share through.</p>
+  <div class="gallery">
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 02</span> — Overview</span>
+        <span>what needs you, at a glance</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/overview.png" alt="Overview showing a change waiting for approval with a Review button, tiles for containers, services, images, machines, volumes and shares, charts of the Linux machine's load, memory and running containers, and the latest changes" width="1320" height="860">
+        <span class="tag tag-tr">1 change waiting · 10 running</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 03</span> — Changes waiting for approval</span>
+        <span>change sets</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/changes.png" alt="Changes view listing four change sets; the selected one promotes storefront to staging and is waiting for approval, with what would change, the image check it passed, and Reject and Approve buttons" width="1320" height="860">
+        <span class="tag tag-tr">approve or reject</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 04</span> — Output, searched and filtered</span>
+        <span>live logs</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/output.png" alt="Containers view with the worker container's output in the lower pane: a find field, a level filter, Follow, and lines coloured where they say ERROR or WARN" width="1320" height="860">
+        <span class="tag tag-tr">find · level · follow</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 05</span> — A container's files</span>
+        <span>looked at from outside</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/files.png" alt="Containers view with the web container selected and its root folder listed in the Files pane: bin, dev, docker-entrypoint.d, etc, home and more" width="1320" height="860">
+        <span class="tag tag-tr">files · save to Downloads</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 06</span> — Vulnerability check</span>
+        <span>osv.dev</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/scan.png" alt="Sheet reporting 142 known vulnerabilities in 16 of 58 packages of an nginx image built on Alpine Linux, listing packages, versions and linked advisories" width="1320" height="860">
+        <span class="tag tag-tr">142 advisories · 16 packages</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 07</span> — Image library</span>
+        <span>sizes, users, search and pull</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/images.png" alt="Images view listing fourteen images with size, the containers that use each, platform and digest, tabs for all, in use and unused, and a Pull Image button" width="1320" height="860">
+        <span class="tag tag-tr">14 images · 414 MB</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 08</span> — Kubernetes</span>
+        <span>pods and services</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/kubernetes.png" alt="Kubernetes view listing five running pods, two of a hello deployment and three of the kube-system namespace, with ready counts and restarts, and buttons to copy the kubectl setup, stop and delete the cluster" width="1320" height="860">
+        <span class="tag tag-tr">k3s · 5 pods</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 09</span> — Services, by environment</span>
+        <span>open, show, roll back</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/services.png" alt="Services view showing checkout and storefront running in the local environment, each with a link that opens it by name" width="1320" height="860">
+        <span class="tag tag-tr">checkout.keg.localhost</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 10</span> — Machines</span>
+        <span>Linux to work in</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/machines.png" alt="Machines view showing a running machine called dev made from ubuntu 24.04" width="1320" height="860">
+        <span class="tag tag-tr">dev · ubuntu 24.04</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 11</span> — Volumes</span>
+        <span>storage that outlives containers</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/volumes.png" alt="Volumes view listing the volumes, the containers that use each, and when each was created" width="1320" height="860">
+        <span class="tag tag-tr">made and removed here</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 12</span> — A terminal in the window</span>
+        <span>a shell in the container</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/terminal.png" alt="Containers view with the worker container selected and a terminal in the lower pane, at a shell prompt inside the container; the toolbar has Terminal, Stop, Restart, Pause and Run Container" width="1320" height="860">
+        <span class="tag tag-tr">no other window to open</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 13</span> — Compose projects</span>
+        <span>started and stopped as one</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/compose.png" alt="Compose view showing the project shop with two of two services running, mailer and search, and buttons to stop all, open the Compose file, remove the project and run a Compose file" width="1320" height="860">
+        <span class="tag tag-tr">2 of 2 running</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 14</span> — Builds, each one kept</span>
+        <span>what it said, and how it ended</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/builds.png" alt="Builds view listing five builds with the image each made, whether it was built or failed, its steps and how many came from the cache, how long it took and when" width="1320" height="860">
+        <span class="tag tag-tr">1 failed · 4 built</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 15</span> — Shared through another node</span>
+        <span>an address anyone can open</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/sharing.png" alt="Sharing view listing the web container, the address it is open at, and the node called server it is shared through" width="1320" height="860">
+        <span class="tag tag-tr">web → server</span>
+      </div>
+    </div>
+
+    <div class="g-item g-span2">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 16</span> — Environments and nodes</span>
+        <span>who approves what</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/environments.png" alt="Environments view showing local applied automatically, and production and staging applied after a person approves, and below them one other node, called server, with its address" width="1320" height="860">
+        <span class="tag tag-tr">local · staging · production</span>
+      </div>
+    </div>
+
+  </div>
+  <p class="sec-desc" style="margin-top:56px">And on any machine, with no app to install: <code>keg ui</code> opens the same node in a browser, with a command palette on ⌘K and a layout for any width.</p>
+  <div class="gallery">
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 17</span> — Containers, in a browser</span>
+        <span>keg ui</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/console-containers.png" alt="The web console's Containers page: tabs for all, running, stopped and failed, a table with state, processor, memory, ports and row actions, and a panel for the node's load, memory and disk" width="1320" height="860">
+        <span class="tag tag-tr">select · stop · start · remove</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 18</span> — Logs, in a browser</span>
+        <span>find · level · download</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/console-logs.png" alt="The web console's page for the worker container on its Logs tab, with find, level filters, Follow, Wrap, Clear, Copy and Download, and warning and error lines tinted" width="1320" height="860">
+        <span class="tag tag-tr">5,000 lines kept</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 19</span> — A Compose file, changed in a browser</span>
+        <span>edit · apply</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/console-compose.png" alt="The web console's page for the Compose project shop on its Compose file tab: the file in an editor with Apply and Undo changes, and buttons to start, stop and restart all its services or remove the project" width="1320" height="860">
+        <span class="tag tag-tr">run again with one click</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 20</span> — Approvals, in a browser</span>
+        <span>the same change sets</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/console-changes.png" alt="The web console's Changes page with a change set waiting for approval selected: an approval panel with Approve and deploy and Reject, what would change, the checks, and its details" width="1320" height="860">
+        <span class="tag tag-tr">approve from anywhere</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 03 Docker -->
+<section class="section" id="docker">
+  <div class="sec-head"><span class="sec-no">03</span><h2 class="sec-title">Your tools, as they are.</h2></div>
+  <p class="sec-desc">Use Keg's own command, or point docker at Keg and change nothing else. Either way the containers, images and volumes are the same ones, and show in the app.</p>
+  <div class="listings">
+    <div class="listing">
+      <div class="listing-bar"><span class="listing-title">The keg command</span><span class="listing-no">Listing 01</span></div>
+      <div class="listing-body"><span class="d"># Run a web server; it opens by name</span>
+<span class="p">$</span> <span class="c">keg run --name web -p 8080:80 nginx:1.27</span>
+<span class="o">http://web.keg.localhost</span>
+
+<span class="d"># Follow its output</span>
+<span class="p">$</span> <span class="c">keg logs -f web</span>
+<span class="o">"GET / HTTP/1.1" 200</span>
+
+<span class="d"># A shell in it, or in a new container</span>
+<span class="p">$</span> <span class="c">keg exec -it web sh</span>
+<span class="p">$</span> <span class="c">keg run -it --rm alpine:3.20</span></div>
+    </div>
+    <div class="listing">
+      <div class="listing-bar"><span class="listing-title">Docker, through Keg</span><span class="listing-no">Listing 02</span></div>
+      <div class="listing-body"><span class="d"># Point docker at Keg, once</span>
+<span class="p">$</span> <span class="c">keg docker use</span>
+
+<span class="p">$</span> <span class="c">docker run --rm -p 8080:80 nginx</span>
+<span class="p">$</span> <span class="c">docker build -t myapp:dev .</span>
+<span class="p">$</span> <span class="c">docker exec -it web sh</span>
+
+<span class="d"># Bring what you had with you</span>
+<span class="p">$</span> <span class="c">keg migrate --from desktop-linux</span><span class="cursor"></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 04 Compose -->
+<section class="section" id="compose">
+  <div class="sec-head"><span class="sec-no">04</span><h2 class="sec-title">Your Compose files. As written.</h2></div>
+  <p class="sec-desc">Health checks, depends_on, service names, volumes and builds. Run them with Keg's command or with docker compose.</p>
+  <div class="listings">
+    <div class="listing">
+      <div class="listing-bar"><span class="listing-title">compose.yaml</span><span class="listing-no">Listing 03</span></div>
+      <div class="listing-body"><span class="d">services:</span>
+  <span class="w">web:</span>
+    <span class="c">image: nginx:1.27</span>
+    <span class="c">ports: ["8080:80"]</span>
+    <span class="c">depends_on: [api]</span>
+  <span class="w">api:</span>
+    <span class="c">build: ./api</span>
+    <span class="c">environment:</span>
+      <span class="c">- DATABASE_URL=postgres://db/app</span>
+    <span class="c">depends_on:</span>
+      <span class="c">db: { condition: service_healthy }</span>
+  <span class="w">db:</span>
+    <span class="c">image: postgres:16-alpine</span>
+    <span class="c">volumes: [pgdata:/var/lib/postgresql/data]</span>
+<span class="d">volumes:</span>
+  <span class="w">pgdata:</span></div>
+    </div>
+    <div class="listing">
+      <div class="listing-bar"><span class="listing-title">Lifecycle</span><span class="listing-no">Listing 04</span></div>
+      <div class="listing-body"><span class="d"># With Keg's own command</span>
+<span class="p">$</span> <span class="c">keg compose up</span>
+<span class="p">$</span> <span class="c">keg compose down</span>
+
+<span class="d"># Or with docker compose, pointed at Keg</span>
+<span class="p">$</span> <span class="c">docker compose up -d</span>
+<span class="p">$</span> <span class="c">docker compose ps</span>
+<span class="p">$</span> <span class="c">docker compose down</span><span class="cursor"></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 05 Ship -->
+<section class="section" id="ship">
+  <div class="sec-head"><span class="sec-no">05</span><h2 class="sec-title">From laptop to server, with a person in the loop.</h2></div>
+  <p class="sec-desc">Install Keg on a Linux server you run, and it becomes a node your Mac can deploy to. What moves is the image you tested, never a rebuild.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <h3>Describe and deploy</h3>
+      <p>keg init writes a keg.yaml and a Dockerfile for the project it finds. keg up builds, releases and runs it locally.</p>
+      <div class="step-code">keg init
+keg up
+https://checkout.keg.localhost</div>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <h3>Promote</h3>
+      <p>Propose the exact release one environment runs to another. Only the layers the server lacks are sent, over mutual TLS.</p>
+      <div class="step-code">keg promote checkout \
+  --from local --to staging
+waiting for a person</div>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <h3>Approve, or roll back</h3>
+      <p>See what would change and the checks it passed, then approve in the app or the terminal. The release before is one command away.</p>
+      <div class="step-code">keg approve 3 --env staging
+keg rollback checkout \
+  --env staging</div>
+    </div>
+  </div>
+</section>
+
+<!-- 06 Speed -->
+<section class="section" id="compare">
+  <div class="sec-head"><span class="sec-no">06</span><h2 class="sec-title">Measured, not claimed.</h2></div>
+  <p class="sec-desc">The same docker client talking to each engine on the same Apple silicon Mac, both warm, so that what differs is the engine. Medians; Docker is 29.2 on Colima. The script is in the repository.</p>
+  <div class="cmp-wrap"><div class="cmp-scroll">
+    <table class="cmp">
+      <thead><tr><th></th><th>Docker</th><th class="keg">Keg</th><th></th></tr></thead>
+      <tbody>
+        <tr><td>docker run --rm alpine true</td><td>174 ms</td><td class="keg">21 ms</td><td>8× faster</td></tr>
+        <tr><td>Start in the background</td><td>94 ms</td><td class="keg">13 ms</td><td>7×</td></tr>
+        <tr><td>Stop and remove</td><td>92 ms</td><td class="keg">11 ms</td><td>8×</td></tr>
+        <tr><td>exec in a running container</td><td>29 ms</td><td class="keg">12 ms</td><td>2.4×</td></tr>
+        <tr><td>List containers</td><td>22 ms</td><td class="keg">10 ms</td><td>2×</td></tr>
+        <tr><td>Compose up, Postgres healthy</td><td>1.9 s</td><td class="keg">1.9 s</td><td>the same</td></tr>
+        <tr><td>Compose down</td><td>370 ms</td><td class="keg">135 ms</td><td>2.7×</td></tr>
+        <tr><td>Build, nothing cached</td><td>1.8 s</td><td class="keg">1.0 s</td><td>1.9×</td></tr>
+        <tr><td>Build again, all cached</td><td>220 ms</td><td class="keg">171 ms</td><td>1.3×</td></tr>
+      </tbody>
+    </table>
+  </div></div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+  <h2>One app. One command.<br><em>Open source.</em></h2>
+  <p>For Apple silicon Macs on macOS 15 or later. On Linux servers, Keg installs from source in one command.</p>
+  <div class="hero-actions">
+    <a href="https://github.com/rahult/keg/releases/latest/download/Keg.dmg" class="btn btn-primary">Download for Mac <span class="arr">↓</span></a>
+    <a href="https://github.com/rahult/keg" class="btn btn-ghost">View on GitHub <span class="arr">→</span></a>
+  </div>
+</section>
+
+<!-- Colophon -->
+<footer class="colophon">
+  <div class="fine">
+    © 2026 Keg — Apache License 2.0<br>
+    Set in Newsreader &amp; JetBrains Mono<br>
+    Written in Rust and Swift
+  </div>
+  <div class="links">
+    <a href="https://github.com/rahult/keg#readme">Docs</a>
+    <a href="https://github.com/rahult/keg">GitHub</a>
+    <a href="https://github.com/rahult/keg/issues">Issues</a>
+    <a href="https://github.com/rahult/keg/releases">Releases</a>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>
