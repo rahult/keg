@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Keg — Containers on your Mac, deploys to your server</title>
-<meta name="description" content="Keg runs containers and Compose files on your Mac, answers Docker's API, and moves a service to a server you run. A native app with the keg command inside. Open source.">
-<meta property="og:title" content="Keg — Containers on your Mac, deploys to your server">
-<meta property="og:description" content="Containers, Compose and Docker's API on your Mac, in a native app. A container starts in milliseconds. Deploys wait for your approval. Open source.">
+<title>Keg — Somewhere for your agent to work</title>
+<meta name="description" content="Keg gives a coding agent Linux containers to build, run and test in, and a way to propose a release that waits for you. Underneath is a fast container runtime with a native Mac app. Open source.">
+<meta property="og:title" content="Keg — Somewhere for your agent to work">
+<meta property="og:description" content="A sandbox, machines of its own and a way to propose releases, for Claude Code, Codex or Pi. A container starts in milliseconds. A person approves. Open source.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://keg.rahultrikha.com/">
 <meta property="og:image" content="https://keg.rahultrikha.com/og-cover.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Keg — Containers on your Mac, deploys to your server">
-<meta name="twitter:description" content="Containers, Compose and Docker's API on your Mac, in a native app. A container starts in milliseconds. Deploys wait for your approval. Open source.">
+<meta name="twitter:title" content="Keg — Somewhere for your agent to work">
+<meta name="twitter:description" content="A sandbox, machines of its own and a way to propose releases, for Claude Code, Codex or Pi. A container starts in milliseconds. A person approves. Open source.">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -133,7 +133,7 @@ a { color: inherit; text-decoration: none; }
   font-family: var(--serif); font-weight: 500;
   font-size: clamp(3rem, 7.2vw, 5.6rem);
   line-height: 1.02; letter-spacing: -0.025em;
-  max-width: 15ch;
+  max-width: 20ch;
 }
 .hero h1 em { font-style: italic; font-weight: 400; color: var(--accent-ink); }
 .hero-sub {
@@ -337,6 +337,31 @@ a:focus-visible, .btn:focus-visible {
   .btn:hover .arr { transform: none; }
   *, *::before, *::after { transition-duration: 0.01ms !important; }
 }
+
+/* An agent's session: the plate, with one thing on it that is the reader's to press */
+.session { background: var(--plate); color: var(--plate-text); border-radius: 10px; overflow: hidden; box-shadow: 0 24px 60px -28px rgba(16,16,20,0.55); }
+.session-bar { display: flex; justify-content: space-between; gap: 16px; padding: 12px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--plate-dim); }
+.session ol { list-style: none; }
+.session li { display: grid; grid-template-columns: 34px minmax(0, 1fr); padding: 14px 20px; font-family: var(--mono); font-size: 0.8rem; line-height: 1.7; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.session .n { color: var(--plate-dim); }
+.session b { color: #fff; font-weight: 600; }
+.session i { color: var(--plate-dim); font-style: normal; }
+.session em { color: #8fd6a4; font-style: normal; }
+.session em.held { color: #ffa477; }
+.session li.waits { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; background: rgba(255,255,255,0.045); border-bottom: none; font-family: var(--sans); padding: 18px 20px; }
+.session li.waits strong { display: block; font-family: var(--serif); font-weight: 500; font-size: 1.2rem; color: #fff; }
+.session li.waits small { font-size: 0.86rem; color: #ffa477; }
+.session li.waits.done small { color: #8fd6a4; }
+.approve { font-family: var(--mono); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: #fff; padding: 12px 22px; border-radius: 4px; }
+.approve:hover { background: var(--accent-ink); border-color: var(--accent-ink); }
+.approve:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.approve[disabled] { background: transparent; border-color: #8fd6a4; color: #8fd6a4; cursor: default; }
+.js .session li { opacity: 0; transform: translateY(4px); transition: opacity 0.35s ease, transform 0.35s ease; }
+.js .session li.in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .js .session li { opacity: 1; transform: none; } }
+.ledger-item ul { list-style: none; }
+.ledger-item li { font-size: 0.88rem; color: var(--ink-2); line-height: 1.6; padding: 8px 0 8px 20px; border-top: 1px solid var(--line-soft); position: relative; }
+.ledger-item li::before { content: ''; position: absolute; left: 0; top: 18px; width: 10px; height: 1px; background: var(--accent); }
 </style>
 </head>
 <body>
@@ -346,6 +371,7 @@ a:focus-visible, .btn:focus-visible {
   <div class="masthead-inner">
     <a href="#" class="wordmark">Keg<span class="deg">.</span></a>
     <nav>
+      <a href="#agents">Agents</a>
       <a href="#features">Features</a>
       <a href="#tour">Tour</a>
       <a href="#docker">Docker</a>
@@ -363,9 +389,9 @@ a:focus-visible, .btn:focus-visible {
 <!-- Hero -->
 <section class="hero">
   <div>
-    <div class="kicker">Containers · Compose · Deploys · Native macOS</div>
-    <h1>Run it on your Mac.<br><em>Ship it to your server.</em></h1>
-    <p class="hero-sub">Keg builds images, runs containers and Compose files, answers Docker's API, and moves a service from your laptop to a server you run. One native app with the keg command inside. No Docker underneath.</p>
+    <div class="kicker">For agents · Containers · Deploys · Native macOS</div>
+    <h1>Give your agent a place.<br><em>Keep the last word.</em></h1>
+    <p class="hero-sub">Keg gives a coding agent Linux containers to build, run and test in, so nothing is installed on your Mac, and a way to propose a release that waits for you. Underneath it is a container runtime built for speed and delivery, with a native app on top. No Docker underneath.</p>
     <div class="hero-specs">
       <span>macOS 15+</span>
       <span>Apple silicon</span>
@@ -374,19 +400,38 @@ a:focus-visible, .btn:focus-visible {
     </div>
     <div class="hero-actions">
       <a href="https://github.com/rahult/keg/releases/latest/download/Keg.dmg" class="btn btn-primary">Download for Mac <span class="arr">↓</span></a>
-      <a href="#tour" class="btn btn-ghost">Take the tour <span class="arr">→</span></a>
+      <a href="#agents" class="btn btn-ghost">What an agent gets <span class="arr">→</span></a>
     </div>
   </div>
 </section>
 
-<!-- Fig. 01 -->
+<!-- An agent's session -->
 <figure class="figure">
   <figcaption class="fig-cap">
-    <span><span class="fig-no">Fig. 01</span> — Containers, Keg for macOS</span>
-    <span>SwiftUI · live charts</span>
+    <span><span class="fig-no">Fig. 01</span> — An agent, working through Keg</span>
+    <span>Claude Code · Codex · Pi</span>
+  </figcaption>
+  <div class="session" id="session">
+    <div class="session-bar"><span>project: shop/checkout</span><span>keg agents --connect claude</span></div>
+    <ol>
+      <li><span class="n">01</span><span><b>keg_sandbox</b> <i>python -c "import fastapi"</i><br><em>ran, and nothing was kept</em></span></li>
+      <li><span class="n">02</span><span><b>keg_machine_create</b> <i>app --image python:3.12</i><br><em>the project's folder is in it; nothing else of your Mac can be changed</em></span></li>
+      <li><span class="n">03</span><span><b>keg_machine_run</b> <i>app pytest -q</i><br><em>42 passed</em></span></li>
+      <li><span class="n">04</span><span><b>keg_up</b><br><em>release 2 built; it answers at checkout.keg.localhost</em></span></li>
+      <li><span class="n">05</span><span><b>keg_promote</b> <i>checkout, local to staging</i><br><em class="held">change 4 is waiting for a person. An agent cannot approve.</em></span></li>
+      <li class="waits" id="waits"><span><strong>checkout, release 2, to staging</strong><small id="waits-note">Waiting for you. The image check passed.</small></span><button class="approve" id="approve" type="button">Approve</button></li>
+    </ol>
+  </div>
+</figure>
+
+<!-- Containers -->
+<figure class="figure">
+  <figcaption class="fig-cap">
+    <span><span class="fig-no">Fig. 02</span> — Containers, Keg for macOS</span>
+    <span>SwiftUI · live charts · row actions</span>
   </figcaption>
   <div class="shot ratio-auto">
-    <img src="screenshots/containers.png" alt="Keg's Containers view listing twelve containers with image, status, processor and memory use and links that open them by name; below, live charts of the selected worker container's processor, memory and processes, and how it was made" loading="eager" width="1320" height="860">
+    <img src="screenshots/containers.png" alt="Keg's Containers view listing twelve containers with image marks, status, processor and memory use, links that open them by name and buttons on each row; below, live charts of the selected web container's processor, memory, processes, disk and network" loading="eager" width="1320" height="860">
     <span class="tag tag-tr"><span class="dot">●</span> 10 running</span>
     <span class="tag tag-bl">web.keg.localhost · opens by name</span>
   </div>
@@ -397,12 +442,67 @@ a:focus-visible, .btn:focus-visible {
   <div class="stat"><div class="stat-val">5<span class="unit">ms</span></div><div class="stat-label">Run a container</div></div>
   <div class="stat"><div class="stat-val">0.9<span class="unit">s</span></div><div class="stat-label">Cold boot to first container</div></div>
   <div class="stat"><div class="stat-val">45<span class="unit">ms</span></div><div class="stat-label">Wake from sleep</div></div>
-  <div class="stat"><div class="stat-val">8<span class="unit">×</span></div><div class="stat-label">Faster docker run</div></div>
+  <div class="stat"><div class="stat-val">21<span class="unit">ms</span></div><div class="stat-label">docker run, through Docker's API</div></div>
 </div>
 
 <!-- 01 Features -->
+<!-- Agents -->
+<section class="section" id="agents">
+  <div class="sec-head"><span class="sec-no">01</span><h2 class="sec-title">Three places to work, by how long they last.</h2></div>
+  <p class="sec-desc">An agent asks Keg for what the task needs. Each is a Linux container, so what it installs, breaks or leaves running is in there and not on your computer. <code>keg agents</code> prints the guide an agent reads; <code>keg agents --connect claude</code>, <code>codex</code> or <code>pi</code> connects one.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <h3>A sandbox, gone when the command ends</h3>
+      <p>For trying something: does this library import, what does this script print. The folder it runs in is there to read and cannot be changed.</p>
+      <div class="step-code">keg sandbox python -- \
+  python -c "print(6 * 7)"
+42</div>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <h3>A machine, kept until it is removed</h3>
+      <p>For working on a project. Its folder is in the machine at the same path and can be written to; what is installed stays; a server started in it answers on localhost.</p>
+      <div class="step-code">keg machine create app --image node:22
+keg machine shell app -- npm test
+passing</div>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <h3>A service, released and kept running</h3>
+      <p>For an app that is to run. Keg builds it and numbers the release. Where changes do not apply by themselves, the release is a proposal that waits for a person.</p>
+      <div class="step-code">keg up
+keg promote checkout \
+  --from local --to staging
+waiting for a person</div>
+    </div>
+  </div>
+  <div class="ledger" style="margin-top:28px">
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>Allowed</span><span>Agent</span></div>
+      <h3>What an Agent Can Do</h3>
+      <ul>
+        <li>Run code in a sandbox, and make, use and remove machines of its own.</li>
+        <li>Build images, and propose a release or a rollback.</li>
+        <li>Read what is running, the environments, and the changes and how they ended.</li>
+        <li>Start the databases and queues the app needs beside it.</li>
+      </ul>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>Never</span><span>Daemon</span></div>
+      <h3>What It Cannot, Whatever It Is Told</h3>
+      <ul>
+        <li>Approve a change. That is a person's, in the app, a browser or the terminal.</li>
+        <li>Reach folders you did not name: machines are held to the workspaces given to agents.</li>
+        <li>Read an environment's secrets or the node's keys.</li>
+        <li>Go round the limits. The daemon keeps them, not the agent's own client.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="section" id="features">
-  <div class="sec-head"><span class="sec-no">01</span><h2 class="sec-title">From first container to production.</h2></div>
+  <div class="sec-head"><span class="sec-no">02</span><h2 class="sec-title">From first container to production.</h2></div>
   <p class="sec-desc">Containers, images, volumes, Compose and Docker's API for the work on your Mac. Environments, change sets and approvals for moving it to a server. The same app and the same command for both.</p>
   <div class="ledger">
     <div class="ledger-item">
@@ -478,10 +578,20 @@ a:focus-visible, .btn:focus-visible {
     <div class="ledger-item">
       <div class="ledger-idx"><span>No. 15</span><span>App</span></div>
       <h3>One App, Nothing Else to Install</h3>
-      <p>The Mac app carries the keg command and the Linux machine inside it, updates itself, and follows your Mac's language, in thirty-eight. On any machine, <code>keg ui</code> is the same in a browser.</p>
+      <p>The Mac app carries the keg command and the Linux machine inside it and updates itself. Its accent, lettering, text size and language are yours to set, in thirty-eight languages. On any machine, <code>keg ui</code> is the same in a browser.</p>
     </div>
     <div class="ledger-item">
-      <div class="ledger-idx"><span>No. 16</span><span>License</span></div>
+      <div class="ledger-idx"><span>No. 16</span><span>Finding</span></div>
+      <h3>Go Anywhere by Name</h3>
+      <p>Command-K in the app, a few letters, Return: a section, a container, a service or an image. Back and forward take you where you were.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 17</span><span>Live</span></div>
+      <h3>Changed While It Runs</h3>
+      <p>A running container's ports are changed and it stays the same container, with all it has written. Disk and network are charted beside processor and memory. <code>keg pause</code> holds one still.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 18</span><span>License</span></div>
       <h3>Open Source</h3>
       <p>Apache 2.0. No account, no seat licenses, no telemetry.</p>
     </div>
@@ -490,13 +600,13 @@ a:focus-visible, .btn:focus-visible {
 
 <!-- 02 Tour -->
 <section class="section" id="tour">
-  <div class="sec-head"><span class="sec-no">02</span><h2 class="sec-title">The grand tour.</h2></div>
-  <p class="sec-desc">Twenty real screens, nothing mocked: two services deployed from a folder, one change waiting for approval, a database, a cache, a worker, a Compose project, a Kubernetes cluster, a Linux machine, and a second node to share through.</p>
+  <div class="sec-head"><span class="sec-no">03</span><h2 class="sec-title">The grand tour.</h2></div>
+  <p class="sec-desc">Twenty-two real screens, nothing mocked: two services deployed from a folder, one change waiting for approval, a database, a cache, a worker, a Compose project, a Kubernetes cluster, a Linux machine, and a second node to share through.</p>
   <div class="gallery">
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 02</span> — Overview</span>
+        <span><span class="fig-no">Fig. 03</span> — Overview</span>
         <span>what needs you, at a glance</span>
       </figcaption>
       <div class="shot ratio-auto">
@@ -507,7 +617,7 @@ a:focus-visible, .btn:focus-visible {
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 03</span> — Changes waiting for approval</span>
+        <span><span class="fig-no">Fig. 04</span> — Changes waiting for approval</span>
         <span>change sets</span>
       </figcaption>
       <div class="shot ratio-auto">
@@ -518,7 +628,7 @@ a:focus-visible, .btn:focus-visible {
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 04</span> — Output, searched and filtered</span>
+        <span><span class="fig-no">Fig. 05</span> — Output, searched and filtered</span>
         <span>live logs</span>
       </figcaption>
       <div class="shot ratio-auto">
@@ -529,7 +639,7 @@ a:focus-visible, .btn:focus-visible {
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 05</span> — A container's files</span>
+        <span><span class="fig-no">Fig. 06</span> — A container's files</span>
         <span>looked at from outside</span>
       </figcaption>
       <div class="shot ratio-auto">
@@ -540,7 +650,7 @@ a:focus-visible, .btn:focus-visible {
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 06</span> — Vulnerability check</span>
+        <span><span class="fig-no">Fig. 07</span> — Vulnerability check</span>
         <span>osv.dev</span>
       </figcaption>
       <div class="shot ratio-auto">
@@ -551,7 +661,7 @@ a:focus-visible, .btn:focus-visible {
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 07</span> — Image library</span>
+        <span><span class="fig-no">Fig. 08</span> — Image library</span>
         <span>sizes, users, search and pull</span>
       </figcaption>
       <div class="shot ratio-auto">
@@ -562,7 +672,7 @@ a:focus-visible, .btn:focus-visible {
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 08</span> — Kubernetes</span>
+        <span><span class="fig-no">Fig. 09</span> — Kubernetes</span>
         <span>pods and services</span>
       </figcaption>
       <div class="shot ratio-auto">
@@ -573,7 +683,7 @@ a:focus-visible, .btn:focus-visible {
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 09</span> — Services, by environment</span>
+        <span><span class="fig-no">Fig. 10</span> — Services, by environment</span>
         <span>open, show, roll back</span>
       </figcaption>
       <div class="shot ratio-auto">
@@ -584,7 +694,7 @@ a:focus-visible, .btn:focus-visible {
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 10</span> — Machines</span>
+        <span><span class="fig-no">Fig. 11</span> — Machines</span>
         <span>Linux to work in</span>
       </figcaption>
       <div class="shot ratio-auto">
@@ -595,7 +705,7 @@ a:focus-visible, .btn:focus-visible {
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 11</span> — Volumes</span>
+        <span><span class="fig-no">Fig. 12</span> — Volumes</span>
         <span>storage that outlives containers</span>
       </figcaption>
       <div class="shot ratio-auto">
@@ -606,7 +716,7 @@ a:focus-visible, .btn:focus-visible {
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 12</span> — A terminal in the window</span>
+        <span><span class="fig-no">Fig. 13</span> — A terminal in the window</span>
         <span>a shell in the container</span>
       </figcaption>
       <div class="shot ratio-auto">
@@ -617,7 +727,7 @@ a:focus-visible, .btn:focus-visible {
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 13</span> — Compose projects</span>
+        <span><span class="fig-no">Fig. 14</span> — Compose projects</span>
         <span>started and stopped as one</span>
       </figcaption>
       <div class="shot ratio-auto">
@@ -628,7 +738,7 @@ a:focus-visible, .btn:focus-visible {
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 14</span> — Builds, each one kept</span>
+        <span><span class="fig-no">Fig. 15</span> — Builds, each one kept</span>
         <span>what it said, and how it ended</span>
       </figcaption>
       <div class="shot ratio-auto">
@@ -639,7 +749,7 @@ a:focus-visible, .btn:focus-visible {
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 15</span> — Shared through another node</span>
+        <span><span class="fig-no">Fig. 16</span> — Shared through another node</span>
         <span>an address anyone can open</span>
       </figcaption>
       <div class="shot ratio-auto">
@@ -648,9 +758,20 @@ a:focus-visible, .btn:focus-visible {
       </div>
     </div>
 
-    <div class="g-item g-span2">
+    <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 16</span> — Environments and nodes</span>
+        <span><span class="fig-no">Fig. 17</span> — Go to, by name</span>
+        <span>command-K</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/goto.png" alt="The Go to panel over the Containers view: three letters typed, and two containers and an image found" width="1320" height="860">
+        <span class="tag tag-tr">sections · containers · images</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 18</span> — Environments and nodes</span>
         <span>who approves what</span>
       </figcaption>
       <div class="shot ratio-auto">
@@ -660,34 +781,34 @@ a:focus-visible, .btn:focus-visible {
     </div>
 
   </div>
-  <p class="sec-desc" style="margin-top:56px">And on any machine, with no app to install: <code>keg ui</code> opens the same node in a browser, with a command palette on ⌘K and a layout for any width.</p>
+  <p class="sec-desc" style="margin-top:56px">And on any machine, with no app to install: <code>keg ui</code> opens the same node in a browser, laid out as the app is, with a command palette on ⌘K and a layout for any width.</p>
   <div class="gallery">
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 17</span> — Containers, in a browser</span>
+        <span><span class="fig-no">Fig. 19</span> — Containers, in a browser</span>
         <span>keg ui</span>
       </figcaption>
       <div class="shot ratio-auto">
-        <img src="screenshots/console-containers.png" alt="The web console's Containers page: tabs for all, running, stopped and failed, a table with state, processor, memory, ports and row actions, and a panel for the node's load, memory and disk" width="1320" height="860">
+        <img src="screenshots/console-containers.png" alt="The web console's Containers screen, laid out as the Mac app's is: the same sidebar, a table with row actions, and below it the chosen container's charts of processor, memory, processes, disk and network" width="1320" height="860">
         <span class="tag tag-tr">select · stop · start · remove</span>
       </div>
     </div>
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 18</span> — Logs, in a browser</span>
+        <span><span class="fig-no">Fig. 20</span> — Logs, in a browser</span>
         <span>find · level · download</span>
       </figcaption>
       <div class="shot ratio-auto">
-        <img src="screenshots/console-logs.png" alt="The web console's page for the worker container on its Logs tab, with find, level filters, Follow, Wrap, Clear, Copy and Download, and warning and error lines tinted" width="1320" height="860">
+        <img src="screenshots/console-logs.png" alt="The web console with the worker container chosen and its Output tab open below the list: find, level, Follow, Wrap, Copy and Download, and warning and error lines tinted" width="1320" height="860">
         <span class="tag tag-tr">5,000 lines kept</span>
       </div>
     </div>
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 19</span> — A Compose file, changed in a browser</span>
+        <span><span class="fig-no">Fig. 21</span> — A Compose file, changed in a browser</span>
         <span>edit · apply</span>
       </figcaption>
       <div class="shot ratio-auto">
@@ -698,7 +819,7 @@ a:focus-visible, .btn:focus-visible {
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 20</span> — Approvals, in a browser</span>
+        <span><span class="fig-no">Fig. 22</span> — Approvals, in a browser</span>
         <span>the same change sets</span>
       </figcaption>
       <div class="shot ratio-auto">
@@ -712,7 +833,7 @@ a:focus-visible, .btn:focus-visible {
 
 <!-- 03 Docker -->
 <section class="section" id="docker">
-  <div class="sec-head"><span class="sec-no">03</span><h2 class="sec-title">Your tools, as they are.</h2></div>
+  <div class="sec-head"><span class="sec-no">04</span><h2 class="sec-title">Your tools, as they are.</h2></div>
   <p class="sec-desc">Use Keg's own command, or point docker at Keg and change nothing else. Either way the containers, images and volumes are the same ones, and show in the app.</p>
   <div class="listings">
     <div class="listing">
@@ -746,7 +867,7 @@ a:focus-visible, .btn:focus-visible {
 
 <!-- 04 Compose -->
 <section class="section" id="compose">
-  <div class="sec-head"><span class="sec-no">04</span><h2 class="sec-title">Your Compose files. As written.</h2></div>
+  <div class="sec-head"><span class="sec-no">05</span><h2 class="sec-title">Your Compose files. As written.</h2></div>
   <p class="sec-desc">Health checks, depends_on, service names, volumes and builds. Run them with Keg's command or with docker compose.</p>
   <div class="listings">
     <div class="listing">
@@ -784,7 +905,7 @@ a:focus-visible, .btn:focus-visible {
 
 <!-- 05 Ship -->
 <section class="section" id="ship">
-  <div class="sec-head"><span class="sec-no">05</span><h2 class="sec-title">From laptop to server, with a person in the loop.</h2></div>
+  <div class="sec-head"><span class="sec-no">06</span><h2 class="sec-title">From laptop to server, with a person in the loop.</h2></div>
   <p class="sec-desc">Install Keg on a Linux server you run, and it becomes a node your Mac can deploy to. What moves is the image you tested, never a rebuild.</p>
   <div class="steps">
     <div class="step">
@@ -816,7 +937,7 @@ keg rollback checkout \
 
 <!-- 06 Speed -->
 <section class="section" id="compare">
-  <div class="sec-head"><span class="sec-no">06</span><h2 class="sec-title">Measured, not claimed.</h2></div>
+  <div class="sec-head"><span class="sec-no">07</span><h2 class="sec-title">Measured, not claimed.</h2></div>
   <p class="sec-desc">The same docker client talking to each engine on the same Apple silicon Mac, both warm, so that what differs is the engine. Medians; Docker is 29.2 on Colima. The script is in the repository.</p>
   <div class="cmp-wrap"><div class="cmp-scroll">
     <table class="cmp">
@@ -862,5 +983,25 @@ keg rollback checkout \
 </footer>
 
 </div>
+<script>
+// The session plays once, a line after the one before it; the last waits,
+// as a change does, for whoever is reading to approve it.
+(function () {
+  document.documentElement.classList.add("js");
+  var lines = Array.prototype.slice.call(document.querySelectorAll("#session li"));
+  var still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  lines.forEach(function (line, i) {
+    if (still) { line.classList.add("in"); return; }
+    setTimeout(function () { line.classList.add("in"); }, 400 + i * 600);
+  });
+  var button = document.getElementById("approve");
+  button.addEventListener("click", function () {
+    document.getElementById("waits").classList.add("done");
+    document.getElementById("waits-note").textContent = "Applied. Release 2 runs in staging; the one before is a rollback away.";
+    button.textContent = "Approved";
+    button.disabled = true;
+  });
+})();
+</script>
 </body>
 </html>
