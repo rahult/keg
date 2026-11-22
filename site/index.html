@@ -3,16 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Keg — Run containers, and ship with a person in the loop</title>
-<meta name="description" content="Keg runs containers on a Mac or Linux, with Compose and Docker's API and no Docker underneath. On the same node you can build and ship: work given to a coding agent waits at a gate for you, and releases wait for your approval. Free to download.">
-<meta property="og:title" content="Keg — Run containers, and ship with a person in the loop">
-<meta property="og:description" content="Containers in milliseconds, Compose and Docker's API on a Mac or Linux. Work given to an agent waits at a gate, and releases wait for a person. Free to download.">
+<title>Keg — Run and build your systems anywhere</title>
+<meta name="description" content="Run and build your systems anywhere. Keg runs containers on a Mac or Linux, with Compose and Docker's API and no Docker underneath. On the same node you can build and ship: work given to a coding agent waits at a gate for you, and releases wait for your approval. Free to use.">
+<meta property="og:title" content="Keg — Run and build your systems anywhere">
+<meta property="og:description" content="Run and build your systems anywhere. Containers in milliseconds, Compose and Docker's API on a Mac or Linux; work given to an agent waits at a gate, and releases wait for a person. Free to use.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://keg.rahultrikha.com/">
 <meta property="og:image" content="https://keg.rahultrikha.com/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Keg: Run and build your systems anywhere, beside the Mac app in Builder mode">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Keg — Run containers, and ship with a person in the loop">
-<meta name="twitter:description" content="Containers in milliseconds, Compose and Docker's API on a Mac or Linux. Work given to an agent waits at a gate, and releases wait for a person. Free to download.">
+<meta name="twitter:image" content="https://keg.rahultrikha.com/og-cover.png">
+<meta name="twitter:title" content="Keg — Run and build your systems anywhere">
+<meta name="twitter:description" content="Run and build your systems anywhere. Containers in milliseconds, Compose and Docker's API on a Mac or Linux; work given to an agent waits at a gate, and releases wait for a person. Free to use.">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -371,6 +375,8 @@ a:focus-visible, .btn:focus-visible {
 .ledger-item p a, .sec-desc a { border-bottom: 1px solid var(--line); transition: color 0.25s, border-color 0.25s; }
 .ledger-item p a:hover, .sec-desc a:hover { color: var(--accent-ink); border-color: var(--accent); }
 .colophon .links { flex-wrap: wrap; row-gap: 10px; }
+.colophon .fine a { color: var(--ink-2); border-bottom: 1px solid var(--line); transition: color 0.25s, border-color 0.25s; }
+.colophon .fine a:hover { color: var(--accent-ink); border-color: var(--accent); }
 .step p code { font-family: var(--mono); font-size: 0.78rem; color: var(--ink); background: var(--paper-2); padding: 1px 5px; border-radius: 3px; }
 </style>
 </head>
@@ -400,13 +406,13 @@ a:focus-visible, .btn:focus-visible {
 <section class="hero">
   <div>
     <div class="kicker">Containers · Builder · Agents · Native macOS</div>
-    <h1>Run your containers.<br><em>Ship with a person in the loop.</em></h1>
-    <p class="hero-sub">Keg runs containers on a Mac or Linux: images, Compose and Docker's API, with no Docker underneath. On the same node you can build and ship: work given to a coding agent waits at a gate for you, and a release waits for your approval.</p>
+    <h1>Run and build your systems <em>anywhere.</em></h1>
+    <p class="hero-sub">Run containers on a Mac or Linux: images, Compose and Docker's API, with no Docker underneath. Build and ship on the same node: work given to a coding agent waits at a gate for you, and nothing reaches an environment that asks for approval until a person gives it.</p>
     <div class="hero-specs">
       <span>macOS 15+</span>
       <span>Apple silicon</span>
       <span>Linux</span>
-      <span>Free to download</span>
+      <span>Free to use</span>
     </div>
     <div class="hero-actions">
       <a href="https://github.com/rahult/keg/releases/latest/download/Keg.dmg" class="btn btn-primary">Download for Mac <span class="arr">↓</span></a>
@@ -569,8 +575,8 @@ a:focus-visible, .btn:focus-visible {
     </div>
     <div class="ledger-item">
       <div class="ledger-idx"><span>No. 16</span><span>Free</span></div>
-      <h3>Free to Download</h3>
-      <p>Download it and run it. No account and no telemetry.</p>
+      <h3>Free to Use</h3>
+      <p>Download it and run it. No account and no telemetry. There will always be a free version.</p>
     </div>
   </div>
 </section>
@@ -1089,7 +1095,7 @@ keg rollback hello-keg \
 
 <!-- CTA -->
 <section class="cta">
-  <h2>One app. One command.<br><em>Free to download.</em></h2>
+  <h2>One app. One command.<br><em>Free to use.</em></h2>
   <p>For Apple silicon Macs on macOS 15 or later. On Linux, from the release's archives for x86_64 and aarch64.</p>
   <div class="hero-actions">
     <a href="https://github.com/rahult/keg/releases/latest/download/Keg.dmg" class="btn btn-primary">Download for Mac <span class="arr">↓</span></a>
@@ -1100,7 +1106,7 @@ keg rollback hello-keg \
 <!-- Colophon -->
 <footer class="colophon">
   <div class="fine">
-    Copyright © 2026 Rahul Trikha.<br>
+    Copyright © 2026 Rahul Trikha. Free to use under the <a href="https://github.com/rahult/keg/blob/main/LICENSE.md">Keg License</a>.<br>
     Keg 0.10.0 · 22 November 2026<br>
     Set in Newsreader &amp; JetBrains Mono
   </div>
