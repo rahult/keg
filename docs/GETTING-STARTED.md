@@ -135,6 +135,7 @@ Building a service from its folder on the node is **off** until a person turns i
 
 ## More
 
+- `keg license` shows the Keg License, under which Keg is free to use.
 - [Reference](REFERENCE.md): what Keg does, command by command, and its limits.
 - [Events protocol](PROTOCOL.md): what a Keg service may rely on.
 - [Changelog](CHANGELOG.md): what changed in each release, and how to upgrade.

@@ -1,6 +1,8 @@
 # Keg
 
-**Run containers on a Mac or Linux, and build and ship software on them.** Keg is a container runtime of its own: it pulls, builds and runs OCI images, runs Compose files, and answers Docker's API so the tools you already use keep working. There is no Docker underneath. On top of it, Keg lets you build and ship: work given to a coding agent that waits at a gate for a person, releases to environments that wait for approval, apps with a database of their own, and services that Keg runs on the node.
+Run and build your systems anywhere.
+
+Keg runs containers on a Mac or Linux, and lets you build and ship software on them. It is a container runtime of its own: it pulls, builds and runs OCI images, runs Compose files, and answers Docker's API so the tools you already use keep working. There is no Docker underneath. On top of it, Keg lets you build and ship: work given to a coding agent that waits at a gate for a person, releases to environments that wait for approval, apps with a database of their own, and services that Keg runs on the node.
 
 On a Mac it runs in a small Linux machine that boots in about a second and sleeps when nothing is running. On Linux it runs directly.
 
@@ -57,8 +59,10 @@ The Mac app and the web console (`keg ui`, in any browser) have two modes, and a
 - [Changelog](docs/CHANGELOG.md): each release, with how to upgrade and go back.
 - [Release notes for 0.10.0](docs/releases/notes-0.10.0.md).
 
-Keg is free to download.
-
 ## This repository
 
 This repository holds Keg's releases, its website (`site/`), its documentation (`docs/`) and its Homebrew cask (`Casks/`). Report a problem under [Issues](https://github.com/rahult/keg/issues).
+
+## License
+
+Keg is free to use under the [Keg License](LICENSE.md). There will always be a free version. Software by others inside Keg is listed in [THIRD-PARTY-NOTICES.md](https://github.com/rahult/keg/blob/main/THIRD-PARTY-NOTICES.md), which ships with every download.
