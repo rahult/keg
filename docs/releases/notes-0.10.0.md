@@ -9,6 +9,7 @@ Keg 0.10.0 lets agents do work that a person approves, and runs services of Keg'
 - **Keg services.** Keg runs services of its own on the node, each in its own container with only what it is granted: the console, the checks the test stage asks for, and the realtime gateway. `keg system ls`, `install`, `start`, `stop` and `rm` look after them.
 - **Services from outside.** `keg system install <folder>` installs a service that has a `keg.service.toml`. You are asked about each thing it wants, in plain words, and it gets only what you allow. It runs pinned by digest, behind walls: no network but its socket unless you allow the internet, and capped memory, processes, disk and connections. Building a service from its folder on the node is off until you turn it on with `keg system builds on`; until then a service names its image by digest. A Linux node needs loop devices and `mkfs.ext4` (e2fsprogs) to run them, and says so if it has none.
 - **In the Mac app**: the two modes and the guide, and new sections: Needs you (pinned, with its count), Work with Approve, Send back and Reject, Keg services with what each asks for, Apps, and Events.
+- **The source of the GPL software in Keg** (the Linux kernel and the Alpine packages in the Linux machine it runs on a Mac) is published with the release, in `keg-0.10.0-gpl-source-kernel.tar.xz` and `keg-0.10.0-gpl-source-packages.tar`.
 
 ## Fixed
 
@@ -21,6 +22,7 @@ Keg 0.10.0 lets agents do work that a person approves, and runs services of Keg'
 - **Mac.** The app updates itself, but the Linux machine goes on running 0.9.0 until you stop it: Stop Keg, then Start Keg, runs 0.10.0.
 - **Walled containers** (a service from outside, and its build) use a bridge of their own, `kegw0`, made only for the first one. Their range is 10.89.0.0/16, or the first free of 10.90, 10.91 and 10.92.0.0/16 if one of your own networks overlaps it. A node whose networks cover all four runs everything but walled containers.
 - Building a service from its folder is off on every node, upgraded or new.
+- `keg system ls` may say the realtime service "asks for listens:app.bound too": it runs as before without it; `keg system install realtime` gives it, and it is safe to leave.
 - A connection an app leaves idle inside a transaction for 10 minutes is ended, and the transaction rolled back.
 - A Dockerfile or `.dockerignore` over 1 MiB is refused.
 
