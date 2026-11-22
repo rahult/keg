@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Keg — Somewhere for your agent to work</title>
-<meta name="description" content="Keg gives a coding agent Linux containers to build, run and test in, and a way to propose a release that waits for you. Underneath is a fast container runtime with a native Mac app. Open source.">
-<meta property="og:title" content="Keg — Somewhere for your agent to work">
-<meta property="og:description" content="A sandbox, machines of its own and a way to propose releases, for Claude Code, Codex or Pi. A container starts in milliseconds. A person approves. Open source.">
+<title>Keg — Run containers, and ship with a person in the loop</title>
+<meta name="description" content="Keg runs containers on a Mac or Linux, with Compose and Docker's API and no Docker underneath. On the same node you can build and ship: work given to a coding agent waits at a gate for you, and releases wait for your approval. Free to download.">
+<meta property="og:title" content="Keg — Run containers, and ship with a person in the loop">
+<meta property="og:description" content="Containers in milliseconds, Compose and Docker's API on a Mac or Linux. Work given to an agent waits at a gate, and releases wait for a person. Free to download.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://keg.rahultrikha.com/">
 <meta property="og:image" content="https://keg.rahultrikha.com/og-cover.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Keg — Somewhere for your agent to work">
-<meta name="twitter:description" content="A sandbox, machines of its own and a way to propose releases, for Claude Code, Codex or Pi. A container starts in milliseconds. A person approves. Open source.">
+<meta name="twitter:title" content="Keg — Run containers, and ship with a person in the loop">
+<meta name="twitter:description" content="Containers in milliseconds, Compose and Docker's API on a Mac or Linux. Work given to an agent waits at a gate, and releases wait for a person. Free to download.">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -362,6 +362,16 @@ a:focus-visible, .btn:focus-visible {
 .ledger-item ul { list-style: none; }
 .ledger-item li { font-size: 0.88rem; color: var(--ink-2); line-height: 1.6; padding: 8px 0 8px 20px; border-top: 1px solid var(--line-soft); position: relative; }
 .ledger-item li::before { content: ''; position: absolute; left: 0; top: 18px; width: 10px; height: 1px; background: var(--accent); }
+/* Two figures side by side, and the release line under the hero */
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; margin-bottom: 28px; }
+@media (max-width: 768px) { .pair { grid-template-columns: 1fr; } }
+.release-line { font-family: var(--mono); font-size: 0.68rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); margin-top: 22px; }
+.release-line a { color: var(--ink-2); border-bottom: 1px solid var(--line); padding-bottom: 1px; transition: color 0.25s, border-color 0.25s; }
+.release-line a:hover { color: var(--accent-ink); border-color: var(--accent); }
+.ledger-item p a, .sec-desc a { border-bottom: 1px solid var(--line); transition: color 0.25s, border-color 0.25s; }
+.ledger-item p a:hover, .sec-desc a:hover { color: var(--accent-ink); border-color: var(--accent); }
+.colophon .links { flex-wrap: wrap; row-gap: 10px; }
+.step p code { font-family: var(--mono); font-size: 0.78rem; color: var(--ink); background: var(--paper-2); padding: 1px 5px; border-radius: 3px; }
 </style>
 </head>
 <body>
@@ -371,14 +381,14 @@ a:focus-visible, .btn:focus-visible {
   <div class="masthead-inner">
     <a href="#" class="wordmark">Keg<span class="deg">.</span></a>
     <nav>
-      <a href="#agents">Agents</a>
-      <a href="#features">Features</a>
+      <a href="#modes">Modes</a>
+      <a href="#features">Containers</a>
+      <a href="#work">Work</a>
+      <a href="#platform">Services</a>
       <a href="#tour">Tour</a>
       <a href="#docker">Docker</a>
-      <a href="#compose">Compose</a>
       <a href="#ship">Ship</a>
-      <a href="#compare">Speed</a>
-      <a href="https://github.com/rahult/keg#readme">Docs</a>
+      <a href="https://github.com/rahult/keg/blob/main/docs/GETTING-STARTED.md">Docs</a>
     </nav>
     <a href="https://github.com/rahult/keg/releases/latest/download/Keg.dmg" class="dl">Download <span>↓</span></a>
   </div>
@@ -389,50 +399,32 @@ a:focus-visible, .btn:focus-visible {
 <!-- Hero -->
 <section class="hero">
   <div>
-    <div class="kicker">For agents · Containers · Deploys · Native macOS</div>
-    <h1>Give your agent a place.<br><em>Keep the last word.</em></h1>
-    <p class="hero-sub">Keg gives a coding agent Linux containers to build, run and test in, so nothing is installed on your Mac, and a way to propose a release that waits for you. Underneath it is a container runtime built for speed and delivery, with a native app on top. No Docker underneath.</p>
+    <div class="kicker">Containers · Builder · Agents · Native macOS</div>
+    <h1>Run your containers.<br><em>Ship with a person in the loop.</em></h1>
+    <p class="hero-sub">Keg runs containers on a Mac or Linux: images, Compose and Docker's API, with no Docker underneath. On the same node you can build and ship: work given to a coding agent waits at a gate for you, and a release waits for your approval.</p>
     <div class="hero-specs">
       <span>macOS 15+</span>
       <span>Apple silicon</span>
-      <span>Linux servers</span>
-      <span>Apache 2.0</span>
+      <span>Linux</span>
+      <span>Free to download</span>
     </div>
     <div class="hero-actions">
       <a href="https://github.com/rahult/keg/releases/latest/download/Keg.dmg" class="btn btn-primary">Download for Mac <span class="arr">↓</span></a>
-      <a href="#agents" class="btn btn-ghost">What an agent gets <span class="arr">→</span></a>
+      <a href="#modes" class="btn btn-ghost">The two modes <span class="arr">→</span></a>
     </div>
+    <p class="release-line">Keg 0.10.0 · 22 November 2026 · <a href="https://github.com/rahult/keg/releases/tag/v0.10.0">What is new</a></p>
   </div>
 </section>
-
-<!-- An agent's session -->
-<figure class="figure">
-  <figcaption class="fig-cap">
-    <span><span class="fig-no">Fig. 01</span> — An agent, working through Keg</span>
-    <span>Claude Code · Codex · Pi</span>
-  </figcaption>
-  <div class="session" id="session">
-    <div class="session-bar"><span>project: shop/checkout</span><span>keg agents --connect claude</span></div>
-    <ol>
-      <li><span class="n">01</span><span><b>keg_sandbox</b> <i>python -c "import fastapi"</i><br><em>ran, and nothing was kept</em></span></li>
-      <li><span class="n">02</span><span><b>keg_machine_create</b> <i>app --image python:3.12</i><br><em>the project's folder is in it; nothing else of your Mac can be changed</em></span></li>
-      <li><span class="n">03</span><span><b>keg_machine_run</b> <i>app pytest -q</i><br><em>42 passed</em></span></li>
-      <li><span class="n">04</span><span><b>keg_up</b><br><em>release 2 built; it answers at checkout.keg.localhost</em></span></li>
-      <li><span class="n">05</span><span><b>keg_promote</b> <i>checkout, local to staging</i><br><em class="held">change 4 is waiting for a person. An agent cannot approve.</em></span></li>
-      <li class="waits" id="waits"><span><strong>checkout, release 2, to staging</strong><small id="waits-note">Waiting for you. The image check passed.</small></span><button class="approve" id="approve" type="button">Approve</button></li>
-    </ol>
-  </div>
-</figure>
 
 <!-- Containers -->
 <figure class="figure">
   <figcaption class="fig-cap">
-    <span><span class="fig-no">Fig. 02</span> — Containers, Keg for macOS</span>
+    <span><span class="fig-no">Fig. 01</span> — Containers, Keg for macOS</span>
     <span>SwiftUI · live charts · row actions</span>
   </figcaption>
   <div class="shot ratio-auto">
-    <img src="screenshots/containers.png" alt="Keg's Containers view listing twelve containers with image marks, status, processor and memory use, links that open them by name and buttons on each row; below, live charts of the selected web container's processor, memory, processes, disk and network" loading="eager" width="1320" height="860">
-    <span class="tag tag-tr"><span class="dot">●</span> 10 running</span>
+    <img src="screenshots/containers.png" alt="Keg's Containers view in the Mac app, in Containers mode: seventeen containers with image marks, status, processor and memory use, names that open them and buttons on each row; below, live charts of the selected web container's processor, memory, processes, disk and network" loading="eager" width="1320" height="860">
+    <span class="tag tag-tr"><span class="dot">●</span> 15 running</span>
     <span class="tag tag-bl">web.keg.localhost · opens by name</span>
   </div>
 </figure>
@@ -445,11 +437,219 @@ a:focus-visible, .btn:focus-visible {
   <div class="stat"><div class="stat-val">21<span class="unit">ms</span></div><div class="stat-label">docker run, through Docker's API</div></div>
 </div>
 
-<!-- 01 Features -->
-<!-- Agents -->
+<!-- 01 Modes -->
+<section class="section" id="modes">
+  <div class="sec-head"><span class="sec-no">01</span><h2 class="sec-title">Two modes. One node.</h2></div>
+  <p class="sec-desc">The app and the console open in <b>Containers</b>, for what runs. <b>Builder</b> has everything, and leads with what waits for you. Press <code>M</code> to switch. A guide in ten steps goes through both, and ticks each step off when it sees it done.</p>
+  <div class="pair">
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 02</span> — Containers mode, with the guide</span>
+        <span>keg ui</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/console-overview.png" alt="The web console in Containers mode: the guide's first part, five steps from running a container to switching to Builder, above tiles for containers, images, machines, volumes, Compose, builds, networks and what is shared" width="1320" height="860">
+        <span class="tag tag-tr">part 1 of the guide</span>
+      </div>
+    </div>
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 03</span> — Builder mode, in the Mac app</span>
+        <span>needs you · work · apps</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/builder.png" alt="The Mac app in Builder mode: the sidebar with Home, Needs you and the Build, Deploy and Run groups; on Home, one thing waiting for a person, the app supportdesk, a piece of work, the latest changes and what the node is using" width="1320" height="860">
+        <span class="tag tag-tr">1 thing waiting</span>
+      </div>
+    </div>
+  </div>
+  <div class="ledger">
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>Mode 1</span><span>Run</span></div>
+      <h3>Containers</h3>
+      <ul>
+        <li>An overview of what runs and what the node is using.</li>
+        <li>Containers, Compose projects, images, builds, volumes and networks.</li>
+        <li>Machines and Kubernetes; what is shared through another node.</li>
+        <li>The guide's first five steps: run a container, open it, read its output, stop it and start it again.</li>
+      </ul>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>Mode 2</span><span>Build</span></div>
+      <h3>Builder</h3>
+      <ul>
+        <li>Needs you, pinned, with how many things wait.</li>
+        <li>Work, Apps, Keg services and Events, then changes, services and environments.</li>
+        <li>Everything in Containers too, in folding groups.</li>
+        <li>The guide's last five: make an example project, deploy it, send a change for approval, approve it, give an agent a brief.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 02 Features -->
+<section class="section" id="features">
+  <div class="sec-head"><span class="sec-no">02</span><h2 class="sec-title">From first container to production.</h2></div>
+  <p class="sec-desc">Containers, images, volumes, Compose and Docker's API for the work on your computer. Environments, change sets and approvals for moving it to a server. The same app and the same command for both.</p>
+  <div class="ledger">
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 01</span><span>Speed</span></div>
+      <h3>Containers in Milliseconds</h3>
+      <p>A container runs to its end in about 5&nbsp;ms through the keg command. From nothing, booting the Linux machine and running the first container takes under a second.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 02</span><span>Idle</span></div>
+      <h3>Asleep When Idle</h3>
+      <p>With nothing running for a minute the Linux machine is paused and uses no processor. A command, or a connection to one of its ports, wakes it in about 45&nbsp;ms.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 03</span><span>Compat</span></div>
+      <h3>Docker's API</h3>
+      <p>Keg answers Docker's API on a socket of its own. Run <code>keg docker use</code> and docker, docker compose, editors and test libraries talk to Keg as they are. There is no Docker underneath.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 04</span><span>Stacks</span></div>
+      <h3>Compose Files, As Written</h3>
+      <p><code>keg compose up</code> or <code>docker compose up</code>: health checks, depends_on, service names, volumes and builds, from the file you already have.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 05</span><span>Names</span></div>
+      <h3>Names, Not Ports</h3>
+      <p>Anything with a port opens by name: <code>web.keg.localhost</code> for a container called web. Over HTTPS too, from a certificate authority that can vouch only for those names.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 06</span><span>Machines</span></div>
+      <h3>Linux Machines</h3>
+      <p>A Linux system to work in, kept until you remove it. What you install stays, your folders are in it at the same paths, and what you start in it is on localhost.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 07</span><span>Releases</span></div>
+      <h3>Services That Move</h3>
+      <p>A <code>keg.yaml</code> describes a service once. Keg builds it, releases it, and promotes the exact image from your computer to a server you run. It never rebuilds on the way.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 08</span><span>Approval</span></div>
+      <h3>Changes You Approve</h3>
+      <p>Every deploy is a change set: what would change, and the checks it passed. Environments that ask for a person wait for one, in the app, the browser or with <code>keg approve</code>, and the app notifies you when one starts to wait.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 09</span><span>Deploys</span></div>
+      <h3>Deploys With No Gap</h3>
+      <p>A new release starts beside the old one, must pass its health check, and only then takes the traffic. One that fails never takes the port, and the old one carries on.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 10</span><span>Sharing</span></div>
+      <h3>Share Through Your Own Server</h3>
+      <p><code>keg share web --via server</code> opens what runs on your Mac at an HTTPS name on a server you run, with a Let's Encrypt certificate. No service in between.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 11</span><span>Security</span></div>
+      <h3>Vulnerability Check</h3>
+      <p>Check an image's Alpine, Debian or Ubuntu packages against the open vulnerability database, from the app or with <code>keg scan</code>. Only package names and versions are sent.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 12</span><span>Cluster</span></div>
+      <h3>Kubernetes</h3>
+      <p><code>keg k8s start</code>, or a button in the app, runs one node of k3s with its state in a volume, ready in seconds once the image is here. The app lists its pods and services.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 13</span><span>Moving in</span></div>
+      <h3>Bring Your Images</h3>
+      <p><code>keg migrate</code> brings images and named volumes over from Docker Desktop, OrbStack or Colima. Nothing there is changed.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 14</span><span>App</span></div>
+      <h3>One App, Nothing Else to Install</h3>
+      <p>The Mac app carries the keg command and the Linux machine inside it and updates itself. Its accent, lettering, text size and language are yours to set, in thirty-eight languages. On any machine, <code>keg ui</code> is the same in a browser.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 15</span><span>Finding</span></div>
+      <h3>Go Anywhere by Name</h3>
+      <p>Command-K, a few letters, Return: a section, a container, a service or an image, in either mode. Back and forward take you where you were.</p>
+    </div>
+    <div class="ledger-item">
+      <div class="ledger-idx"><span>No. 16</span><span>Free</span></div>
+      <h3>Free to Download</h3>
+      <p>Download it and run it. No account and no telemetry.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 03 Work and gates -->
+<section class="section" id="work">
+  <div class="sec-head"><span class="sec-no">03</span><h2 class="sec-title">Work that waits for you.</h2></div>
+  <p class="sec-desc">Give a piece of work a brief. Agents take it through build, test and ship, on a branch and in a machine of its own, and each stage keeps what it found. Then it stops at a gate. Nothing is merged until a person approves, and an agent cannot answer a gate.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <h3>A brief, on a branch of its own</h3>
+      <p>In a project that is a git repository. The work gets a branch, a worktree and a machine; your own folder is left as it is.</p>
+      <div class="step-code">keg work new \
+  --title "Add a version route"</div>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <h3>Built, tested, deployed, with evidence</h3>
+      <p>Each stage keeps what it found: what was built, which tests passed, which release runs where. The diff is there to read.</p>
+      <div class="step-code">keg work show 3
+build  pass
+test   pass  27 passed
+ship   pass  runs in local</div>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <h3>A person decides</h3>
+      <p>Approve, and it is merged and deployed. Send it back with what is to change, and it is built again and asks again. Or reject it.</p>
+      <div class="step-code">keg needs
+keg gate approve 3
+keg work send-back 3 --note "…"</div>
+    </div>
+  </div>
+  <div class="gallery" style="margin-top:28px">
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 04</span> — Needs you</span>
+        <span>gates and approvals, in one list</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/console-needs.png" alt="The console's Needs you page listing one thing that waits for a person: release 16 of hello to staging, with a Review button" width="1320" height="860">
+        <span class="tag tag-tr">nothing ships until you say</span>
+      </div>
+    </div>
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 05</span> — A piece of work</span>
+        <span>evidence · diff · decision</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/console-work.png" alt="A piece of work in the console, Add a version route: four records of what was found (the build agent's summary, 5 tests passed, release 2 running in local, rejected by a person), and below them the diff it made against main" width="1320" height="860">
+        <span class="tag tag-tr">4 records · diff against main</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 04 Agents -->
 <section class="section" id="agents">
-  <div class="sec-head"><span class="sec-no">01</span><h2 class="sec-title">Three places to work, by how long they last.</h2></div>
-  <p class="sec-desc">An agent asks Keg for what the task needs. Each is a Linux container, so what it installs, breaks or leaves running is in there and not on your computer. <code>keg agents</code> prints the guide an agent reads; <code>keg agents --connect claude</code>, <code>codex</code> or <code>pi</code> connects one.</p>
+  <div class="sec-head"><span class="sec-no">04</span><h2 class="sec-title">Three places for an agent to work.</h2></div>
+  <p class="sec-desc">An agent of your own (Claude Code, Codex, Pi) asks Keg for what the task needs. Each is a Linux container, so what it installs, breaks or leaves running is in there and not on your computer. <code>keg agents</code> prints the guide an agent reads; <code>keg agents --connect claude</code>, <code>codex</code> or <code>pi</code> connects one.</p>
+  <figure style="margin-bottom:28px">
+    <figcaption class="fig-cap">
+      <span><span class="fig-no">Fig. 06</span> — An agent, working through Keg</span>
+      <span>Claude Code · Codex · Pi</span>
+    </figcaption>
+    <div class="session" id="session">
+      <div class="session-bar"><span>project: shop/checkout</span><span>keg agents --connect claude</span></div>
+      <ol>
+        <li><span class="n">01</span><span><b>keg_sandbox</b> <i>python -c "import fastapi"</i><br><em>ran, and nothing was kept</em></span></li>
+        <li><span class="n">02</span><span><b>keg_machine_create</b> <i>app --image python:3.12</i><br><em>the project's folder is in it; nothing else of your Mac can be changed</em></span></li>
+        <li><span class="n">03</span><span><b>keg_machine_run</b> <i>app pytest -q</i><br><em>42 passed</em></span></li>
+        <li><span class="n">04</span><span><b>keg_up</b><br><em>release 2 built; it answers at checkout.keg.localhost</em></span></li>
+        <li><span class="n">05</span><span><b>keg_promote</b> <i>checkout, local to staging</i><br><em class="held">change 4 is waiting for a person. An agent cannot approve.</em></span></li>
+        <li class="waits" id="waits"><span><strong>checkout, release 2, to staging</strong><small id="waits-note">Waiting for you. The image check passed.</small></span><button class="approve" id="approve" type="button">Approve</button></li>
+      </ol>
+    </div>
+  </figure>
   <div class="steps">
     <div class="step">
       <div class="step-num">01</div>
@@ -492,7 +692,7 @@ waiting for a person</div>
       <div class="ledger-idx"><span>Never</span><span>Daemon</span></div>
       <h3>What It Cannot, Whatever It Is Told</h3>
       <ul>
-        <li>Approve a change. That is a person's, in the app, a browser or the terminal.</li>
+        <li>Approve a change or answer a gate. That is a person's, in the app, a browser or the terminal.</li>
         <li>Reach folders you did not name: machines are held to the workspaces given to agents.</li>
         <li>Read an environment's secrets or the node's keys.</li>
         <li>Go round the limits. The daemon keeps them, not the agent's own client.</li>
@@ -501,329 +701,259 @@ waiting for a person</div>
   </div>
 </section>
 
-<section class="section" id="features">
-  <div class="sec-head"><span class="sec-no">02</span><h2 class="sec-title">From first container to production.</h2></div>
-  <p class="sec-desc">Containers, images, volumes, Compose and Docker's API for the work on your Mac. Environments, change sets and approvals for moving it to a server. The same app and the same command for both.</p>
+<!-- 05 Platform -->
+<section class="section" id="platform">
+  <div class="sec-head"><span class="sec-no">05</span><h2 class="sec-title">What the node gives what you build.</h2></div>
+  <p class="sec-desc">A log of everything that happened, a database for each app with sign-in and events in it, and services that Keg runs beside your own, each with only what a person allowed it.</p>
   <div class="ledger">
     <div class="ledger-item">
-      <div class="ledger-idx"><span>No. 01</span><span>Speed</span></div>
-      <h3>Containers in Milliseconds</h3>
-      <p>A container runs to its end in about 5&nbsp;ms through the keg command. From nothing, booting the Linux machine and running the first container takes under a second.</p>
+      <div class="ledger-idx"><span>No. 01</span><span>Events</span></div>
+      <h3>A Log of Events</h3>
+      <p>Every change the node makes (work, gates, evidence, change sets, services, apps, containers) is written as an event in the same transaction as the change. <code>keg events</code> reads it, and the app and the console have an Events page that refreshes when something happens.</p>
     </div>
     <div class="ledger-item">
-      <div class="ledger-idx"><span>No. 02</span><span>Idle</span></div>
-      <h3>Asleep When Idle</h3>
-      <p>With nothing running for a minute the Linux machine is paused and uses no processor. A command, or a connection to one of its ports, wakes it in about 45&nbsp;ms.</p>
+      <div class="ledger-idx"><span>No. 02</span><span>Apps</span></div>
+      <h3>Apps With Their Own Database</h3>
+      <p>A <code>keg.yaml</code> with <code>uses: [data, identity, events, jobs, realtime]</code> gives an app a database of its own in each environment: sign-in, sessions, organizations and members, events and jobs delivered at least once, and a realtime gateway that sends each user only what they may read. <code>keg dev</code> runs one.</p>
     </div>
     <div class="ledger-item">
-      <div class="ledger-idx"><span>No. 03</span><span>Compat</span></div>
-      <h3>Docker's API</h3>
-      <p>Keg answers Docker's API on a socket of its own. Run <code>keg docker use</code> and docker, docker compose, editors and test libraries talk to Keg as they are. There is no Docker underneath.</p>
+      <div class="ledger-idx"><span>No. 03</span><span>Keg services</span></div>
+      <h3>Services of Keg's Own</h3>
+      <p>The console, the checks that the test stage asks for, and the realtime gateway run on the node, each in a container with a socket and grants of its own. <code>keg system ls</code>, <code>install</code>, <code>start</code>, <code>stop</code> and <code>rm</code> look after them.</p>
     </div>
     <div class="ledger-item">
-      <div class="ledger-idx"><span>No. 04</span><span>Stacks</span></div>
-      <h3>Compose Files, As Written</h3>
-      <p><code>keg compose up</code> or <code>docker compose up</code>: health checks, depends_on, service names, volumes and builds, from the file you already have.</p>
+      <div class="ledger-idx"><span>No. 04</span><span>From outside</span></div>
+      <h3>Services From Outside, Behind Walls</h3>
+      <p>A folder with a <code>keg.service.toml</code> is installed with <code>keg system install</code>. You are asked about each thing it asks for, in plain words, and it holds only what you allowed: pinned by digest, no network but its socket, memory, processes and disk capped. Building one from its folder on the node is off until you turn it on with <code>keg system builds on</code>; off, a service names its image by digest. <a href="https://github.com/rahult/keg/blob/main/docs/PROTOCOL.md">What a service may rely on</a>.</p>
     </div>
-    <div class="ledger-item">
-      <div class="ledger-idx"><span>No. 05</span><span>Names</span></div>
-      <h3>Names, Not Ports</h3>
-      <p>Anything with a port opens by name: <code>web.keg.localhost</code> for a container called web. Over HTTPS too, from a certificate authority that can vouch only for those names.</p>
+  </div>
+  <div class="gallery" style="margin-top:28px">
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 07</span> — Keg services</span>
+        <span>what each asks for</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/console-system.png" alt="The console's Keg services page with checks, console and realtime running and what each is allowed; over it, the question asked before realtime is given more: to be told of every app.bound event and to read each app's events as its realtime gateway, with Cancel and Install" width="1320" height="860">
+        <span class="tag tag-tr">asked, in plain words</span>
+      </div>
     </div>
-    <div class="ledger-item">
-      <div class="ledger-idx"><span>No. 06</span><span>Machines</span></div>
-      <h3>Linux Machines</h3>
-      <p>A Linux system to work in, kept until you remove it. What you install stays, your folders are in it at the same paths, and what you start in it is on localhost.</p>
-    </div>
-    <div class="ledger-item">
-      <div class="ledger-idx"><span>No. 07</span><span>Releases</span></div>
-      <h3>Services That Move</h3>
-      <p>A <code>keg.yaml</code> describes a service once. Keg builds it, releases it, and promotes the exact image from your Mac to a server you run. It never rebuilds on the way.</p>
-    </div>
-    <div class="ledger-item">
-      <div class="ledger-idx"><span>No. 08</span><span>Approval</span></div>
-      <h3>Changes You Approve</h3>
-      <p>Every deploy is a change set: what would change, and the checks it passed. Environments that ask for a person wait for one, in the app, the browser or with <code>keg approve</code>, and the app notifies you when one starts to wait.</p>
-    </div>
-    <div class="ledger-item">
-      <div class="ledger-idx"><span>No. 09</span><span>Deploys</span></div>
-      <h3>Deploys With No Gap</h3>
-      <p>A new release starts beside the old one, must pass its health check, and only then takes the traffic. One that fails never takes the port, and the old one carries on.</p>
-    </div>
-    <div class="ledger-item">
-      <div class="ledger-idx"><span>No. 10</span><span>Sharing</span></div>
-      <h3>Share Through Your Own Server</h3>
-      <p><code>keg share web --via server</code> opens what runs on your Mac at an HTTPS name on a server you run, with a Let's Encrypt certificate. No service in between.</p>
-    </div>
-    <div class="ledger-item">
-      <div class="ledger-idx"><span>No. 11</span><span>Security</span></div>
-      <h3>Vulnerability Check</h3>
-      <p>Check an image's Alpine, Debian or Ubuntu packages against the open vulnerability database, from the app or with <code>keg scan</code>. Only package names and versions are sent.</p>
-    </div>
-    <div class="ledger-item">
-      <div class="ledger-idx"><span>No. 12</span><span>Agents</span></div>
-      <h3>A Place for Agents</h3>
-      <p><code>keg agents --connect claude</code> gives a coding agent a sandbox, machines of its own and a way to propose releases. The daemon holds it to what it was given; it cannot approve.</p>
-    </div>
-    <div class="ledger-item">
-      <div class="ledger-idx"><span>No. 13</span><span>Cluster</span></div>
-      <h3>Kubernetes</h3>
-      <p><code>keg k8s start</code>, or a button in the app, runs one node of k3s with its state in a volume, ready in seconds once the image is here. The app lists its pods and services.</p>
-    </div>
-    <div class="ledger-item">
-      <div class="ledger-idx"><span>No. 14</span><span>Moving in</span></div>
-      <h3>Bring Your Images</h3>
-      <p><code>keg migrate</code> brings images and named volumes over from Docker Desktop, OrbStack or Colima. Nothing there is changed.</p>
-    </div>
-    <div class="ledger-item">
-      <div class="ledger-idx"><span>No. 15</span><span>App</span></div>
-      <h3>One App, Nothing Else to Install</h3>
-      <p>The Mac app carries the keg command and the Linux machine inside it and updates itself. Its accent, lettering, text size and language are yours to set, in thirty-eight languages. On any machine, <code>keg ui</code> is the same in a browser.</p>
-    </div>
-    <div class="ledger-item">
-      <div class="ledger-idx"><span>No. 16</span><span>Finding</span></div>
-      <h3>Go Anywhere by Name</h3>
-      <p>Command-K in the app, a few letters, Return: a section, a container, a service or an image. Back and forward take you where you were.</p>
-    </div>
-    <div class="ledger-item">
-      <div class="ledger-idx"><span>No. 17</span><span>Live</span></div>
-      <h3>Changed While It Runs</h3>
-      <p>A running container's ports are changed and it stays the same container, with all it has written. Disk and network are charted beside processor and memory. <code>keg pause</code> holds one still.</p>
-    </div>
-    <div class="ledger-item">
-      <div class="ledger-idx"><span>No. 18</span><span>License</span></div>
-      <h3>Open Source</h3>
-      <p>Apache 2.0. No account, no seat licenses, no telemetry.</p>
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 08</span> — Events</span>
+        <span>what happened, as it happened</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/console-events.png" alt="The console's Events page: the Keg service listening and its deliveries waiting, running, failed and missed, and the latest events, such as changeset.created, service.installed and container.started, with who did each" width="1320" height="860">
+        <span class="tag tag-tr">written with each change</span>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- 02 Tour -->
+<!-- 06 Tour -->
 <section class="section" id="tour">
-  <div class="sec-head"><span class="sec-no">03</span><h2 class="sec-title">The grand tour.</h2></div>
-  <p class="sec-desc">Twenty-two real screens, nothing mocked: two services deployed from a folder, one change waiting for approval, a database, a cache, a worker, a Compose project, a Kubernetes cluster, a Linux machine, and a second node to share through.</p>
+  <div class="sec-head"><span class="sec-no">06</span><h2 class="sec-title">The grand tour.</h2></div>
+  <p class="sec-desc">Real screens from a node running 0.10.0, nothing mocked: an app with its own database, a change waiting for approval, a Compose project, a database, a cache, a worker, and machines that agents made.</p>
   <div class="gallery">
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 03</span> — Overview</span>
-        <span>what needs you, at a glance</span>
+        <span><span class="fig-no">Fig. 09</span> — Overview, in Containers mode</span>
+        <span>what runs, at a glance</span>
       </figcaption>
       <div class="shot ratio-auto">
-        <img src="screenshots/overview.png" alt="Overview showing a change waiting for approval with a Review button, tiles for containers, services, images, machines, volumes and shares, charts of the Linux machine's load, memory and running containers, and the latest changes" width="1320" height="860">
-        <span class="tag tag-tr">1 change waiting · 10 running</span>
+        <img src="screenshots/overview.png" alt="The Mac app's overview in Containers mode: tiles for fifteen containers with one failed and one stopped, images, machines, volumes, Compose, builds, networks and shares, and charts of the node's load, memory and running containers" loading="lazy" width="1320" height="860">
+        <span class="tag tag-tr">15 running · 1 failed</span>
       </div>
     </div>
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 04</span> — Changes waiting for approval</span>
+        <span><span class="fig-no">Fig. 10</span> — A change waiting for approval</span>
         <span>change sets</span>
       </figcaption>
       <div class="shot ratio-auto">
-        <img src="screenshots/changes.png" alt="Changes view listing four change sets; the selected one promotes storefront to staging and is waiting for approval, with what would change, the image check it passed, and Reject and Approve buttons" width="1320" height="860">
+        <img src="screenshots/changes.png" alt="The Mac app's Changes in Builder mode: change sets for hello and supportdesk; the selected one, hello to staging, waits for approval, with what would change, the image check it passed, and Reject and Approve in the toolbar" loading="lazy" width="1320" height="860">
         <span class="tag tag-tr">approve or reject</span>
       </div>
     </div>
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 05</span> — Output, searched and filtered</span>
-        <span>live logs</span>
-      </figcaption>
-      <div class="shot ratio-auto">
-        <img src="screenshots/output.png" alt="Containers view with the worker container's output in the lower pane: a find field, a level filter, Follow, and lines coloured where they say ERROR or WARN" width="1320" height="860">
-        <span class="tag tag-tr">find · level · follow</span>
-      </div>
-    </div>
-
-    <div class="g-item">
-      <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 06</span> — A container's files</span>
-        <span>looked at from outside</span>
-      </figcaption>
-      <div class="shot ratio-auto">
-        <img src="screenshots/files.png" alt="Containers view with the web container selected and its root folder listed in the Files pane: bin, dev, docker-entrypoint.d, etc, home and more" width="1320" height="860">
-        <span class="tag tag-tr">files · save to Downloads</span>
-      </div>
-    </div>
-
-    <div class="g-item">
-      <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 07</span> — Vulnerability check</span>
-        <span>osv.dev</span>
-      </figcaption>
-      <div class="shot ratio-auto">
-        <img src="screenshots/scan.png" alt="Sheet reporting 142 known vulnerabilities in 16 of 58 packages of an nginx image built on Alpine Linux, listing packages, versions and linked advisories" width="1320" height="860">
-        <span class="tag tag-tr">142 advisories · 16 packages</span>
-      </div>
-    </div>
-
-    <div class="g-item">
-      <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 08</span> — Image library</span>
-        <span>sizes, users, search and pull</span>
-      </figcaption>
-      <div class="shot ratio-auto">
-        <img src="screenshots/images.png" alt="Images view listing fourteen images with size, the containers that use each, platform and digest, tabs for all, in use and unused, and a Pull Image button" width="1320" height="860">
-        <span class="tag tag-tr">14 images · 414 MB</span>
-      </div>
-    </div>
-
-    <div class="g-item">
-      <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 09</span> — Kubernetes</span>
-        <span>pods and services</span>
-      </figcaption>
-      <div class="shot ratio-auto">
-        <img src="screenshots/kubernetes.png" alt="Kubernetes view listing five running pods, two of a hello deployment and three of the kube-system namespace, with ready counts and restarts, and buttons to copy the kubectl setup, stop and delete the cluster" width="1320" height="860">
-        <span class="tag tag-tr">k3s · 5 pods</span>
-      </div>
-    </div>
-
-    <div class="g-item">
-      <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 10</span> — Services, by environment</span>
+        <span><span class="fig-no">Fig. 11</span> — Services, by environment</span>
         <span>open, show, roll back</span>
       </figcaption>
       <div class="shot ratio-auto">
-        <img src="screenshots/services.png" alt="Services view showing checkout and storefront running in the local environment, each with a link that opens it by name" width="1320" height="860">
-        <span class="tag tag-tr">checkout.keg.localhost</span>
+        <img src="screenshots/services.png" alt="The Mac app's Services: hello and supportdesk running in local, each with its release, image and a name that opens it" loading="lazy" width="1320" height="860">
+        <span class="tag tag-tr">hello.keg.localhost</span>
       </div>
     </div>
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 11</span> — Machines</span>
-        <span>Linux to work in</span>
-      </figcaption>
-      <div class="shot ratio-auto">
-        <img src="screenshots/machines.png" alt="Machines view showing a running machine called dev made from ubuntu 24.04" width="1320" height="860">
-        <span class="tag tag-tr">dev · ubuntu 24.04</span>
-      </div>
-    </div>
-
-    <div class="g-item">
-      <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 12</span> — Volumes</span>
-        <span>storage that outlives containers</span>
-      </figcaption>
-      <div class="shot ratio-auto">
-        <img src="screenshots/volumes.png" alt="Volumes view listing the volumes, the containers that use each, and when each was created" width="1320" height="860">
-        <span class="tag tag-tr">made and removed here</span>
-      </div>
-    </div>
-
-    <div class="g-item">
-      <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 13</span> — A terminal in the window</span>
-        <span>a shell in the container</span>
-      </figcaption>
-      <div class="shot ratio-auto">
-        <img src="screenshots/terminal.png" alt="Containers view with the worker container selected and a terminal in the lower pane, at a shell prompt inside the container; the toolbar has Terminal, Stop, Restart, Pause and Run Container" width="1320" height="860">
-        <span class="tag tag-tr">no other window to open</span>
-      </div>
-    </div>
-
-    <div class="g-item">
-      <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 14</span> — Compose projects</span>
-        <span>started and stopped as one</span>
-      </figcaption>
-      <div class="shot ratio-auto">
-        <img src="screenshots/compose.png" alt="Compose view showing the project shop with two of two services running, mailer and search, and buttons to stop all, open the Compose file, remove the project and run a Compose file" width="1320" height="860">
-        <span class="tag tag-tr">2 of 2 running</span>
-      </div>
-    </div>
-
-    <div class="g-item">
-      <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 15</span> — Builds, each one kept</span>
-        <span>what it said, and how it ended</span>
-      </figcaption>
-      <div class="shot ratio-auto">
-        <img src="screenshots/builds.png" alt="Builds view listing five builds with the image each made, whether it was built or failed, its steps and how many came from the cache, how long it took and when" width="1320" height="860">
-        <span class="tag tag-tr">1 failed · 4 built</span>
-      </div>
-    </div>
-
-    <div class="g-item">
-      <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 16</span> — Shared through another node</span>
-        <span>an address anyone can open</span>
-      </figcaption>
-      <div class="shot ratio-auto">
-        <img src="screenshots/sharing.png" alt="Sharing view listing the web container, the address it is open at, and the node called server it is shared through" width="1320" height="860">
-        <span class="tag tag-tr">web → server</span>
-      </div>
-    </div>
-
-    <div class="g-item">
-      <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 17</span> — Go to, by name</span>
-        <span>command-K</span>
-      </figcaption>
-      <div class="shot ratio-auto">
-        <img src="screenshots/goto.png" alt="The Go to panel over the Containers view: three letters typed, and two containers and an image found" width="1320" height="860">
-        <span class="tag tag-tr">sections · containers · images</span>
-      </div>
-    </div>
-
-    <div class="g-item">
-      <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 18</span> — Environments and nodes</span>
+        <span><span class="fig-no">Fig. 12</span> — Environments and nodes</span>
         <span>who approves what</span>
       </figcaption>
       <div class="shot ratio-auto">
-        <img src="screenshots/environments.png" alt="Environments view showing local applied automatically, and production and staging applied after a person approves, and below them one other node, called server, with its address" width="1320" height="860">
-        <span class="tag tag-tr">local · staging · production</span>
+        <img src="screenshots/environments.png" alt="The Mac app's Environments: local applied automatically once checks pass, staging applied after a person approves, both on this Mac, and no other nodes yet" loading="lazy" width="1320" height="860">
+        <span class="tag tag-tr">local · staging</span>
       </div>
     </div>
 
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 13</span> — Work, in the Mac app</span>
+        <span>evidence and diff</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/app-work.png" alt="A piece of work in the Mac app, Add a version route: stopped after a person rejected it, its brief, four records of what was found, and the start of the diff, with Send Back, Again from Build and Take Up Again in the toolbar" loading="lazy" width="1320" height="860">
+        <span class="tag tag-tr">build ✓ · test ✓ · rejected</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 14</span> — Keg services, in the Mac app</span>
+        <span>what each asks for</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/app-system.png" alt="The Mac app's Keg services with checks, console and realtime running, and the sheet that asks whether realtime may be told of app.bound events and read each app's events, with toggles for each and Cancel and Install" loading="lazy" width="1320" height="860">
+        <span class="tag tag-tr">asked before it is allowed</span>
+      </div>
+    </div>
   </div>
-  <p class="sec-desc" style="margin-top:56px">And on any machine, with no app to install: <code>keg ui</code> opens the same node in a browser, laid out as the app is, with a command palette on ⌘K and a layout for any width.</p>
+  <p class="sec-desc" style="margin-top:56px">And on any machine, with no app to install: <code>keg ui</code> opens the same node in a browser, with the same two modes, a command palette on ⌘K and a layout for any width.</p>
   <div class="gallery">
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 19</span> — Containers, in a browser</span>
+        <span><span class="fig-no">Fig. 15</span> — Containers, in a browser</span>
         <span>keg ui</span>
       </figcaption>
       <div class="shot ratio-auto">
-        <img src="screenshots/console-containers.png" alt="The web console's Containers screen, laid out as the Mac app's is: the same sidebar, a table with row actions, and below it the chosen container's charts of processor, memory, processes, disk and network" width="1320" height="860">
+        <img src="screenshots/console-containers.png" alt="The web console's Containers page in Containers mode: the folding sidebar, a table with row actions, and the web container's charts of processor, memory, processes, disk and network" loading="lazy" width="1320" height="860">
         <span class="tag tag-tr">select · stop · start · remove</span>
       </div>
     </div>
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 20</span> — Logs, in a browser</span>
+        <span><span class="fig-no">Fig. 16</span> — Output, searched and filtered</span>
         <span>find · level · download</span>
       </figcaption>
       <div class="shot ratio-auto">
-        <img src="screenshots/console-logs.png" alt="The web console with the worker container chosen and its Output tab open below the list: find, level, Follow, Wrap, Copy and Download, and warning and error lines tinted" width="1320" height="860">
+        <img src="screenshots/console-logs.png" alt="The console with the worker container's Output open: find, level filters, Follow and Wrap, Copy and Download, with WARN lines tinted amber and an ERROR line red" loading="lazy" width="1320" height="860">
         <span class="tag tag-tr">5,000 lines kept</span>
       </div>
     </div>
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 21</span> — A Compose file, changed in a browser</span>
-        <span>edit · apply</span>
+        <span><span class="fig-no">Fig. 17</span> — A container's files</span>
+        <span>looked at from outside</span>
       </figcaption>
       <div class="shot ratio-auto">
-        <img src="screenshots/console-compose.png" alt="The web console's page for the Compose project shop on its Compose file tab: the file in an editor with Apply and Undo changes, and buttons to start, stop and restart all its services or remove the project" width="1320" height="860">
-        <span class="tag tag-tr">run again with one click</span>
+        <img src="screenshots/console-files.png" alt="The console with the web container's Files tab open, listing its root folder: bin, dev, docker-entrypoint.d, etc, home, lib and more, with size, modified and mode" loading="lazy" width="1320" height="860">
+        <span class="tag tag-tr">files · download</span>
       </div>
     </div>
 
     <div class="g-item">
       <figcaption class="fig-cap">
-        <span><span class="fig-no">Fig. 22</span> — Approvals, in a browser</span>
+        <span><span class="fig-no">Fig. 18</span> — A command in the container</span>
+        <span>no other window to open</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/console-terminal.png" alt="The console with the worker container's Terminal tab: ps and a second command run inside the container, with their output and exit codes" loading="lazy" width="1320" height="860">
+        <span class="tag tag-tr">runs in the container</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 19</span> — A Compose file, changed in a browser</span>
+        <span>edit · apply</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/console-compose.png" alt="The console's page for the Compose project shop on its Compose file tab: the file in an editor with Apply and Undo changes, and Start all, Stop all, Restart all and Remove project" loading="lazy" width="1320" height="860">
+        <span class="tag tag-tr">2 of 2 running</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 20</span> — Image library</span>
+        <span>sizes, users, search and pull</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/console-images.png" alt="The console's Images page: forty-eight images with size, the containers that use each, platform and digest, tabs for all, in use and unused, and Pull image" loading="lazy" width="1320" height="860">
+        <span class="tag tag-tr">48 images · 1.68 GB</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 21</span> — Vulnerability check</span>
+        <span>osv.dev</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/console-scan.png" alt="The Security tab of the nginx 1.27-alpine image: 142 known vulnerabilities in 16 of 58 Alpine packages, each package with its version and linked advisories, and Check again" loading="lazy" width="1320" height="860">
+        <span class="tag tag-tr">142 advisories · 16 packages</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 22</span> — Builds, each one kept</span>
+        <span>what it said, and how it ended</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/console-builds.png" alt="The console's Builds page: twenty-three builds with the image each made, the folder it came from, whether it completed, when, how long it took and how many steps came from the cache" loading="lazy" width="1320" height="860">
+        <span class="tag tag-tr">23 builds kept</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 23</span> — Machines</span>
+        <span>Linux to work in</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/console-machines.png" alt="The console's Machines page: machines made by agents for pieces of work, each with its folder, state, image and the command that opens a shell in it" loading="lazy" width="1320" height="860">
+        <span class="tag tag-tr">made by agents, kept</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 24</span> — Volumes</span>
+        <span>storage that outlives containers</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/console-volumes.png" alt="The console's Volumes page: keg-postgres, pgdata and uploads, the container that uses each, and when each was made" loading="lazy" width="1320" height="860">
+        <span class="tag tag-tr">3 in use</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 25</span> — Go to, by name</span>
+        <span>⌘K</span>
+      </figcaption>
+      <div class="shot ratio-auto">
+        <img src="screenshots/console-goto.png" alt="The console's command palette over the Containers page: three letters typed, and the Work section, the worker container and the machines made for work found" loading="lazy" width="1320" height="860">
+        <span class="tag tag-tr">sections · containers · machines</span>
+      </div>
+    </div>
+
+    <div class="g-item">
+      <figcaption class="fig-cap">
+        <span><span class="fig-no">Fig. 26</span> — Approvals, in a browser</span>
         <span>the same change sets</span>
       </figcaption>
       <div class="shot ratio-auto">
-        <img src="screenshots/console-changes.png" alt="The web console's Changes page with a change set waiting for approval selected: an approval panel with Approve and deploy and Reject, what would change, the checks, and its details" width="1320" height="860">
+        <img src="screenshots/console-changes.png" alt="The console's Changes page with change 16 selected: waiting for approval, with Approve and deploy and Reject, what would change, the image check it passed, and its details" loading="lazy" width="1320" height="860">
         <span class="tag tag-tr">approve from anywhere</span>
       </div>
     </div>
@@ -831,9 +961,9 @@ waiting for a person</div>
   </div>
 </section>
 
-<!-- 03 Docker -->
+<!-- 07 Docker -->
 <section class="section" id="docker">
-  <div class="sec-head"><span class="sec-no">04</span><h2 class="sec-title">Your tools, as they are.</h2></div>
+  <div class="sec-head"><span class="sec-no">07</span><h2 class="sec-title">Your tools, as they are.</h2></div>
   <p class="sec-desc">Use Keg's own command, or point docker at Keg and change nothing else. Either way the containers, images and volumes are the same ones, and show in the app.</p>
   <div class="listings">
     <div class="listing">
@@ -865,9 +995,9 @@ waiting for a person</div>
   </div>
 </section>
 
-<!-- 04 Compose -->
+<!-- 08 Compose -->
 <section class="section" id="compose">
-  <div class="sec-head"><span class="sec-no">05</span><h2 class="sec-title">Your Compose files. As written.</h2></div>
+  <div class="sec-head"><span class="sec-no">08</span><h2 class="sec-title">Your Compose files. As written.</h2></div>
   <p class="sec-desc">Health checks, depends_on, service names, volumes and builds. Run them with Keg's command or with docker compose.</p>
   <div class="listings">
     <div class="listing">
@@ -903,25 +1033,25 @@ waiting for a person</div>
   </div>
 </section>
 
-<!-- 05 Ship -->
+<!-- 09 Ship -->
 <section class="section" id="ship">
-  <div class="sec-head"><span class="sec-no">06</span><h2 class="sec-title">From laptop to server, with a person in the loop.</h2></div>
+  <div class="sec-head"><span class="sec-no">09</span><h2 class="sec-title">From laptop to server, with a person in the loop.</h2></div>
   <p class="sec-desc">Install Keg on a Linux server you run, and it becomes a node your Mac can deploy to. What moves is the image you tested, never a rebuild.</p>
   <div class="steps">
     <div class="step">
       <div class="step-num">01</div>
       <h3>Describe and deploy</h3>
-      <p>keg init writes a keg.yaml and a Dockerfile for the project it finds. keg up builds, releases and runs it locally.</p>
-      <div class="step-code">keg init
+      <p>keg init writes a keg.yaml and a Dockerfile for the project it finds, or keg example makes one to try. keg up builds, releases and runs it locally.</p>
+      <div class="step-code">keg example hello-keg
 keg up
-https://checkout.keg.localhost</div>
+https://hello-keg.keg.localhost</div>
     </div>
     <div class="step">
       <div class="step-num">02</div>
-      <h3>Promote</h3>
-      <p>Propose the exact release one environment runs to another. Only the layers the server lacks are sent, over mutual TLS.</p>
-      <div class="step-code">keg promote checkout \
-  --from local --to staging
+      <h3>Propose</h3>
+      <p>Make an environment that waits for a person, and propose the release to it. To a server you run, <code>keg promote</code> sends the exact image, only the layers it lacks, over mutual TLS.</p>
+      <div class="step-code">keg env add staging --policy manual
+keg up --env staging
 waiting for a person</div>
     </div>
     <div class="step">
@@ -929,16 +1059,16 @@ waiting for a person</div>
       <h3>Approve, or roll back</h3>
       <p>See what would change and the checks it passed, then approve in the app or the terminal. The release before is one command away.</p>
       <div class="step-code">keg approve 3 --env staging
-keg rollback checkout \
+keg rollback hello-keg \
   --env staging</div>
     </div>
   </div>
 </section>
 
-<!-- 06 Speed -->
+<!-- 10 Speed -->
 <section class="section" id="compare">
-  <div class="sec-head"><span class="sec-no">07</span><h2 class="sec-title">Measured, not claimed.</h2></div>
-  <p class="sec-desc">The same docker client talking to each engine on the same Apple silicon Mac, both warm, so that what differs is the engine. Medians; Docker is 29.2 on Colima. The script is in the repository.</p>
+  <div class="sec-head"><span class="sec-no">10</span><h2 class="sec-title">Measured, not claimed.</h2></div>
+  <p class="sec-desc">The same docker client talking to each engine on the same Apple silicon Mac, both warm, so that what differs is the engine. Medians; Docker is 29.2 on Colima. More figures are in <a href="https://github.com/rahult/keg/blob/main/docs/REFERENCE.md#how-fast">the reference</a>.</p>
   <div class="cmp-wrap"><div class="cmp-scroll">
     <table class="cmp">
       <thead><tr><th></th><th>Docker</th><th class="keg">Keg</th><th></th></tr></thead>
@@ -959,26 +1089,27 @@ keg rollback checkout \
 
 <!-- CTA -->
 <section class="cta">
-  <h2>One app. One command.<br><em>Open source.</em></h2>
-  <p>For Apple silicon Macs on macOS 15 or later. On Linux servers, Keg installs from source in one command.</p>
+  <h2>One app. One command.<br><em>Free to download.</em></h2>
+  <p>For Apple silicon Macs on macOS 15 or later. On Linux, from the release's archives for x86_64 and aarch64.</p>
   <div class="hero-actions">
     <a href="https://github.com/rahult/keg/releases/latest/download/Keg.dmg" class="btn btn-primary">Download for Mac <span class="arr">↓</span></a>
-    <a href="https://github.com/rahult/keg" class="btn btn-ghost">View on GitHub <span class="arr">→</span></a>
+    <a href="https://github.com/rahult/keg/blob/main/docs/GETTING-STARTED.md" class="btn btn-ghost">Getting started <span class="arr">→</span></a>
   </div>
 </section>
 
 <!-- Colophon -->
 <footer class="colophon">
   <div class="fine">
-    © 2026 Keg — Apache License 2.0<br>
-    Set in Newsreader &amp; JetBrains Mono<br>
-    Written in Rust and Swift
+    Copyright © 2026 Rahul Trikha.<br>
+    Keg 0.10.0 · 22 November 2026<br>
+    Set in Newsreader &amp; JetBrains Mono
   </div>
   <div class="links">
-    <a href="https://github.com/rahult/keg#readme">Docs</a>
-    <a href="https://github.com/rahult/keg">GitHub</a>
-    <a href="https://github.com/rahult/keg/issues">Issues</a>
+    <a href="https://github.com/rahult/keg/blob/main/docs/GETTING-STARTED.md">Docs</a>
+    <a href="https://github.com/rahult/keg/blob/main/docs/CHANGELOG.md">Changelog</a>
+    <a href="https://github.com/rahult/keg/blob/main/docs/releases/notes-0.10.0.md">Release notes</a>
     <a href="https://github.com/rahult/keg/releases">Releases</a>
+    <a href="https://github.com/rahult/keg/issues">Report a problem</a>
   </div>
 </footer>
 
@@ -990,10 +1121,20 @@ keg rollback checkout \
   document.documentElement.classList.add("js");
   var lines = Array.prototype.slice.call(document.querySelectorAll("#session li"));
   var still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  lines.forEach(function (line, i) {
-    if (still) { line.classList.add("in"); return; }
-    setTimeout(function () { line.classList.add("in"); }, 400 + i * 600);
-  });
+  function play() {
+    lines.forEach(function (line, i) {
+      if (still) { line.classList.add("in"); return; }
+      setTimeout(function () { line.classList.add("in"); }, 400 + i * 600);
+    });
+  }
+  // It plays when it is first seen, now that it is further down the page.
+  if (still || !("IntersectionObserver" in window)) { play(); }
+  else {
+    var seen = new IntersectionObserver(function (entries) {
+      if (entries.some(function (e) { return e.isIntersecting; })) { seen.disconnect(); play(); }
+    }, { threshold: 0.3 });
+    seen.observe(document.getElementById("session"));
+  }
   var button = document.getElementById("approve");
   button.addEventListener("click", function () {
     document.getElementById("waits").classList.add("done");
