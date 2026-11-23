@@ -114,17 +114,19 @@ In a `tx`, `db`:
   result: no `.rows`.
 - `db.actor`: `{ user, organization, role }`.
 - `await db.emit(type, payload, { to, about })`: `to` is `'organization'`,
-  `{ roles: [...] }` or `{ users: [...] }`; left out, every member may
+  `{ roles: [...] }`, `{ users: [...] }`, or both in one
+  (`{ roles: ['agent'], users: [customerId] }`: whoever is in either); left out, every member may
   read it; `to: undefined` or `null` is refused. `about` is like
   `"note/42"`, at most 200 bytes.
 - `await db.events({ type, about, limit, before })`: the events this actor
-  may read, newest first.
+  may read, newest first, and those of one transaction in the order emitted.
 - `await db.enqueue(name, payload, { runAt, asUser })`, `await db.once(key)`.
 
 ## Events, jobs, realtime
 
 - In SQL: `keg.emit('note.added', payload, '{"users": ["<id>"]}')` (or
-  `'{"roles": [...]}'`, `'{"organization": true}'`); the view
+  `'{"roles": [...]}'`, `'{"roles": [...], "users": [...]}'` for whoever
+  is in either, `'{"organization": true}'`); the view
   `keg.my_events` gives a member the events meant for them. Give an
   audience whenever an event is not for everyone. To read pages of them
   use `db.events({ type, about, limit, before })` in the server, not SQL
@@ -138,13 +140,17 @@ In a `tx`, `db`:
   in a migration, and in the server `keg.job('notify', async (payload, db, job) => ...)`
   then `keg.work()`. Such a job's `payload` is the event:
   `{ event, type, payload }`, the event's own payload inside. A job named
-  with no handler waits for ever.
+  with no handler waits for ever. `SELECT keg.off('note.added', 'notify')` in a
+  later migration takes the subscription back and cancels its jobs that
+  still wait (failed, saying so); a person removes them with
+  `keg app jobs remove <app> --failed`.
 - **A job acts as the system**: `keg.actor_user()` is null and the role is
   `system`. A restrictive policy that compares with `keg.actor_user()`
   refuses it: write policies that let the system do what its jobs must
   (`OR keg.actor_role() = 'system'`).
 - `keg app show <app>` and `keg app jobs <app>` (with `--failed`) say what
-  waits and why; they are a person's to run, so ask for their output.
+  waits and why; they, `keg app jobs retry` and `keg app jobs remove` are a
+  person's to run, so ask for their output.
 - A token for a service bound to the app: `serviceToken(name, { org, ttl })`
   from `@keg/app/service`, made on the server, never sent to a browser
   for longer than its `ttl`.
@@ -228,6 +234,49 @@ Without a database the test fails when it first connects
 a wrong import) is yours to mend first. Make the test script `node --test`
 (it finds `test/*.test.js`); `node --test test/` fails on Node 22. Then
 say plainly that the database check has not run yet, and how it will.
+
+## An app with a Go server
+
+```sh
+keg app new --go ledger
+```
+
+writes `keg.yaml`, a `Dockerfile` (a static binary on `FROM scratch`),
+`go.mod`, `go.sum`, `main.go`, a migration, and Keg's Go client in
+`third_party/keg`, which `go.mod` names with `replace`. Read them, and
+`third_party/keg/README.md`, before writing.
+
+- The client is not on any module proxy: use the copy in
+  `third_party/keg`. Never put it under `vendor/`: Go takes a folder of
+  that name for `go mod vendor`'s and refuses to build.
+- `keg.Connect("")` reads `DATABASE_URL`. `k.Tx(ctx, session, org, fn)`
+  is `keg.tx`; inside, `tx.QueryRow`, `tx.Query`, `tx.Exec` are pgx's
+  (read rows with `pgx.CollectRows`), and `tx.Emit`, `tx.Events`,
+  `tx.Enqueue`, `tx.Once` are as above. An audience is
+  `keg.To(keg.Roles("agent"))` or `keg.To(keg.Users(id))`.
+- Jobs: `k.Job("notify", func(ctx, payload, tx, job) error {...})`, then
+  `k.Work(keg.WorkOptions{})`. Returning an error rolls back what the
+  handler wrote and the job is tried again.
+- gRPC: require `github.com/rahult/keg/sdk/go/kegrpc` (in
+  `third_party/keg/kegrpc`). `kegrpc.ServerOptions(kegrpc.MemberOf(k),
+  kegrpc.Options{})` puts the caller's session in the context (metadata
+  `authorization: Bearer <session>` and `keg-organization: <id>`), and a
+  handler calls `k.As(ctx, fn)`. Serve gRPC and HTTP on the one port with
+  `kegrpc.Server(":"+os.Getenv("PORT"), kegrpc.Handler(grpcServer, mux))`:
+  Keg asks `run.health` over HTTP, so keep `/healthz` on the mux
+  (`kegrpc.HealthHandler(k)`).
+- gRPC reaches the app only on its own port (`http://localhost:<port>`,
+  HTTP/2 without TLS). Keg's names (`http://<app>.keg.localhost`, and
+  over HTTPS) speak HTTP/1.1 only: a page there uses Connect or gRPC-Web
+  over HTTP/1.1 (Connect's Go handlers serve all three), with
+  `keg.Sessions(keg.HTTPSession, handler)` to put the session in the
+  context.
+- Errors: return what the client and pgx give; `kegrpc.Status` (or
+  `keg.Public` for HTTP) says them without Postgres's text.
+- A check runs in the work's machine, which has Node and no Go unless the
+  work's image has it: the check fetches Go (see the commented check in
+  `keg.yaml`). `cd third_party/keg && go test ./...` there runs the
+  client's own tests against the check's database too.
 
 ## Run it
 

@@ -3,15 +3,15 @@
     <channel>
         <title>Keg</title>
         <item>
-            <title>0.11.0</title>
-            <pubDate>Mon, 23 Nov 2026 11:11:17 +0000</pubDate>
+            <title>0.11.1</title>
+            <pubDate>Mon, 23 Nov 2026 13:27:40 +0000</pubDate>
             <link>https://keg.rahultrikha.com/</link>
             <sparkle:fullReleaseNotesLink>https://github.com/rahult/keg/releases</sparkle:fullReleaseNotesLink>
-            <sparkle:version>26</sparkle:version>
-            <sparkle:shortVersionString>0.11.0</sparkle:shortVersionString>
+            <sparkle:version>27</sparkle:version>
+            <sparkle:shortVersionString>0.11.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://github.com/rahult/keg/releases/download/v0.11.0/Keg-0.11.0.zip" length="38291296" type="application/octet-stream" sparkle:edSignature="AcHOaGwYNUNg3S3qIBeo/SDnKZJAw9zcK4VxxGRclQ7R5ex6uUqqg2r6YO5CxO1pCLvk62+L6zhlq3AyxQlNCA=="/>
+            <enclosure url="https://github.com/rahult/keg/releases/download/v0.11.1/Keg-0.11.1.zip" length="38440984" type="application/octet-stream" sparkle:edSignature="75ALNq+fiVOxSQhzZlK+ZxVdecwGWUHonQVwvuEYCkssY4p439uJWv7nzifQ+bMRFo4dOu67UJGyhS8yCn7HAg=="/>
         </item>
     </channel>
 </rss>
