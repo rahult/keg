@@ -12,15 +12,15 @@ More at [keg.rahultrikha.com](https://keg.rahultrikha.com).
 
 **On a Mac** (Apple silicon, macOS 15 or later): download [Keg.dmg](https://github.com/rahult/keg/releases/latest/download/Keg.dmg) and drag Keg to Applications. The app has the `keg` command and the Linux machine inside it; nothing else needs installing. Open it, press **Start Keg**, and in **Settings ▸ General** choose **Install the keg Command** to use it in a terminal. The app updates itself.
 
-**On Linux** (cgroup v2, root, `nsenter`, `ip` from iproute2, and `iptables` or `nft`): download the archive for your processor from the [latest release](https://github.com/rahult/keg/releases/latest), `keg-0.10.0-linux-x86_64.tar.gz` or `keg-0.10.0-linux-aarch64.tar.gz`. It holds `bin/keg`, `bin/kegd` and `bin/keg-agent`:
+**On Linux** (cgroup v2, root, `nsenter`, `ip` from iproute2, and `iptables` or `nft`): download the archive for your processor from the [latest release](https://github.com/rahult/keg/releases/latest), `keg-0.11.0-linux-x86_64.tar.gz` or `keg-0.11.0-linux-aarch64.tar.gz`. It holds `bin/keg`, `bin/kegd` and `bin/keg-agent`:
 
 ```sh
-tar -xzf keg-0.10.0-linux-x86_64.tar.gz
+tar -xzf keg-0.11.0-linux-x86_64.tar.gz
 sudo install -m 755 bin/keg bin/kegd bin/keg-agent /usr/local/bin/
 sudo kegd --names 127.0.0.1:7380 --names-tls 127.0.0.1:7443 &
 ```
 
-[Getting started](docs/GETTING-STARTED.md#install) has a systemd unit that keeps `kegd` running. Upgrading a node from 0.9.0: read [the changelog's notes](docs/CHANGELOG.md) first.
+[Getting started](docs/GETTING-STARTED.md#install) has a systemd unit that keeps `kegd` running. Upgrading a node from 0.10.0: read [the changelog's notes](docs/CHANGELOG.md) first.
 
 **On Windows**, Keg runs in WSL2, which is Linux: install it there the same way.
 
@@ -57,7 +57,9 @@ The Mac app and the web console (`keg ui`, in any browser) have two modes, and a
 - [Reference](docs/REFERENCE.md): what Keg does, command by command, and its limits.
 - [Events protocol](docs/PROTOCOL.md): what a Keg service may rely on.
 - [Changelog](docs/CHANGELOG.md): each release, with how to upgrade and go back.
-- [Release notes for 0.10.0](docs/releases/notes-0.10.0.md).
+- [The assistant](docs/ASSISTANT.md): what it reads, what it proposes, what it can never do.
+- [The Keg skill for coding agents](docs/AGENT-SKILL.md).
+- [Release notes for 0.11.0](docs/releases/notes-0.11.0.md).
 
 ## This repository
 

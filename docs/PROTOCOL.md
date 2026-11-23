@@ -17,20 +17,24 @@ The two share a shape, not every word. What is the same in both:
 - Delivery is at least once. A handler must be safe to run twice.
 
 Everything else differs, and is listed below: in the table, and under
-"Known differences".
+"How an app's events differ from the node's".
 
 ## On the node
 
 **Event.** `id` (uuid), `type` (dotted, lower case, thing then what
 happened: `work.created`, `gate.answered`), `subject` (what it is about,
 `kind/name`: `work/7`, `changeset/local/15`), `at` (seconds since 1970),
-`actor` (a role and a name), and `payload`: small JSON, ids and states
-only, never a brief, a title, a secret, a diff, a note or the body of
-evidence. Events have an order, and the place in it is the **cursor**,
+`actor` (a role and a name), and `payload`: small JSON. The node's own
+events carry ids and states only, never a brief, a title, a secret, a
+diff, a note or the body of evidence; an event a service writes carries
+what it wrote, and an app's event relayed for a binding carries the
+app's content (both below). Events have an order, and the place in it is the **cursor**,
 which a reader keeps and treats as an opaque string.
 
 **Subscription.** A name, an owner (the service), and the event types it
-takes. It is made from the service's manifest, `listens`.
+takes. It is made from what a person allowed of the service's manifest:
+each `listens` pattern allowed, and the app events of each binding to an
+app's events allowed (below). Nothing else makes or changes one.
 
 **Delivery.**
 
@@ -46,9 +50,43 @@ takes. It is made from the service's manifest, `listens`.
   is `failed`.
 - A **failed** delivery is the dead letter. It stays, it is shown, and a
   person can put it back to `waiting`.
-- At most one delivery for the same subject is `running` in a
-  subscription at a time, so what happens to one thing is handled in
-  order. Deliveries for other subjects are not held up by it.
+- Each delivery is in an order, and in a subscription one of an order is
+  claimed only once every earlier one of it is `done` or `failed`: none
+  earlier is `running` or `waiting`, backing off after a failure among
+  them. A node's event or a service's is in the order of its subject, so
+  what happens to one thing is handled in order, and other subjects are
+  not held up by it. An app's event relayed for a binding (its subject
+  `app/<app>/<id>`, one each) is in the order of its app and environment,
+  `app/<app>/<env>`: a service is told of one app's events in each
+  environment in the order the relay read them, which is the order their
+  transactions committed, and one that fails holds the app's next back
+  until it is done or failed for good (after its 5th try, or when a
+  person's retry of it ends); then the next goes. The app's other
+  environments, other apps and the node's own events are not held up by
+  it. Redelivery still repeats an event: after a hold runs out or a run
+  ends, an event may come again although its service did the work, so a
+  service is still safe to be told of each twice, keyed by its `id`.
+- What a service may rely on is this order within one order key, and no
+  more: nothing about the order of two keys, and nothing about a dead
+  letter. A failed delivery a person tries again is `waiting` again after
+  the events that went on past it, so it arrives after them, out of its
+  first place.
+- When a person ended a service's run (stopped, removed or installed it
+  again), or the node started again, each delivery it held is `waiting`
+  again at once, its try not counted, and a claim that was waiting as it
+  stopped is given nothing. When its run ended by itself (it exited or
+  crashed) while it held one, that was a try: it counts, with the usual
+  wait after it. So an event a service dies on every time is `failed`
+  after its 5th try, as one it fails is, and its order goes on: a poison
+  event ends as a dead letter, never by holding the app's events back for
+  ever. A person can end one sooner: `keg events skip <delivery>` (or
+  "Skip" on the console's Events page) fails a delivery that waits, at
+  once; it is a dead letter like any, which `keg events retry` tries
+  again. Installed again from another folder, what it held and what
+  waited for it are withdrawn instead, as before.
+- How far behind a subscriber may fall on one writer's events (10,000 not
+  done) is counted, for an app's relayed events, for each app and
+  environment: an app's `local` far behind keeps none of its `prod`.
 
 **Reading without subscribing.** A person may ask for the events after a
 cursor, and wait for more: at most 20 s, and at most 64 requests wait at
@@ -108,8 +146,20 @@ that only reads, and writes each app event into its log once, however often
 it reads it: as `app.<app>.<type>`, about `app/<app>/<id>`, by the actor
 `{"role": "app", "name": "app.<app>"}`, never by the node. Its payload is the
 app's content: `{"app", "env", "type", "id", "at", "organization",
-"payload"}`, `at` in seconds, `payload` whatever JSON the app wrote (an
-object, a list, a string or a number, as it is). An app payload over 16 KiB
+"audience", "about", "payload"}`, `at` in seconds, `payload` whatever JSON
+the app wrote (an object, a list, a string or a number, as it is). Every
+field but `payload` is the node's, read from the event's row:
+`organization` is the row's `organization_id`, which the app's capability
+layer sets from the acting user's (or job's) organization in `keg.emit`,
+never anything the app wrote in its payload. `audience` is who the event
+is for as the row keeps it: `null` for the whole organization, else
+`{"roles": [...]}` or `{"users": [...]}`; one longer than 8 KiB is
+`{"cut": true}`, which is for no one in particular, never for everyone.
+`about` is what the event is about (`ticket/42`), or `null`. A service that
+shows events to people treats any audience it does not understand as not
+theirs. A service that keeps each organization's events apart
+relies on it. More fields of the row may be added beside these; a service
+ignores any it does not know. An app payload over 16 KiB
 as text is not fetched from the app's database at all: it is told of with
 `"payload": null`, `"cut": true` and `"size"`, its size in bytes; so is one
 nested deeper than the node reads (128 levels).
@@ -150,6 +200,85 @@ stopped. The consequences:
   start of what is there, as far back as an hour; what it wrote in that
   hour is remembered by id, and is not written twice.
 
+**An app's pages.** A service asks for such a binding at
+`GET /v1/bind/<name>` and is answered `{"kind": "app-events", "app",
+"types", "origins"}`, and `"token"` where its manifest asks for one
+(`token = true` on the bind; false unless said). `token` is 256 bits the
+node made at random for that service and that app (64 hex digits), the
+same each time it is asked; the node gives it to the app's own services in
+each environment the app is deployed in, as the environment value
+`KEG_SERVICE_<NAME>_TOKEN` (`<NAME>` the service's name in capitals, `-`
+written `_`), with `KEG_APP`, the app's name, and, for a service with a
+page, the address a person's browser opens it on, `KEG_SERVICE_<NAME>_URL`
+(`http://127.0.0.1:<port>`, on the port that leads to this node from the
+computer a person uses; not given at all where none does), set when the app is next deployed: the node
+starts no app's containers again by itself. Until then the service's row
+in `keg system ls` and the console says so ("supportdesk in local is given
+its token for query when it is next deployed: keg up"), as do the answers
+to installing it and removing it (`DELETE /v1/system/services/<name>`
+answers `{"waiting": [...]}`, and an app keeps a removed service's token,
+which reads nothing, until it is next deployed). It is made
+anew when the service is removed or replaced from another folder, and it
+is never in an event, a log, `keg system ls` or anything an agent reads
+(but code an agent deploys as the app runs with it, as it runs with the
+app's database). A service with no token asked for gives the app nothing:
+NATS's readers, say, read with a password a person sets, which is for a
+person who may see every organization, never for the app's users.
+
+The app's token reads every organization's content the service holds of
+the app, so it never goes to a browser. It is for the app's server; a
+service takes it only from a request no browser made (no `Origin`, and no
+`Sec-Fetch-Site` but `none`). For a page, the app's server makes a token
+for one organization, the signed-in user's, for at most 15 minutes:
+
+    v1.<payload>.<mac>
+    payload = base64url(JSON {"app": "<app>", "org": "<organization id>", "exp": <seconds since 1970>})
+    mac     = base64url(HMAC-SHA256(key = the app's token as text, message = the payload's base64url text))
+
+base64url without padding. In JavaScript, `serviceToken(name, { org, ttl })`
+of `@keg/app/service` makes one (`ttl` in seconds, 300 unless said, at most
+900). A service checks the mac in a time that does not depend on how much
+of it is right, that `exp` is not past (30 seconds are allowed for the
+clocks) nor more than 15 minutes and 30 seconds ahead, and that `app` is
+one it is bound to with a token, and answers that organization's content
+alone. A token of an app it is not bound to is refused in the same words
+as one whose mac is wrong, so that a refusal says nothing of which apps
+are bound, and the mac is taken in its one base64url spelling alone. Such
+a token is a bearer token: whoever holds it, from wherever, reads that
+organization's content with it until it expires, up to its 15 minutes. It
+is not bound to a page's origin or to a connection, so an app hands it
+only to its own signed-in user's page, and keeps its `ttl` short. A page
+whose origin the node vouched for (below) is answered only with such a
+token of that app. Not built in this version: an app's
+containers cannot reach a service's page, so the app's server cannot ask
+the service itself; a path limited to the bound app's own containers is
+for later.
+`origins` are the exact origins, scheme, name and
+port, of the pages the node serves for that app: for each environment
+the app is deployed in, the name of the service it is made of there that
+has a port (`<service>.<env>.keg.localhost`, and in `local`
+`<service>.keg.localhost` too), on the ports that lead to the node's names from the computer a person
+uses (below, "Where a node is reached"; on a node reached directly,
+`http` on `--names` and `https` on `--names-tls`, with no port when that
+is 80 or 443). It is empty when the node serves no names, or does not yet
+know where it is reached. A service that
+answers a browser trusts a page as the app's only by these, never by a
+name that looks like the app's: anything on this computer may listen on
+another port, and a browser sends every `*.localhost` name here. So that
+nothing else is served by those names, a name in `local` that is an
+app's service is that service's, and never a person's container of the
+same name: while the service has no port there, between one release and
+the next, the name leads nowhere, and a container of that name is not
+listed as leading anywhere by it. A name that is no app's goes to a
+container of that name first, as it always has. The origins change as the app is deployed and
+removed, so a service asks again from time to time (the query service
+every minute, and at once, at most once in five seconds, when a page's
+origin or a token is not one it was told of). A program that is not a browser can send any `Origin` it
+likes: an origin tells a browser's page apart, not a program, so it is
+never a credential. Anything that carries an app's content asks for a
+credential, of a browser's page and a program alike: a token for one
+organization from a page, with the origin besides.
+
 `005_relay.sql` reaches an app bound before it at its next deploy, or as
 the node begins to follow the app (when the node starts, or the app is
 first bound). The node refuses to read from a Postgres older than 13, and
@@ -165,11 +294,109 @@ writer, so they never push the node's own out. Nothing but such a binding
 brings an app's events to a service, and a service cannot listen to an
 `app.` type itself.
 
+**A service in a check.** A check that names services (`services:
+[query]` with `db: true`) is given an instance of each, made for it and
+removed when it ends, at most two checks' at once (a third waits, in
+order, for ten minutes, and is then given back to be run again). Its
+socket is a door of its own: its claims are answered from the check's own
+Postgres, read as above (as `<db>_keg`, read only, below the horizon, in
+the order of the transactions), each as a delivery of
+`app.<app>.<type>` about `app/<app>/<id>`, with `env` `check`, one at a
+time; a hold, an extend, a finish and a fail work as they do on the node,
+and one tried five times is let go. Nothing of it is written into the
+node's log, and nothing of the node's reaches it. Its bindings are what
+the check gives it: a volume of its own, empty; a value made for each
+secret; for the app's events, a token made for this instance and no
+`origins`. It cannot write events or set timers. The check's command is
+given `KEG_SERVICE_<NAME>_TOKEN` and `KEG_SERVICE_<NAME>_URL`
+(`http://<its walled address>:<port>`) and `KEG_APP`; the instance has
+`KEG_ADDRESS`, that address. The instance is walled as a check's Postgres
+is: no port on the node and no internet; the node and what shares its
+network (work machines among them) reach its ports, and the token, 256
+random bits given to that check alone, is what keeps another work out.
+One whose image is not here, or that the node cannot run, is the verdict
+`error`; one that stops or is not ready in 60 seconds fails the check.
+What a node that stopped left is removed as it starts.
+
 **Withdrawing.** The node can withdraw the deliveries for a subject: they
 are marked `done` with `last_error` "withdrawn", their tokens stop
 working, and no `delivery.done` is written. It does so when a piece of
 work is stopped, sent back, retried or rejected, and for a subscription's
 deliveries when its service is removed. There is no call for it.
+
+## A service's own events
+
+A service allowed `emits:<type>` writes events of `<service>.<type>`, and
+no other type: `POST /v1/events` `{"type": "<type>", "subject":
+"<service>/...", "payload": {}}`, the type sent bare, which needs the grant
+`events:emit:<service>.<type>` that allowing it gives. The subject is one of
+its own, beginning `<service>/`, 1 to 200 of `A-Z a-z 0-9 . _ : / -`; the
+payload a JSON object of at most 16384 bytes (left out, `{}`); the type
+lowercase words joined by dots, at most four. It is written by the actor
+`{"role": "service", "name": "<service>"}`, never by the node, and the
+answer is the event as written. A name the node writes events under
+(`work`, `gate`, `service` and the like) is no service's.
+
+Such an event is delivered to every subscription that takes it, but never
+to the service that wrote it: no service listens to its own namespace. Its
+payload is what the service wrote; the node does not read it, and it is
+for the services that listen to it, and the person who allowed them, to
+trust it as far as they do. It counts with that service's own events as
+the log is kept and as how far behind on it each subscriber is.
+
+## Timers
+
+A timer is an event written when its time comes, once. A service allowed
+`asks:timers:set`, and `emits:<type>`, sets one for that type:
+`PUT /v1/timers` `{"type": "<type>", "subject": "<service>/...", "at":
+<seconds since 1970>}`, the type sent bare. Setting the same type and
+subject again moves it. `at` is at most 366 days ahead; left out, or past,
+it fires at once. A service has at most 1000 set; `GET /v1/timers` lists
+its own, and `DELETE /v1/timers?subject=S&type=T` unsets one, answering
+`{"removed": true}` or `false`. A person's `GET /v1/timers` lists every
+timer on the node (`keg events timers`, the console's Events page).
+
+When it fires, the event is written as the service's own (above), with
+the payload `{}`, and the timer goes, in one transaction: a node that was
+down fires what fell due as it starts. It fires only if the service may
+still write that type then; one removed takes its timers with it.
+
+The node sets one timer itself: `gate.waiting`, a day (86400 s) after
+`gate.asked`, for a question nobody has answered. It is told of once, and
+unset when the question is answered or withdrawn.
+
+## Bindings
+
+A binding is something a person allowed a service to be handed, by a
+name of its manifest's own (`binds = [{ name = "data", to = "volume" }]`).
+Its kinds:
+
+- `volume`: a volume of its own, mounted at `/data`, of at most 1 GiB
+  and 131,072 files. A service has one at most. It is kept when the
+  service is removed, unless a person removes it with its data, and given
+  back if it is installed from the same folder again.
+- `secret:<NAME>`: a secret a person sets with `keg system secret
+  <service> <NAME>`, of at most 64 KiB. Its value is never in the
+  service's environment or on its disk, and no person reads it back.
+- `app-events:<app>:<pattern>`: the events of an app whose own type the
+  pattern matches, relayed into the node's log (above, "An app's events")
+  as `app.<app>.<type>` and delivered through the service's subscription.
+  This crosses organizations: such a binding hears every organization of
+  the app, not one, with the content each event carries, and the service
+  holds all of it; the install question says so, and, with `token =
+  true`, that the app is given a token for the service (above, "An app's
+  pages"). It can be allowed where the app is on this
+  node, and is heard only where the app is deployed with events or
+  jobs.
+- `publish`: each port of `publish` allowed is a binding `port-<port>`.
+
+A service lists its own with `GET /v1/bind` (`[{"name", "kind"}]`) and
+asks for one with `GET /v1/bind/<name>`, answered only for its own:
+`{"kind": "volume", "path": "/data"}`, `{"kind": "secret", "value"}`
+(asked again each time it is needed; a secret not set is `not_found`,
+saying how a person sets it), `{"kind": "publish", "port"}`, or
+`{"kind": "app-events", "app", "types", "origins"}`, with `"token"` where
+the manifest asks for one (above, "An app's pages").
 
 ## In an app
 
@@ -204,7 +431,7 @@ without an event, with `keg.enqueue`. Its `run_at` and `held_until` are
 
 | Act | In an app (SQL) | On the node (HTTP on the socket) |
 |---|---|---|
-| Write an event | `keg.emit(type, payload)`, as the acting user, any payload | the node's emit, in the transaction of its change; nothing else may; ids and states only |
+| Write an event | `keg.emit(type, payload)`, as the acting user, any payload | the node's emit, in the transaction of its change, ids and states only; a service's own types with `POST /v1/events`, its payload what it wrote |
 | When it happened | `at`, a `timestamptz` | `at`, seconds since 1970 |
 | Who did it | `actor_user` (a uuid, or none) and `organization_id` | `actor`: a role and a name |
 | Its place in the order | none | `cursor` |
@@ -224,7 +451,12 @@ many of its deliveries are waiting, running and failed, and how many
 events it missed while it was behind. In JavaScript,
 `require('@keg/app/node')` gives `connectNode()` with `claim`, `extend`,
 `finish`, `fail` and `watch`, shaped like the app client's `job` and
-`work`.
+`work`, and `emit`, `setTimer`, `unsetTimer` and `binding` for a
+service's own events, its timers and what it was allowed;
+`require('@keg/app/service')` gives an app's servers `serviceFor(name)`,
+the token and address of a service bound to the app's events, and
+`serviceToken(name, { org, ttl })`, a token for one organization for its
+page.
 
 ## What the node writes
 
@@ -235,6 +467,7 @@ events it missed while it was behind. In JavaScript,
 | `check.requested` | `work/<id>` |
 | `gate.asked`, `gate.answered` | `work/<id>` |
 | `gate.withdrawn` | `work/<id>`, with `{gate}`, when a person stops, sends back, retries or rejects work that has an open question |
+| `gate.waiting` | `work/<id>`, with `{gate}`, a day after `gate.asked` when the question is still open; once |
 | `evidence.added` | `work/<id>` |
 | `changeset.created`, `changeset.changed` | `changeset/<env>/<id>` |
 | `service.installed`, `service.started`, `service.stopped`, `service.removed` | `service/<name>` |
@@ -243,11 +476,18 @@ events it missed while it was behind. In JavaScript,
 | `container.started`, `container.stopped`, `container.removed` | `container/<id>` |
 | `delivery.done`, `delivery.failed` | the delivery's subject |
 
+Beside the node's own, the log holds what others write, never by the node:
+
+| Type | Subject |
+|---|---|
+| `app.<app>.<type>` | `app/<app>/<id>`, an app's event relayed for a binding, by the actor `{"role": "app", "name": "app.<app>"}`, with the app's payload, which is content |
+| `<service>.<type>` | `<service>/...`, a service's own event, or one of its timers, by that service |
+
 `delivery.done` and `delivery.failed` are written for a service's
 deliveries. `delivery.failed` carries no error text; the error is read
 from the delivery. For a service from outside, `delivery.done` carries no
 result either, only ids and the state: what it returned is read from the
-delivery. Its `delivery.done` and `delivery.failed` count with that
+delivery, as its `result` in `GET /v1/deliveries`, by a person. Its `delivery.done` and `delivery.failed` count with that
 service's own events, as the log is kept and as how far behind on it each
 subscriber is, so a busy service never pushes out the node's events. Keg's
 own services' `delivery.done` carries their result, which the workflow
@@ -259,10 +499,20 @@ reads, and counts as the node's.
   retries a failed delivery.
 - **A service** claims, extends, finishes and fails the deliveries of its
   own subscription, and nothing else of the log. It needs the grant
-  `events:take`, which a person allows when installing it. A service
-  cannot make a subscription, change what it listens to, emit, read the
-  log or set a timer.
+  `events:take`, which follows from what a person allowed it to listen to
+  when installing it. It writes events of its own types only with
+  `events:emit:<service>.<type>`, from each `emits` allowed, and sets
+  timers for them only with `timers:set`, from `asks:timers:set` allowed.
+  It is handed only its own bindings, those a person allowed. A service
+  cannot make a subscription, change what it listens to, read the log,
+  write the node's events or another service's, or be told of its own.
 - **An agent** has nothing of the log.
+- **Handing a piece of work files** (`POST /v1/work/<id>/attach`, its
+  `attach-inspect`, `POST /v1/work-attach-inspect`, `/v1/work-allow-from`),
+  what it was handed (`GET /v1/work/<id>/attached`) and the node's
+  `@keg/app` (`GET /v1/app-client`) are a person's: an agent and a service
+  are refused them. A work's agent reads what it was handed, read only, at
+  `/keg` in its machine.
 - **Nobody** answers a gate or approves a change through the log. Those
   stay the calls they are, for a person alone. No event approves
   anything.
@@ -296,5 +546,83 @@ they stay as the app writes them, and these differences remain:
 - In an app, a hold that runs out makes the job ready at once. On the
   node it waits attempts² × 10 s, as a failure does.
 - The node runs one delivery at a time per subject. An app does not.
-- An app's dead letters are shown only by `keg app show`, as a count.
-- Only the node has a person's retry, keeping and withdrawing.
+- An app's dead letters are counted by `keg app show` and listed, with
+  their last errors, by `keg app jobs`.
+- A person retries a failed delivery on the node with `keg events retry`
+  (and fails a waiting one sooner with `keg events skip`), and a failed job of an app with `keg app jobs retry`; only the node has
+  keeping and withdrawing.
+
+## An app's jobs, for a person
+
+A person, or the console, reads and retries an app's jobs; an agent and a
+service are refused both, as they are `GET /v1/apps/<app>`.
+
+- `GET /v1/apps/<app>/jobs?env=<env>&failed=true|false`: the jobs that are
+  not done, newest first, at most 500 an environment (`env` left out: every
+  environment the app is in). Each is `{env, id, name, state, attempts,
+  max_attempts, next, last_error}`: `next` is when it runs next, in seconds
+  since 1970, or null once it has failed; `name` is at most 200 characters
+  and `last_error` at most 500, each one line with no control character.
+- `POST /v1/apps/<app>/jobs/retry?env=<env>` with `{"ids": [...]}` or
+  `{"failed": true}`: failed jobs back to waiting, attempts 0, to be taken
+  at once. An id of a job that has not failed is refused (409) and nothing
+  is put back. Answers `{"retried": n}`.
+- `GET /v1/apps/<app>` gives, for each environment, `waiting`, `failed`,
+  `retrying` (of those waiting, how many failed before), `last_error` (of
+  one being retried) and `unclaimed` (at most 20 names of jobs ready for
+  five minutes and never taken).
+
+## Where a node is reached
+
+A node's ports are not always on the same numbers on the computer a
+person uses. On a Mac, Keg's VM serves names on 7380 and 7443 inside it,
+and `keg vm forward` opens them on the Mac's `localhost`. Two nodes on one
+Mac (each with its own `HOME`) cannot both have 7380 there. So:
+
+- The forwarder opens each port of Keg's own (the names, and the ports of
+  Keg's own services, listed as `own` in `GET /v1/ports`) on its usual
+  number when that is free, and otherwise on the first free one after it,
+  up to 99 further on. Where it was put is kept in `~/.keg/runtime/mac-ports.json`
+  and tried first the next time, so links stay the same from one start to
+  the next.
+- A port someone asked for by number (a container's `-p`, a service's
+  `publish`, a deployed service's port) is never moved. If another program
+  holds it on the Mac, it is not reachable from the Mac.
+- The forwarder tells the node what it got: `PUT /v1/reach` with
+  `{"names", "names_tls", "web", "web_tls", "ports": [{"port", "here",
+  "why"}]}`, again whenever it changes and whenever the node has forgotten
+  (it starts again knowing nothing). Only a person's socket may say it:
+  an agent, a service, even the console, is refused (403), since what is
+  said here decides where a person's browser is sent, with what it carries.
+  A node reached directly (Linux) refuses it (400): its ports are its own.
+- `GET /v1/ports` gives `here`, what the node was told (on a node reached
+  directly, `{"direct": true, ...}` from its own ports), or `null` while a
+  node in the VM has not been told. Until then the node hands out no
+  address: `KEG_REALTIME_URL` and `KEG_SERVICE_<NAME>_URL` are left out of
+  what an app is given, `origins` is empty, and there is no `page_url`,
+  console address or link in the console or the Mac app.
+- Everything the node hands out uses `here`: an app's `KEG_REALTIME_URL`,
+  `origins`, `page_url`, the console's address, the links of `keg ports`,
+  `keg app show`, `keg up`, the console and the Mac app. An app keeps what
+  it was given until it is next deployed; `keg app show` and the console's
+  Apps page say so ("ledger in local keeps the realtime address ...,
+  which no longer leads to this node, until it is next deployed: keg up").
+- `keg vm status` says which ports this node got, and why any is not the
+  usual one ("7380 is in use by another program, so names are on 7381").
+  `keg ps`, `keg ports` and the console's rows say of a published port the
+  Mac does not reach: "4222 is not reachable from this Mac: another
+  program holds it".
+
+On Linux kegd binds `--names` and `--names-tls` itself. A port that is
+taken there is said in kegd's log ("names are not served: ..."), and the
+node goes on without names, handing out none.
+
+Cookies are not kept apart by port: a cookie a page by
+`desk.keg.localhost` sets on one node is sent to `desk.keg.localhost` on
+every port of the computer, and so to another node's app of the same name.
+Keg itself sets no cookie: the console keeps what opens it in the page's
+`sessionStorage`, which is kept apart by port, and the realtime gateway
+takes a session only as `Authorization: Bearer`. An app that keeps a
+session in a cookie should not count on its name being its own when two
+nodes run on one computer.
+
