@@ -27,6 +27,7 @@ Keg 0.11.0 adds an assistant that reads your node and proposes changes you confi
 - **For a day after the upgrade the node removes nothing by itself**, and only says what it would; then it keeps the newest 5 builds of each service. To keep more, run `keg system keep builds 20` before then.
 - **Finished work is never cleared by itself** unless you turn it on with `keg system keep works auto`.
 - A work's machine that was running across the upgrade has no record of the container Keg made for it until it is started again; until then, clearing that work leaves its folder.
+- **A service from outside installed before this version is to be installed again from this version's folder** (`keg system install <folder> --replace`, or Install from a folder… in the console). Until it is, a check that names it in `services:` fails, the instance answering the check "only names of this computer are answered" (its own copy of `@keg/app/node` does not know the address a check gives it), and works are handed none of its instructions. Installing it from another folder removes its volume and secrets, and with them what it held: the query service then holds only the events of after it (the relay sends a newly bound service none from before, so a Reports page built on it starts again from nothing). Set its secret again, and deploy each app bound to it again so that it is given its new token.
 - Nothing of the assistant runs until you run `keg assistant setup`.
 
 ## Going back to 0.10.0
