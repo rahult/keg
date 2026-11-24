@@ -44,7 +44,7 @@
 - **HTTP/2 through the names is shared and bounded.** It is offered only to a release whose `keg.yaml` says `run.protocol: h2c`; the node holds at most 256 such connections, one name at most 64 of them. A gRPC stream over HTTPS is still cut after 60 seconds with nothing sent either way (a client's keepalive pings keep it) and after 15 minutes in all; one over the plain names port lives at most 15 minutes.
 - **`keg app remove` keeps an app's data unless `--with-data`**, and that data can be removed later with `keg app remove <app> --with-data`, which finds it by the app's name; a removal that failed part way is finished by running it again.
 
-## [0.11.1] — 2026-11-24
+## [0.11.1] — 2026-11-23
 
 ### Added
 - **An event's audience can be roles and users at once.** `keg.emit(type, payload, '{"roles": ["agent"], "users": ["<id>"]}')`, and `db.emit(type, payload, { to: { roles: ['agent'], users: [customerId] } })` in `@keg/app`, is read by whoever is in either: the staff and the one customer a ticket is about, with no event sent twice and none left readable by every member. One of the two lists may be empty; both empty, a list that is not a list, a key not known, a user not a member, more than 20 roles or 100 users are refused, as before. `keg.my_events`, realtime and a job read it as they read the other forms; Keg's relay carries it as kept; the query service shows a token for one organization only what is for every member, and so not this. Capability file 010 replaces one function: it takes no lock on `keg.events` and rewrites no row.
