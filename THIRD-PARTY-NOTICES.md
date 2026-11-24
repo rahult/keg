@@ -22,12 +22,12 @@ The Linux machine Keg runs on a Mac holds a Linux kernel and programs and
 libraries under the GNU General Public License or the GNU Lesser General
 Public License. The complete corresponding source for the GPL and LGPL
 parts of this release is published with it, at
-https://github.com/rahult/keg/releases/tag/v0.12.0, in the files:
+https://github.com/rahult/keg/releases/tag/v0.12.1, in the files:
 
-- `keg-0.12.0-gpl-source-kernel.tar.xz`: the Linux kernel's source release,
+- `keg-0.12.1-gpl-source-kernel.tar.xz`: the Linux kernel's source release,
   the patches and the configuration it was built with, and the scripts that
   built it;
-- `keg-0.12.0-gpl-source-packages.tar` (with `-2.tar` and on, if there are
+- `keg-0.12.1-gpl-source-packages.tar` (with `-2.tar` and on, if there are
   more): each Alpine package with a GPL or LGPL part, as its build recipe at
   the commit it was built from, with every source archive that recipe names.
 

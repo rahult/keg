@@ -1,6 +1,6 @@
 cask "keg" do
-  version "0.12.0"
-  sha256 "5cc0f6957f31c55df1c592fc019a777f2db080a841eba58879a991011de6c14d"
+  version "0.12.1"
+  sha256 "9fa145428c40819eadc84f65d0acdaeedcafb58430746918554a44791c7675ae"
 
   url "https://github.com/rahult/keg/releases/download/v#{version}/Keg-#{version}.dmg",
       verified: "github.com/rahult/keg/"
