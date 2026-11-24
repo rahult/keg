@@ -1,0 +1,13 @@
+{
+  "name": "keg-nats",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A NATS server with JetStream that puts the node's events in a stream",
+  "main": "index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "nats": "2.29.3"
+  }
+}

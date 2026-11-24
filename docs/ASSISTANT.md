@@ -22,8 +22,82 @@ Setup is a person's, on their own terminal. It reads the `.env` once,
 prints the names it found and never a value, seals the key for Keg's
 model gateway (`models`), installs and starts the gateway and the
 assistant, and makes one call to check them. After it, nothing reads a
-`.env` for a model. The provider is OpenAI (its Responses API);
-`ANTHROPIC_API_KEY` is kept for a later version.
+`.env` for a model, pieces of work included (below). The provider is
+OpenAI (its Responses API); `ANTHROPIC_API_KEY` is kept for a later
+version.
+
+## Pieces of work reach their model through the gateway
+
+Once the gateway is set up, the agent of a piece of work (Pi, in the
+work's machine) asks its model through the gateway too, and is given no
+key: the project needs no `.env`, and the runner reads none.
+
+```sh
+keg assistant model --works openai/gpt-5.6-luna   # the model works ask (none set: the default)
+keg assistant model                              # marks the default and the one works ask
+keg assistant limits work:12 --usd-per-day 5     # one work's allowance; default:work for all
+```
+
+- **The door.** For each round the node opens a socket in the work's own
+  `/keg/model`, which only that machine is given, read only; a bridge in
+  the machine (`node`, which Pi needs anyway) carries a port of the
+  machine's own loopback to it, and Pi is pointed at
+  `http://127.0.0.1:<port>/v1` as an OpenAI-compatible provider
+  (`POST /v1/chat/completions`, streamed). Nothing else of the node is
+  reachable through it, and no other machine, app or service has it.
+- **The token.** Each round has a random token of its own, in the agent's
+  process environment and no file; the node keeps only its digest, and
+  forgets it as the round ends, when the socket goes too. Another work's
+  token, an earlier round's, or none is refused (`401`).
+- **The model.** A work asks the model a person set for works
+  (`keg assistant model --works`), or the node's default if none is set;
+  the `model` a request names must be that one, and anything else is
+  refused (`400 model_not_allowed`). The project's recipe's provider and
+  model are not used then: a recipe is in the repository a work's agent
+  writes in.
+- **What reaches the provider.** The request is translated into the
+  node's own call (instructions, messages, tool definitions, tool calls
+  and results, as data) and sent by the gateway's own builder, with its
+  own address, organisation and key. No header of the request, no
+  address and no field the node does not carry reaches the provider;
+  a field it does not know (`base_url`, `n`, `response_format`, …) is
+  refused. Images are not carried (a line says one was there).
+- **Spend.** Every call is held at its worst case as `work:<N>` against
+  the work's daily ceiling ($2 by default) and the node's, at the price of
+  the works' model, and settled at what the provider counted; a call cut
+  off (the agent gone, the round over) is counted at what the gateway
+  reports within a minute, else at its worst. `keg assistant usage`
+  shows it as `work:<N>`; the work's page and `keg work show` say, for
+  each round, which model it reached this way and what the round spent.
+- **A ceiling reached** ends the call with an OpenAI-shaped
+  `429 insufficient_quota` (with `x-should-retry: false`), and the round
+  ends with the node's own sentence ("Work 12's model allowance for
+  today, $2.00, is used … A person raises it with `keg assistant limits
+  work:12 --usd-per-day 4`."), which is what the gate shows.
+- **Bounds.** A request is at most 4 MiB and its head 16 KiB; at most 4
+  calls of a work are open at once (a fifth is told `429` to ask again in
+  a second); a call's answer is at most 1 MiB and 5 minutes, as every
+  call through the gateway; output asked past 32,000 tokens is held to
+  that. A request has 30 seconds to arrive, head and body, and its answer
+  5½ minutes to be read; a request is read as typed parts, counted as
+  they come (1,000 messages, 128 tools, 256 parts a message, 50,000 values
+  in all the tools' schemas). The door closes when the round ends, or at
+  the recipe's time and a minute, whichever is first: every connection
+  still open is cut off then, its call ended, and nothing more is held.
+- **What is kept.** Nothing of what was asked or answered is written to
+  the node's log or its events: `model.used` carries the caller
+  (`work:<N>`), the model and the counts, as for every caller. What the
+  agent said and did is kept in the round's transcript, as before, with
+  the token hidden.
+- **Installed, and stopped or without its key.** Once the gateway
+  (`models`) is installed, a round never falls back to a `.env`: with the
+  provider's key not set it fails with "… the key for openai is not set …
+  `keg assistant setup --env-file <path to a .env>`", and with the gateway
+  not running with "Keg's model gateway is set up and not running … `keg
+  system start models`".
+- **No gateway.** On a node where the gateway was never installed, the
+  runner gives the agent the provider's key from the project's `.env`, as
+  before, and the round says so.
 
 The gateway is the one thing on the node that holds a model's key and
 reaches a provider. It runs walled, with the public internet only. The

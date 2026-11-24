@@ -85,6 +85,14 @@ CREATE POLICY notes_deleted_by_author ON notes AS RESTRICTIVE FOR DELETE
    makes them again. Name yours otherwise.
 5. In SQL: `keg.actor_user()` (uuid, null in a job), `keg.actor_organization()`,
    `keg.actor_role()` (`administrator`, a member's role, or `system` in a job).
+6. A foreign key between tenant tables is checked **without** row
+   security: `supplier_id bigint REFERENCES suppliers (id)` lets one
+   organization name another's supplier, and learn whether an id exists.
+   After both `keg.tenant_table` calls, make it
+   `SELECT keg.tenant_ref('app.orders', 'supplier_id', 'app.suppliers');`:
+   it names only a row of the same organization (it replaces the plain key
+   and keeps its `ON DELETE`), and another organization's id is refused
+   exactly as a missing one (23503).
 
 ## Identity and organizations
 
@@ -151,6 +159,10 @@ In a `tx`, `db`:
 - `keg app show <app>` and `keg app jobs <app>` (with `--failed`) say what
   waits and why; they, `keg app jobs retry` and `keg app jobs remove` are a
   person's to run, so ask for their output.
+- `keg app remove <app>` (typing its name, or `--yes <app>`) is a person's
+  alone: it stops the app everywhere and takes back the bindings and tokens
+  services held for it, keeping its database unless `--with-data`. Never
+  suggest it as a fix; say what it would remove and let the person decide.
 - A token for a service bound to the app: `serviceToken(name, { org, ttl })`
   from `@keg/app/service`, made on the server, never sent to a browser
   for longer than its `ttl`.
@@ -253,7 +265,8 @@ writes `keg.yaml`, a `Dockerfile` (a static binary on `FROM scratch`),
   is `keg.tx`; inside, `tx.QueryRow`, `tx.Query`, `tx.Exec` are pgx's
   (read rows with `pgx.CollectRows`), and `tx.Emit`, `tx.Events`,
   `tx.Enqueue`, `tx.Once` are as above. An audience is
-  `keg.To(keg.Roles("agent"))` or `keg.To(keg.Users(id))`.
+  `keg.To(keg.Roles("agent"))`, `keg.To(keg.Users(id))`, or both at once,
+  `keg.To(keg.Roles("agent"), keg.Users(id))`.
 - Jobs: `k.Job("notify", func(ctx, payload, tx, job) error {...})`, then
   `k.Work(keg.WorkOptions{})`. Returning an error rolls back what the
   handler wrote and the job is tried again.
@@ -264,19 +277,35 @@ writes `keg.yaml`, a `Dockerfile` (a static binary on `FROM scratch`),
   handler calls `k.As(ctx, fn)`. Serve gRPC and HTTP on the one port with
   `kegrpc.Server(":"+os.Getenv("PORT"), kegrpc.Handler(grpcServer, mux))`:
   Keg asks `run.health` over HTTP, so keep `/healthz` on the mux
-  (`kegrpc.HealthHandler(k)`).
-- gRPC reaches the app only on its own port (`http://localhost:<port>`,
-  HTTP/2 without TLS). Keg's names (`http://<app>.keg.localhost`, and
-  over HTTPS) speak HTTP/1.1 only: a page there uses Connect or gRPC-Web
-  over HTTP/1.1 (Connect's Go handlers serve all three), with
+  (`kegrpc.HealthHandler(k)`), or ask gRPC's own health service:
+  `health: { grpc: "" }` (the whole server, or a service's full name),
+  answered by `kegrpc.Health`.
+- Say in `keg.yaml` that the port speaks HTTP/2 without TLS:
+  `run: { port: 8097, protocol: h2c }`. Then gRPC reaches the app by its
+  name, `<app>.keg.localhost` on the names port (prior knowledge, as
+  grpc-go dials `passthrough:///<app>.keg.localhost:7381` with insecure
+  credentials) and over HTTPS (`h2` by ALPN, trusting `keg trust --print`).
+  A connection is for one name: a call on it for another app is refused
+  (`421`), so dial each app on its own. Without `protocol: h2c` the names
+  speak HTTP/1.1 only (`505` to HTTP/2), and gRPC reaches the app on its
+  own port (`http://localhost:<port>`). A page uses Connect or gRPC-Web
+  (Connect's Go handlers serve all three), with
   `keg.Sessions(keg.HTTPSession, handler)` to put the session in the
   context.
 - Errors: return what the client and pgx give; `kegrpc.Status` (or
-  `keg.Public` for HTTP) says them without Postgres's text.
+  `keg.Public` for HTTP; `publicError` in `@keg/app`) says them without
+  Postgres's text, Keg's own refusals in Keg's words with their own kind
+  (`keg.KegRefusal(err)`: `no_such_email`, `administrators_only`, ...).
 - A check runs in the work's machine, which has Node and no Go unless the
-  work's image has it: the check fetches Go (see the commented check in
-  `keg.yaml`). `cd third_party/keg && go test ./...` there runs the
-  client's own tests against the check's database too.
+  work's image has it. A project names the image its works run in with
+  `work: { image: "<name>@sha256:<digest>" }` in `keg.yaml` (pinned by its
+  digest, or the file is refused); it is read where the work begins, so it
+  takes effect for works made after a person merges it, never for the work
+  that wrote it. Without it, the check fetches Go (see the commented check
+  in `keg.yaml`). `cd third_party/keg && go test -v ./...` there runs the
+  client's own tests against the check's database too. Run `go test`
+  with `-v` in a check: the gate counts tests from the `--- PASS` and
+  `--- FAIL` lines it prints only then.
 
 ## Run it
 

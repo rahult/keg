@@ -153,7 +153,8 @@ field but `payload` is the node's, read from the event's row:
 layer sets from the acting user's (or job's) organization in `keg.emit`,
 never anything the app wrote in its payload. `audience` is who the event
 is for as the row keeps it: `null` for the whole organization, else
-`{"roles": [...]}` or `{"users": [...]}`; one longer than 8 KiB is
+`{"roles": [...]}`, `{"users": [...]}`, or both in one, `{"roles": [...],
+"users": [...]}`, for whoever is in either; one longer than 8 KiB is
 `{"cut": true}`, which is for no one in particular, never for everyone.
 `about` is what the event is about (`ticket/42`), or `null`. A service that
 shows events to people treats any audience it does not understand as not
@@ -286,9 +287,27 @@ says so in its log. Where the app uses realtime, Postgres tells the node of
 each commit, and that is only a reason to read; it asks every minute
 besides. It reads at most 500 rows at a time, and writes at most 1200 of an
 app's events a minute into its log for each environment; the rest wait,
-in order. What an app wrote before a service was first bound to it is not
+in order: by transaction, and a transaction's events in the order they were
+emitted (`011_events_order.sql`; before it, in the order of their random
+ids). What an app wrote before a service was first bound to it is not
 told of, and a binding added later hears only what began after it was
-allowed or committed after the node first read for it. An app's events are
+allowed or committed after the node first read for it, unless it asks for
+the past: `from_start = true` on the bind, which the person installing it
+is asked about ("It is sent every event of <app> that is still kept, from
+the first, not only those after it is allowed."; its id ends
+`+from-start`). Such a binding, allowed, is also sent each event of its
+types still in the app's `keg.events` that it was not told of as it came,
+from the first, in order, to it alone (each delivery as the live one is,
+in the app's queue beside what comes now, each with its own `at`). That
+past is read for each environment as far as what had committed when the
+node first read for the binding, a batch of 500 at a time, only while
+fewer than 500 of the app's events wait for the service (far below the
+10,000 at which it would miss what comes) and within the 1200 a minute;
+`keg system ls` and the console's System page say how far it got ("sending
+the past events of desk in local from the first, as query takes them: 340
+so far", then "sent every past event of desk in local from the first:
+1234"). Installed again, or the app's database made again, it is sent the
+past afresh. An app's events are
 kept, held back and counted as what a service writes is, each app as one
 writer, so they never push the node's own out. Nothing but such a binding
 brings an app's events to a service, and a service cannot listen to an
@@ -510,12 +529,46 @@ reads, and counts as the node's.
 - **Handing a piece of work files** (`POST /v1/work/<id>/attach`, its
   `attach-inspect`, `POST /v1/work-attach-inspect`, `/v1/work-allow-from`),
   what it was handed (`GET /v1/work/<id>/attached`) and the node's
-  `@keg/app` (`GET /v1/app-client`) are a person's: an agent and a service
+  `@keg/app` (`GET /v1/app-client`) and Go client (`GET /v1/app-client/go`)
+  are a person's: an agent and a service
   are refused them. A work's agent reads what it was handed, read only, at
   `/keg` in its machine.
+- `GET /v1/work/<id>/base-tests` (`work:read`, as its evidence): what the
+  branch the work merges into was last checked with, `{base, work, tests:
+  [{check, passed, failed}]}`, the checks service's last count of each
+  check in the latest work merged (`done`) into the same branch of the same
+  project, or null. A first round's gate is said against it.
+- **What a project names for its works' machine** (`POST
+  /v1/work-project-inspect` with `{"folder": "..."}`) is a person's, as
+  beginning a work is: `{image, default_image}`, `image` being the
+  `work.image` the folder's keg.yaml names as it is now, or null. The
+  console's and the Mac app's New work ask for a machine's image only when
+  it is null. An image a work is begun with (`image` in `POST /v1/work`,
+  `keg work new --image`) is refused (`invalid_reference`) before anything
+  of the work is made when it is not an image's name.
 - **Nobody** answers a gate or approves a change through the log. Those
   stay the calls they are, for a person alone. No event approves
   anything.
+- A work is approved only when what was checked and built is what would be
+  merged. While the branch it merges into has commits it does not, its
+  gate in `GET /v1/needs` carries `behind` ("main has 1 commit this work
+  does not have, so what was checked and built is not what would be
+  merged. Bring it up to date first (`keg work update 1`) ...") and
+  `POST /v1/gates/<id>/answer` with `approve` is refused (409) with that
+  sentence; whether it is behind is read again, from the project's own
+  repository, as the answer is acted on, and one that cannot be read
+  refuses too. `POST /v1/work/<id>/update` (`keg work update <id>`, Bring
+  up to date in the console and the Mac app; a person's alone) merges the
+  base into the work's branch in Keg's machine for the work, where nothing
+  of the person's is checked out (`git merge-tree`, then `commit-tree` and
+  `update-ref` from the commit it was at). The work then runs again from
+  its test stage: its checks run on the combined code, it is built and run
+  in `local`, and a new question is asked; approving it merges that commit
+  and deploys that release, so `local` and the environment approved into
+  run what was merged. Where the two conflict, the merge is begun in a
+  fresh copy of the work, the base's commits handed to it in a bundle, and
+  the work goes back to its agent for a round with a note naming the files
+  in conflict. The answer is `{item, merged}` or `{item, conflicts}`.
 
 ## How an app's events differ from the node's
 
@@ -567,10 +620,58 @@ service are refused both, as they are `GET /v1/apps/<app>`.
   `{"failed": true}`: failed jobs back to waiting, attempts 0, to be taken
   at once. An id of a job that has not failed is refused (409) and nothing
   is put back. Answers `{"retried": n}`.
+- `POST /v1/apps/<app>/jobs/remove?env=<env>` with `{"failed": true}`,
+  `{"orphaned": true}` (both may be given) or `{"ids": [...]}`: removes for
+  good every failed job, every orphaned one (made by a subscription since
+  taken back with `keg.off`, still waiting), or the failed jobs named.
+  Answers `{"removed": n}`. A person's alone, as `keg app jobs remove`.
+- `POST /v1/apps/<app>/remove` with `{"confirm": "<app>", "with_data":
+  false}`: a person's alone (`keg app remove <app>`, which asks for the
+  name to be typed, or `--yes <app>`; Remove… on the console's Apps page),
+  refused to agents, services and the assistant, which has no tool for it.
+  `confirm` must be the app's name. In each environment on this node its
+  container is stopped and removed, it is no longer deployed there (so
+  nothing starts it again, its ports are given up and its images are left
+  for cleanup), and its row goes; every service's binding to its events,
+  and the tokens given for them, go too. Its database in each environment
+  is kept, and deploying it again uses it, unless `with_data`, when the
+  database is dropped with its roles and the passwords Keg kept for them.
+  An environment's row goes only once its database has been dropped (or
+  kept), so a removal that fails part way is finished by asking again;
+  each drop can be made again. With `with_data`, an app already removed
+  whose data was kept (or left) is found by its name, and its data in each
+  environment here is dropped. `"look": true` (no `confirm` needed) says
+  what would be stopped, kept and removed, and does nothing. Answers `{app, envs, bound, kept, removed, elsewhere}`: `bound` the
+  services that were bound to it, `kept` or `removed` the databases,
+  `elsewhere` environments on other nodes, where it is removed there.
+- `keg.tenant_ref(child, column, parent, on_delete => null)` (capability
+  file 013, `data`): Postgres checks a foreign key without row security, so
+  a plain `REFERENCES parent (id)` from one tenant table to another lets an
+  organization name another's row and tells it whether an id exists. This
+  makes the reference `(organization_id, column)` to the parent's
+  `(organization_id, id)`: a unique index on the parent's pair if it has
+  none (built in the migration's transaction, so a large existing parent's
+  writes wait while it is built), and a key `keg_ref_<column>` in place of
+  the column's own keys to the parent, doing on delete what they did (or
+  `'no action'`, `'restrict'`, `'cascade'`, `'set null'`, which nulls the
+  column alone). A row naming another organization's id is refused as one
+  naming no row: the same error (23503) from the same constraint after the
+  same one look in the same index. Both must be tenant tables, the parent
+  needs `id`, and the column must be of its type; the owner calls it.
+- `keg.off(type, job)` (capability file 012) also cancels the jobs its
+  subscription made that still wait: each is `failed`, its `last_error`
+  `cancelled: keg.off('<type>', '<job>') took back the subscription that
+  made it`. One running finishes as it would.
 - `GET /v1/apps/<app>` gives, for each environment, `waiting`, `failed`,
   `retrying` (of those waiting, how many failed before), `last_error` (of
   one being retried) and `unclaimed` (at most 20 names of jobs ready for
   five minutes and never taken).
+- `GET /v1/apps/<app>/jobs/summary?env=<env>`, the one of these the
+  assistant reads, as the tool `keg.apps.jobs` (an agent is refused it):
+  for each environment, `{env, counts: [{name, state, count}], failed:
+  [{id, name, attempts, error}]}`, the 20 latest failed jobs, each `error`
+  at most 300 characters on one line, with every secret the node holds
+  hidden as in any tool's result. It never carries what a job was given.
 
 ## Where a node is reached
 
@@ -616,6 +717,87 @@ Mac (each with its own `HOME`) cannot both have 7380 there. So:
 On Linux kegd binds `--names` and `--names-tls` itself. A port that is
 taken there is said in kegd's log ("names are not served: ..."), and the
 node goes on without names, handing out none.
+
+### HTTP/1.1 through the names
+
+One connection to the names is for one name: the first request's `Host`
+(over `--names-tls`, the name the caller asked a certificate for, which
+the first request must match, else `421`). Every request on the connection
+is read as far as its head and the framing of its body before it is sent
+on, and:
+
+- One whose `Host` is another name, even another name of the same service
+  (`web.local.keg.localhost` after `web.keg.localhost`), is answered
+  `421 Misdirected Request` once the answers to the requests before it
+  have been sent, and the connection is closed; it reaches nothing. A
+  client opens a new connection for it.
+- One that two readers could frame differently is refused, not guessed at:
+  `Content-Length` and `Transfer-Encoding` together, `Content-Length` twice
+  or not plain digits, `Transfer-Encoding` twice, or other than `chunked`
+  (`501`), or on HTTP/1.0, a line ended by a bare LF or CR, a header folded
+  onto the next line, a space before a header's colon, a control character
+  in a value, no `Host` on HTTP/1.1 or two, a request line not of three
+  parts one space apart, a target in absolute form naming another host
+  than `Host` (all `400`), a head over 32 KiB (`431`). `CONNECT` is `405`.
+  A chunked body whose chunk lines are not as HTTP says ends the connection
+  where it goes wrong.
+- `Upgrade: h2c` (and its `HTTP2-Settings`) is taken out of the request,
+  which is answered over HTTP/1.1: HTTP/2 is reached with prior knowledge,
+  where each request is checked (below).
+- Any other upgrade (a websocket) is carried once the service answers
+  `101`: from then on both sides are the service's own protocol. If the
+  service answers otherwise, the requests after it are checked as before.
+- Pipelined requests, chunked and streamed answers, answers to `HEAD`, and
+  `Expect: 100-continue` are carried as they are. An answer whose end
+  cannot be told (no length and not chunked, or two lengths that differ)
+  is passed on to the end of the connection, and no request after it is
+  sent on.
+
+### HTTP/2 and gRPC through the names
+
+A service whose `keg.yaml` says `run.protocol: h2c` (its port speaks
+HTTP/2 without TLS, as gRPC servers do, beside or instead of HTTP/1.1) is
+reached with HTTP/2 by its names: with prior knowledge on `--names`, and
+on `--names-tls` by ALPN `h2`. Nothing else is: a service that has not
+said so, a container run by hand, the console and Keg's own services
+(`*.svc`) answer HTTP/2 with `505` and are reached over HTTP/1.1 only, and
+over TLS are offered only `http/1.1`, since a browser offered `h2` would
+use it with any name.
+
+Keg ends the caller's HTTP/2 and opens its own to the service, checking
+every request before it is sent on:
+
+- The first request's `:authority` chooses the service, by the rules
+  `Host` follows over HTTP/1.1. Over TLS it must be the name the caller's
+  certificate was asked for (SNI). Each certificate names one name, so a
+  browser never shares one connection between two apps.
+- Every later request on the connection must be for the same name. One for
+  another app is answered `421 Misdirected Request` and sent nowhere, so
+  one connection reaches one service, whatever a caller writes. A `host`
+  header that disagrees with `:authority` is refused (`400`).
+- `CONNECT`, plain or extended (a websocket over HTTP/2), is refused
+  (`405`), as over HTTP/1.1: what a tunnel carries could not be checked.
+- The caller has 30 seconds for its preface and first request's headers,
+  however slowly they come; a connection is closed once nothing has been
+  open on it for 5 minutes, counted from when its last request ended;
+  headers are held to 32 KiB, as an HTTP/1.1 head is; a connection may have
+  100 requests open and carry 10,000 in all (then `GOAWAY`, and the caller
+  opens another); one request lives at most 15 minutes, as a TLS
+  connection does, and is then reset; the node holds at most 256 such
+  connections (one more is sent `GOAWAY` with `ENHANCE_YOUR_CALM`), of
+  which one name may have 64; once it holds 192, only a name with fewer
+  than 8 is let in. A connection past its name's share has its first
+  request answered `503`. Every caller reaches the names from the node's
+  loopback, so there is no cap by the caller's address. Over TLS
+  the handshake has 15 seconds, and the TLS relay's own bounds hold (60
+  seconds with nothing sent either way, 15 minutes in all), so a gRPC
+  stream that is quiet for a minute is cut there; a client that sends
+  keepalive pings keeps it.
+
+A gRPC client dials `<app>.keg.localhost:<names port>` (grpc-go:
+`passthrough:///` and insecure credentials, or TLS trusting
+`keg trust --print`). The app's own port (`localhost:<port>`) reaches it
+as before.
 
 Cookies are not kept apart by port: a cookie a page by
 `desk.keg.localhost` sets on one node is sent to `desk.keg.localhost` on

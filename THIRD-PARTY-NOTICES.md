@@ -22,12 +22,12 @@ The Linux machine Keg runs on a Mac holds a Linux kernel and programs and
 libraries under the GNU General Public License or the GNU Lesser General
 Public License. The complete corresponding source for the GPL and LGPL
 parts of this release is published with it, at
-https://github.com/rahult/keg/releases/tag/v0.11.1, in the files:
+https://github.com/rahult/keg/releases/tag/v0.12.0, in the files:
 
-- `keg-0.11.1-gpl-source-kernel.tar.xz`: the Linux kernel's source release,
+- `keg-0.12.0-gpl-source-kernel.tar.xz`: the Linux kernel's source release,
   the patches and the configuration it was built with, and the scripts that
   built it;
-- `keg-0.11.1-gpl-source-packages.tar` (with `-2.tar` and on, if there are
+- `keg-0.12.0-gpl-source-packages.tar` (with `-2.tar` and on, if there are
   more): each Alpine package with a GPL or LGPL part, as its build recipe at
   the commit it was built from, with every source archive that recipe names.
 
@@ -360,7 +360,7 @@ Scripts/build-vm.sh says who needs each. Nothing Keg is built with is in it.
 | util-linux-misc | 2.42.3-r1 | GPL-3.0-or-later AND GPL-2.0-or-later AND GPL-2.0-only AND GPL-1.0-only AND LGPL-2.1-or-later AND BSD-1-Clause AND BSD-3-Clause AND BSD-4-Clause-UC AND MIT AND Public-Domain | `util-linux` at [d98c55af5905](https://gitlab.alpinelinux.org/alpine/aports/-/tree/d98c55af59055e6ca60fbe36e171546918709965) |
 | utmps-libs | 0.1.3.3-r0 | ISC | `utmps` at [900a4ecef77a](https://gitlab.alpinelinux.org/alpine/aports/-/tree/900a4ecef77ae677eab8243b99f2c40cbf8ea35b) |
 | zlib | 1.4-r0 | Zlib | `zlib` at [bdf501c870a9](https://gitlab.alpinelinux.org/alpine/aports/-/tree/bdf501c870a92a05c097857401f69c48c4810384) |
-| zstd-libs | 1.5.7-r2 | BSD-3-Clause OR GPL-2.0-or-later | `zstd` at [3c6e2ee2b16f](https://gitlab.alpinelinux.org/alpine/aports/-/tree/3c6e2ee2b16f403d53eab39c4426eb61f003c322) |
+| zstd-libs | 1.6.0-r0 | BSD-3-Clause OR GPL-2.0-or-later | `zstd` at [f8bbb3c1bd8f](https://gitlab.alpinelinux.org/alpine/aports/-/tree/f8bbb3c1bd8f0b99a9463636cc1c2b7f1b9e3fe2) |
 
 Their licences' full texts are below, once each. The copyright notices
 of each package are in its source.

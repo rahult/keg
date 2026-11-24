@@ -1,0 +1,26 @@
+# Keeps each event it is told of in DuckDB, in its volume, and answers SQL
+# that only reads, on this computer's port 8224, to whoever has its key:
+# `POST /query` answers JSON, and its page shows the answer as a table.
+#
+# It is built from this folder, which a node does once a person turns it on
+# with `keg system builds on`.
+name = "query"
+version = "0.1.0"
+build = "."
+command = ["node", "index.js"]
+port = 8224
+memory_mb = 1024
+# How an app asks it, given to each piece of work of an app bound to it.
+docs = "README.md"
+listens = ["work.*", "changeset.changed"]
+binds = [
+  { name = "data", to = "volume" },
+  # The key that reads all it holds, which a person sets:
+  # `keg system secret query QUERY_KEY`.
+  { name = "key", to = "secret:QUERY_KEY" },
+  # Allowable only on a node where the app SupportDesk is. Each with a
+  # token for SupportDesk's servers, which make tokens for one
+  # organization with it for SupportDesk's pages.
+  { name = "tickets", to = "app-events:supportdesk:ticket.*", token = true },
+  { name = "ratings", to = "app-events:supportdesk:rating.*", token = true },
+]

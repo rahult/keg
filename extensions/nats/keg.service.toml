@@ -1,0 +1,22 @@
+# A NATS server with JetStream, on this computer's port 4222, that is told
+# of the node's events and puts each in the stream KEG, as keg.<type>. Its
+# page lists the last it put there.
+#
+# It is built from this folder, which a node does once a person turns it on
+# with `keg system builds on`.
+name = "nats"
+version = "0.1.0"
+build = "."
+command = ["node", "index.js"]
+port = 8222
+publish = [4222]
+memory_mb = 256
+listens = ["work.*", "changeset.changed"]
+binds = [
+  { name = "data", to = "volume" },
+  # The password readers connect with, which a person sets:
+  # `keg system secret nats READER_PASSWORD`.
+  { name = "readers", to = "secret:READER_PASSWORD" },
+  # Allowable only on a node where the app SupportDesk is.
+  { name = "tickets", to = "app-events:supportdesk:ticket.*" },
+]
