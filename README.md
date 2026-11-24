@@ -64,7 +64,7 @@ The Mac app and the web console (`keg ui`, in any browser) have two modes, and a
 
 ## This repository
 
-This repository holds Keg's releases, its website (`site/`), its documentation (`docs/`), its Homebrew cask (`Casks/`), the skill for coding agents (`skills/`) and two example services (`extensions/`, which are yours to copy: see their own LICENSE). Report a problem under [Issues](https://github.com/rahult/keg/issues).
+This repository holds Keg's releases, its website (`site/`), its documentation (`docs/`), its Homebrew cask (`Casks/`), the skill for coding agents (`skills/`) and two example services (`extensions/`). Report a problem under [Issues](https://github.com/rahult/keg/issues).
 
 ## License
 

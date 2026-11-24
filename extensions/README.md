@@ -12,5 +12,5 @@ on. Install one from its folder with `keg system install <folder>` once
 `keg system builds on` has been run on the node; you are asked about each
 thing it asks for.
 
-Unlike Keg itself, these two folders are yours to copy and change: see
-[LICENSE](LICENSE).
+These examples come under the [Keg License](../LICENSE.md), as Keg does. You
+may read them and start a service of your own from them, to run on Keg.
