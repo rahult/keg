@@ -369,6 +369,14 @@ a:focus-visible, .btn:focus-visible {
 /* Two figures side by side, and the release line under the hero */
 .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; margin-bottom: 28px; }
 @media (max-width: 768px) { .pair { grid-template-columns: 1fr; } }
+/* A caption that wraps must not push its picture below its neighbour's:
+   caption and picture each sit on a row the two columns share. */
+@media (min-width: 769px) {
+  .pair > .g-item, .gallery > .g-item:not(.g-span2) {
+    display: grid; grid-template-rows: subgrid; grid-row: span 2; row-gap: 0;
+  }
+  .pair > .g-item > .fig-cap, .gallery > .g-item:not(.g-span2) > .fig-cap { align-self: end; }
+}
 .release-line { font-family: var(--mono); font-size: 0.68rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); margin-top: 22px; }
 .release-line a { color: var(--ink-2); border-bottom: 1px solid var(--line); padding-bottom: 1px; transition: color 0.25s, border-color 0.25s; }
 .release-line a:hover { color: var(--accent-ink); border-color: var(--accent); }
