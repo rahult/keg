@@ -40,6 +40,20 @@ jobs:
         with:
           path: site
 
+      # Twice in two releases the deploy did not find the artifact the step
+      # above had just uploaded ("No artifacts named github-pages were found
+      # for this workflow run"), and a run started again by hand passed with
+      # nothing changed. So a first try that fails is followed by a wait and
+      # one more; the job fails only if both do.
       - name: Deploy to GitHub Pages
         id: deployment
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Wait before trying again
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 60
+
+      - name: Deploy to GitHub Pages, once more
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
