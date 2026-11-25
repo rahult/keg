@@ -108,6 +108,21 @@ and give the person the command:
 - `docker` and `docker compose` work against Keg too (`keg docker env`
   prints the setting); never change the person's default Docker context.
 
+## Kubernetes: a person's
+
+A node can run one Kubernetes cluster (k3s, in the container `keg-k8s`).
+Every `keg k8s` command is a person's. An agent is refused starting,
+stopping and deleting it, `keg k8s kubectl` and `keg k8s load` (an image
+into the cluster); `keg k8s info` tells it whether the cluster runs, not
+where its API is reached. When the project needs the
+cluster, say so and give the person the commands: `keg k8s start`, then
+`keg k8s info` for how to connect. Never read or copy
+`~/.keg/k8s/kubeconfig.yaml`: it is the cluster's admin key, and with it
+anything in the cluster is possible, outside Keg's rules for agents. If
+the person wants you to work in the cluster, ask them for a kubeconfig of
+your own, limited to a namespace. The guide:
+https://github.com/rahult/keg/blob/main/docs/KUBERNETES.md
+
 ## What runs, what it costs, cleaning up
 
 ```sh

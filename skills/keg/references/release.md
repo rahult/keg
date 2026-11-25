@@ -45,11 +45,19 @@ for `keg changes` or the service's output.
 ## Settings and secrets
 
 - A setting that differs between environments is named under
-  `needs.secrets` in `keg.yaml`. Its value is the person's to set: the
-  node refuses an agent every secret call. Name what is needed and tell
-  them `keg secret set NAME --service <service> --env <env>` (it reads the
-  value from standard input). Never ask for, print, read back or guess a
-  secret, and never write one into a file or a `keg.yaml`.
+  `needs.secrets` in `keg.yaml`. Its value lives in the node's vault and
+  is the person's to set and grant: the node refuses an agent every
+  secret and vault call. Name what is needed and tell them `keg secret set
+  NAME --service <service> --env <env>` (it reads the value from standard
+  input), or, for a value they keep in the vault already, `keg vault
+  grant ENTRY --service <service> --env <env> --as NAME`. A release that
+  needs a name with no grant is refused, saying that command. A grant
+  names one environment (there is none to every environment). A release
+  you propose that needs a secret or a database waits for a person; one a
+  piece of work built waits too, unless a person granted each secret it
+  needs in exactly that environment since it was last set. Never ask
+  for, print, read back or guess a secret, and never write one into a
+  file or a `keg.yaml`: naming it there is not a grant.
 - `needs.db` gives the service a database of its own as `DATABASE_URL`.
 
 ## HTTPS and the world

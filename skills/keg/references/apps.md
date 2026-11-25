@@ -125,7 +125,8 @@ In a `tx`, `db`:
   `{ roles: [...] }`, `{ users: [...] }`, or both in one
   (`{ roles: ['agent'], users: [customerId] }`: whoever is in either); left out, every member may
   read it; `to: undefined` or `null` is refused. `about` is like
-  `"note/42"`, at most 200 bytes.
+  `"note/42"`, at most 200 bytes. A type beginning `keg.` is Keg's and
+  refused.
 - `await db.events({ type, about, limit, before })`: the events this actor
   may read, newest first, and those of one transaction in the order emitted.
 - `await db.enqueue(name, payload, { runAt, asUser })`, `await db.once(key)`.
@@ -166,6 +167,9 @@ In a `tx`, `db`:
 - A token for a service bound to the app: `serviceToken(name, { org, ttl })`
   from `@keg/app/service`, made on the server, never sent to a browser
   for longer than its `ttl`.
+
+An agent (a thread the app steps, its model, its tools) is in
+`references/agents.md`.
 
 ## A check that proves the rules
 

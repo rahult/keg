@@ -1,0 +1,35 @@
+Keg 0.13.0 adds a vault for passwords and keys, lets an app run an agent of its own on Keg, says how to use the Kubernetes cluster once it runs, and makes container starts steady under load. Read "Upgrading from 0.12.1" before you upgrade.
+
+## New
+
+- **A vault: one entry for each password or key, given only where you grant it.** `keg vault set NAME` reads a value from the terminal, never from an argument, and seals it with the node's key. `keg vault grant NAME --service S --env E` gives it to one service in one environment, and nothing else is handed it. The console has a Vault page; no value is ever sent to it. `keg secret set` still works and now writes the vault.
+- **One flow gives any node its model key, kept in the vault.** `keg assistant setup --env-file <path to a .env>` reads the key from that file once; after that the file is never read again. The assistant, a piece of work's coding agent and an app's agent all draw on that one entry through Keg's model gateway, and none of them holds a key. **A piece of work no longer reads its project's `.env`.**
+- **An app can run an agent of its own.** `uses: [model]` gives an app a door to the model with no key in the app: it sends its own prompt and gets back text and tool calls as data, with spend held to the app's daily ceiling. `uses: [agents]` gives it threads in its own database: each run of an agent is an append-only list of events under the app's row security, a step happens once however many workers race for it, and a tool's change and its record commit together. `@keg/app` has `keg.agent`, `keg.model` and `keg.tools`; a check can be given a scripted model (`model: fake`) so an agent's tests run at the gate without spending; `keg app threads` shows them to the node's person. Keg writes no prompt and runs no loop: the app owns both.
+- **Kubernetes says what to do once it is set up.** `keg k8s start` ends with next steps; `keg k8s info` prints how to connect at any time; `keg k8s load IMAGE` brings an image Keg has into the cluster; `keg k8s start --publish PORT` makes a port of the cluster reachable from this computer. The console's and the Mac app's Kubernetes pages have a Connect box, and there is a guide, [KUBERNETES.md](../KUBERNETES.md).
+- **`keg docker restore`** puts `docker` back to what it talked to before `keg docker use`, and the Mac app has a button for it.
+
+## Fixed
+
+- **Container starts are steady under load.** A start after many containers were removed at once waited up to a second behind the kernel clearing their network links; a start could return before its port passed traffic; and a start could wait on the node's database copying its log. With a hundred containers running, no start in 2,400 took over 100 ms (the worst 62 ms), where the worst had been over a second. The node's database log, which could grow without bound under constant writes, stays under 70 MB, and the kernel's table of neighbours no longer fills after about 900 containers started in quick succession.
+- **Importing from another Docker engine works the same once `docker` talks to Keg.** The import finds each engine by where its socket really leads, says when one is not running and how to start it, and the Mac app lists running engines first. It used to offer a stopped Docker Desktop first and fail without saying why.
+- **Kubernetes.** The settings written for `kubectl` name the port that really leads to this cluster, where another program already had 6443. **Security: the cluster's API is published on the node's loopback only**; on a Linux server it had been reachable on every address of the node. A first start no longer fails at random; `keg save` of an image Keg built is accepted by other tools; `keg k8s kubectl` works at a terminal and with a manifest piped in.
+- **Security: an app can no longer write an event of Keg's.** `keg.emit` refuses a type that begins `keg.`.
+- **Security: a release that no person approved is handed a vault entry only by a person's exact grant.** A piece of work's build deployed to `local` is not given a key granted for another environment.
+
+## Known in this release
+
+- Eleven new sentences in the Mac app are shown in English in every language.
+- The vault's uses for a container run by hand, a Compose file, a build and a registry login are not built yet; nor are the agent's ask of a person and replaying a thread.
+- A node keeps the address it may open for a local model server only in memory. (Choosing your own model provider and address is not in this release.)
+
+## Upgrading from 0.12.1
+
+- `keg update`, then restart the node (`sudo systemctl restart kegd`). On a Mac the app updates itself; then Stop Keg and Start Keg.
+- **Every secret already set moves into the vault by itself** at the node's first start, with the grant it had; nothing is typed again. If a value cannot be read back, nothing is moved and the node says so and does not start: nothing is lost, and going back to 0.12.1 then works. Once the vault has been written to, going back to 0.12.1 is not supported.
+- **A piece of work on a node with no model key set up is refused**, saying to run `keg assistant setup --env-file <path>`: it no longer reads a key from the project's `.env`.
+- **A vault grant names one environment.** `keg vault grant` without `--env` is refused.
+- **On a Linux server, the Kubernetes API is no longer reachable from other machines.** Reach it through SSH (`ssh -L 6443:127.0.0.1:6443 …`).
+- Each app's database is given two new capability files at its next deploy. An app that emitted an event type beginning `keg.` must rename it.
+- Upgrade every node before using `uses: [model]` or `uses: [agents]` in a `keg.yaml`: an older node refuses them.
+
+See [keg.rahultrikha.com](https://keg.rahultrikha.com) for more.

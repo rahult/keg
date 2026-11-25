@@ -53,7 +53,7 @@ keg machine ls
 - `keg: command not found`: Keg is not on this computer. Say so; installing it is the person's.
 - `keg whoami` must say `agent`. Over MCP you always are. On the person's socket you would be a person, with their rights: do not work that way. Run `keg` on the agent socket, in every command: `KEG_SOCKET=~/.keg/runtime-agent.sock` on a Mac, `KEG_SOCKET=/var/lib/keg-agent.sock` on a Linux node. If it is not there or refuses you, say so and stop: giving agents a folder is the person's.
 - An agent may: read what runs, try code in a sandbox, make machines in the folders the node gives to agents, start its own backing services, send images and propose releases.
-- On a Mac, `keg vm status` says whether the node runs and which ports it really got. Use the addresses Keg prints; never assume a port (names are not always on 7380).
+- On a Mac, `keg vm status` says whether the node runs and which ports it really got. Use the addresses Keg prints; never assume a port.
 - Tools named `keg_machine_create`, `keg_machine_run`, `keg_backing_start`, `keg_up` mean the Keg MCP server is connected: prefer them. Each has a CLI twin below. Adding the server is the person's: `keg agents --connect claude` (or `codex`, `pi`).
 
 ## You want, you do
@@ -82,11 +82,12 @@ rather than making another.
 
 ## Read next, when the work calls for it
 
-- `references/machines.md`: machines, running commands and servers in them, what an agent may not do with them.
+- `references/machines.md`: machines, running commands and servers in them.
 - `references/running.md`: backing services, Compose files, containers, ports and names, logs, volumes, images.
-- `references/apps.md`: an app on Keg's capabilities: keg.yaml, migrations, tenant tables, events, jobs, `@keg/app`, checks with a database. Read it before writing any of these.
+- `references/apps.md`: an app on Keg's capabilities: keg.yaml, migrations, tenant tables, events, jobs, `@keg/app`, checks with a database. Read it first.
+- `references/agents.md`: an agent in an app: threads, model calls, tools. Keg runs no loop.
 - `references/release.md`: `keg up`, environments, change sets, pieces of work and gates.
 - `references/troubleshooting.md`: what an error means and what to do.
 
-If a reference is not beside this file, `keg skill show <name>` prints it
-(`machines`, `running`, `apps`, `release`, `troubleshooting`).
+Not beside this file? `keg skill show <name>` prints it (`machines`,
+`running`, `apps`, `agents`, `release`, `troubleshooting`).

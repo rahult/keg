@@ -3,42 +3,51 @@
     <channel>
         <title>Keg</title>
         <item>
-            <title>0.12.1</title>
-            <pubDate>Tue, 24 Nov 2026 14:04:20 +0000</pubDate>
+            <title>0.13.0</title>
+            <pubDate>Wed, 25 Nov 2026 07:00:43 +0000</pubDate>
             <link>https://keg.rahultrikha.com/</link>
             <sparkle:fullReleaseNotesLink>https://github.com/rahult/keg/releases</sparkle:fullReleaseNotesLink>
-            <sparkle:version>29</sparkle:version>
-            <sparkle:shortVersionString>0.12.1</sparkle:shortVersionString>
+            <sparkle:version>30</sparkle:version>
+            <sparkle:shortVersionString>0.13.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[Keg 0.12.1 makes the console usable at every width from a phone to a wide screen, makes the Mac app quicker with long output and usable with VoiceOver throughout, and shows release notes when the Mac app offers an update.
+            <description sparkle:format="markdown"><![CDATA[Keg 0.13.0 adds a vault for passwords and keys, lets an app run an agent of its own on Keg, says how to use the Kubernetes cluster once it runs, and makes container starts steady under load. Read "Upgrading from 0.12.1" before you upgrade.
 
-## The console
+## New
 
-- **Every page fits from 320 px wide to a wide monitor.** A page's actions stay in sight on a phone, where Run Container, Remove, Approve and Reject could sit past the edge of a toolbar that scrolled with no scroll bar. A name of 200 characters no longer breaks a page, a dialog or a table. On a wide screen, prose is at most 100 characters a line.
-- **Made for a finger and for the keyboard.** Below 768 px, what you press is at least 44 px each way, and no text is smaller than 12 px. The sidebar's drawer is used with the keyboard: shut, its links are no longer reached by Tab; opened, focus moves into it. A click on the magnifier opens the filter. With reduced motion asked for, nothing moves.
-- **Lighter at rest.** The console asks for containers' use only on the pages that show it, and for what only Events shows only there: 3 requests a minute on Overview where it made 33, with no redraws.
-- **Long lists are quick.** A list of hundreds is drawn 200 rows at a time. With 500 containers a redraw takes about 21 ms where it took 53 to 80, and scrolling no longer stutters.
-- **It recovers.** A request that was never answered left the console on its loading page for good; now it gives up on that request after 8 seconds and goes on.
+- **A vault: one entry for each password or key, given only where you grant it.** `keg vault set NAME` reads a value from the terminal, never from an argument, and seals it with the node's key. `keg vault grant NAME --service S --env E` gives it to one service in one environment, and nothing else is handed it. The console has a Vault page; no value is ever sent to it. `keg secret set` still works and now writes the vault.
+- **One flow gives any node its model key, kept in the vault.** `keg assistant setup --env-file <path to a .env>` reads the key from that file once; after that the file is never read again. The assistant, a piece of work's coding agent and an app's agent all draw on that one entry through Keg's model gateway, and none of them holds a key. **A piece of work no longer reads its project's `.env`.**
+- **An app can run an agent of its own.** `uses: [model]` gives an app a door to the model with no key in the app: it sends its own prompt and gets back text and tool calls as data, with spend held to the app's daily ceiling. `uses: [agents]` gives it threads in its own database: each run of an agent is an append-only list of events under the app's row security, a step happens once however many workers race for it, and a tool's change and its record commit together. `@keg/app` has `keg.agent`, `keg.model` and `keg.tools`; a check can be given a scripted model (`model: fake`) so an agent's tests run at the gate without spending; `keg app threads` shows them to the node's person. Keg writes no prompt and runs no loop: the app owns both.
+- **Kubernetes says what to do once it is set up.** `keg k8s start` ends with next steps; `keg k8s info` prints how to connect at any time; `keg k8s load IMAGE` brings an image Keg has into the cluster; `keg k8s start --publish PORT` makes a port of the cluster reachable from this computer. The console's and the Mac app's Kubernetes pages have a Connect box, and there is a guide, [KUBERNETES.md](../KUBERNETES.md).
+- **`keg docker restore`** puts `docker` back to what it talked to before `keg docker use`, and the Mac app has a button for it.
 
-## The Mac app
+## Fixed
 
-- **Check for Updates shows what is new.** The offer of an update carries the release's notes; it showed only a version number. Updating from 0.10.0, 0.11.1 and 0.12.0 was checked: offered, downloaded, verified and installed.
-- **Usable with VoiceOver, Voice Control and Switch Control.** Every toolbar button can be pressed (New Work, Approve, Reject, Run a Container and others could not), and a button repeated in a list says which row it acts on: "Approve work 12", "Remove the shared folder …".
-- **Quick with long output.** A piece of work with a 3,000-line difference, or a container with 20,000 lines of output, stopped the app answering for one to two seconds; both now open in about 0.15 s.
-- **Storage's Clean Up sheet scrolls**, so its question and buttons stay in reach however much there is to tick, and it says "These go." only when something does.
-- **Sizes read the same everywhere**, as the console and `keg cleanup` write them: the same disk is 28 GB in Overview and in Storage.
-- **Text size makes all the app's text larger or smaller**, captions and Needs you included.
-- Needs you stays readable in a narrow window or a long language; New work asks the node about a folder once, not at each letter typed; 23 more sentences are in the app's 37 other languages.
+- **Container starts are steady under load.** A start after many containers were removed at once waited up to a second behind the kernel clearing their network links; a start could return before its port passed traffic; and a start could wait on the node's database copying its log. With a hundred containers running, no start in 2,400 took over 100 ms (the worst 62 ms), where the worst had been over a second. The node's database log, which could grow without bound under constant writes, stays under 70 MB, and the kernel's table of neighbours no longer fills after about 900 containers started in quick succession.
+- **Importing from another Docker engine works the same once `docker` talks to Keg.** The import finds each engine by where its socket really leads, says when one is not running and how to start it, and the Mac app lists running engines first. It used to offer a stopped Docker Desktop first and fail without saying why.
+- **Kubernetes.** The settings written for `kubectl` name the port that really leads to this cluster, where another program already had 6443. **Security: the cluster's API is published on the node's loopback only**; on a Linux server it had been reachable on every address of the node. A first start no longer fails at random; `keg save` of an image Keg built is accepted by other tools; `keg k8s kubectl` works at a terminal and with a manifest piped in.
+- **Security: an app can no longer write an event of Keg's.** `keg.emit` refuses a type that begins `keg.`.
+- **Security: a release that no person approved is handed a vault entry only by a person's exact grant.** A piece of work's build deployed to `local` is not given a key granted for another environment.
 
-## Upgrading from 0.12.0
+## Known in this release
 
-- `keg update`, then restart the node (`sudo systemctl restart kegd`). On a Mac the app updates itself.
-- Nothing in an app, a service or a `keg.yaml` changes.
+- Eleven new sentences in the Mac app are shown in English in every language.
+- The vault's uses for a container run by hand, a Compose file, a build and a registry login are not built yet; nor are the agent's ask of a person and replaying a thread.
+- A node keeps the address it may open for a local model server only in memory. (Choosing your own model provider and address is not in this release.)
+
+## Upgrading from 0.12.1
+
+- `keg update`, then restart the node (`sudo systemctl restart kegd`). On a Mac the app updates itself; then Stop Keg and Start Keg.
+- **Every secret already set moves into the vault by itself** at the node's first start, with the grant it had; nothing is typed again. If a value cannot be read back, nothing is moved and the node says so and does not start: nothing is lost, and going back to 0.12.1 then works. Once the vault has been written to, going back to 0.12.1 is not supported.
+- **A piece of work on a node with no model key set up is refused**, saying to run `keg assistant setup --env-file <path>`: it no longer reads a key from the project's `.env`.
+- **A vault grant names one environment.** `keg vault grant` without `--env` is refused.
+- **On a Linux server, the Kubernetes API is no longer reachable from other machines.** Reach it through SSH (`ssh -L 6443:127.0.0.1:6443 …`).
+- Each app's database is given two new capability files at its next deploy. An app that emitted an event type beginning `keg.` must rename it.
+- Upgrade every node before using `uses: [model]` or `uses: [agents]` in a `keg.yaml`: an older node refuses them.
 
 See [keg.rahultrikha.com](https://keg.rahultrikha.com) for more.
 ]]></description>
-            <enclosure url="https://github.com/rahult/keg/releases/download/v0.12.1/Keg-0.12.1.zip" length="38934037" type="application/octet-stream" sparkle:edSignature="xN1SjVdiUlMT2qJqiYdkzV4jESfz7od6cr6j62yikoErBBn4iy1CnAhZ2kF0eCSWwGu5rpUT6Tk8UdBnivu0BQ=="/>
+            <enclosure url="https://github.com/rahult/keg/releases/download/v0.13.0/Keg-0.13.0.zip" length="39546463" type="application/octet-stream" sparkle:edSignature="0ml2FrYdp/fToo6EPr0/aAJHwwEY4oRVxseu4KAy4/GtZsS7huf0lwk4Zm/Bkv1bfPiq4TYaNSIze4ShTDT1Dg=="/>
         </item>
     </channel>
 </rss>

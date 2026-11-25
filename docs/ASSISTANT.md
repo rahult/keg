@@ -13,18 +13,34 @@ It is off until a person sets it up. Nothing of it runs on a node where
 ```sh
 keg assistant setup --env-file ~/secrets/.env   # reads OPENAI_API_KEY (and ANTHROPIC_API_KEY) and nothing else
 keg assistant setup                             # or: asks for each key here, unseen
-keg assistant keys                              # which keys are set, never their values
+keg assistant keys                              # which keys the vault holds for the gateway, never their values
 keg assistant model                             # the models offered, their prices, and the one asked by default
 keg assistant model <name>                      # sets it
 ```
 
-Setup is a person's, on their own terminal. It reads the `.env` once,
-prints the names it found and never a value, seals the key for Keg's
-model gateway (`models`), installs and starts the gateway and the
-assistant, and makes one call to check them. After it, nothing reads a
-`.env` for a model, pieces of work included (below). The provider is
-OpenAI (its Responses API); `ANTHROPIC_API_KEY` is kept for a later
-version.
+Setup is a person's, on their own terminal, and it is the one way any
+node gets a model key: the owner's Mac, a Linux server and a stranger's
+laptop alike. It reads the `.env` once, prints the names it found and
+never a value, and puts each key in the vault (`docs/VAULT.md`) as the
+entry `keg/model/<provider>` (`keg/model/openai`, `keg/model/anthropic`),
+given to Keg's model gateway (`models`) alone. It installs and starts the
+gateway and the assistant, and makes one call to check them. The file is
+never read again and may be deleted. No part of Keg reads a project's
+`.env` by itself: not the assistant, not a piece of work (below), not an
+app's `model` binding. Each reaches models through the gateway, holds no
+key, and on a node with no key says the one command above.
+
+`keg assistant keys` is a view of those entries: which is set, the
+provider it serves, and when the gateway last used it. `keg vault ls`
+lists them too. A key is replaced by running setup again (or `keg vault
+set keg/model/openai`) and removed with `keg vault rm keg/model/openai`.
+Nothing but Keg's own gateway may be granted an entry under `keg/`.
+
+A node upgraded from 0.12 carries the keys it had into the vault at its
+first start, with nothing typed again.
+
+The provider is OpenAI (its Responses API); `ANTHROPIC_API_KEY` is kept
+for a later version.
 
 ## Pieces of work reach their model through the gateway
 
@@ -89,15 +105,16 @@ keg assistant limits work:12 --usd-per-day 5     # one work's allowance; default
   (`work:<N>`), the model and the counts, as for every caller. What the
   agent said and did is kept in the round's transcript, as before, with
   the token hidden.
-- **Installed, and stopped or without its key.** Once the gateway
-  (`models`) is installed, a round never falls back to a `.env`: with the
-  provider's key not set it fails with "… the key for openai is not set …
+- **Installed, and stopped or without its key.** A round never reads a
+  `.env`: with the provider's key not set it fails with "… the key for openai is not set …
   `keg assistant setup --env-file <path to a .env>`", and with the gateway
   not running with "Keg's model gateway is set up and not running … `keg
   system start models`".
-- **No gateway.** On a node where the gateway was never installed, the
-  runner gives the agent the provider's key from the project's `.env`, as
-  before, and the round says so.
+- **No gateway.** On a node with no model key at all the round is
+  refused before anything runs: "This node has no model key … `keg
+  assistant setup --env-file <path to a .env>`; the project's own .env is
+  never read." (Before the vault, the runner read the key from the
+  project's `.env`; that is gone.)
 
 The gateway is the one thing on the node that holds a model's key and
 reaches a provider. It runs walled, with the public internet only. The

@@ -140,3 +140,23 @@ Building a service from its folder on the node is **off** until a person turns i
 - [Events protocol](PROTOCOL.md): what a Keg service may rely on.
 - [Changelog](CHANGELOG.md): what changed in each release, and how to upgrade.
 - [Release notes for 0.10.0](releases/notes-0.10.0.md).
+
+## A Kubernetes cluster
+
+Keg can run one node of Kubernetes (k3s) beside your containers:
+
+```sh
+keg k8s start
+export KUBECONFIG=~/.keg/k8s/kubeconfig.yaml
+kubectl create namespace keg-guide
+kubectl -n keg-guide create deployment web --image=nginx:1.27-alpine --port=80
+kubectl -n keg-guide expose deployment web --port=80
+kubectl -n keg-guide port-forward service/web 8080:80
+```
+
+Open <http://localhost:8080>. `keg k8s start` prints what to do next, and
+`keg k8s info` prints how to connect at any time. With no kubectl on your
+computer, `keg k8s kubectl ...` runs it in the cluster (all but
+`port-forward`). An image you built with `keg build` goes into the cluster
+with `keg k8s load IMAGE`. `keg k8s stop` keeps everything in it;
+`keg k8s delete` removes it. [KUBERNETES.md](KUBERNETES.md) has the rest.

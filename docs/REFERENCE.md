@@ -102,14 +102,18 @@ keg share stop web
 **Kubernetes.** One node of k3s, in a privileged container, with the cluster's state in a volume:
 
 ```sh
-keg k8s start                       # ready in seconds once the image is here; writes ~/.keg/k8s/kubeconfig.yaml
+keg k8s start                       # ready in seconds once the image is here; prints what to do next
+keg k8s info                        # how to connect, at any time (--json for tools)
 export KUBECONFIG=~/.keg/k8s/kubeconfig.yaml
 kubectl get nodes                   # or, with no kubectl: keg k8s kubectl get nodes
+kubectl port-forward service/web 8080:80      # a Service, at http://localhost:8080
+keg k8s load app:1                  # an image Keg has, into the cluster's own store
 keg k8s stop                        # what is in it is kept
+keg k8s start --publish 8088        # from stopped: a LoadBalancer Service on 8088 at localhost:8088
 keg k8s delete                      # the cluster and everything in it
 ```
 
-The API answers at `https://127.0.0.1:6443`. There is no ingress in it (ports 80 and 443 are for names here), and a Service is reached from the Mac with `kubectl port-forward`. `keg run --privileged` is what it rests on: a container with every capability and cgroups of its own, which only a person can ask for, and which can do to the node what root can.
+The kubeconfig's context, cluster and user are all `keg`, so it sits beside other clusters (`KUBECONFIG=~/.kube/config:~/.keg/k8s/kubeconfig.yaml`, then `--context keg`); it is cluster-admin, written for you alone. The API is published on the node's loopback, on 6443 or, where something here already has that port, the next free one, which the kubeconfig and `keg k8s info` name. `keg k8s kubectl` runs kubectl in the cluster's container: at a terminal it is connected to it (`exec -it`, `logs -f`), a manifest on this computer is sent (`-f app.yaml`, or `-f -`), and `port-forward` is refused, since it would listen where nothing here reaches it. There is no ingress (ports 80 and 443 are for names here) and NodePorts are not published, so a Service is reached with `kubectl port-forward`, or with `--publish`. An image built or pulled by Keg is not in the cluster until `keg k8s load` puts it there; one tagged `latest` needs `imagePullPolicy: IfNotPresent`. `keg run --privileged` is what it rests on: a container with every capability and cgroups of its own, which only a person can ask for, and which can do to the node what root can; every `keg k8s` command is a person's. [KUBERNETES.md](KUBERNETES.md) is the full guide: connecting, running something, reaching it, images, storage, security and what is not there.
 
 **Coming from Docker Desktop, OrbStack or Colima.** `keg migrate --from <docker context>` brings that engine's images and named volumes over, by asking it for them with the `docker` command (`--dry-run` says what would come; names after it bring only those). Nothing there is changed, and containers are not brought: start them again here from their Compose file.
 

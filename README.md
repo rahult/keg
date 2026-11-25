@@ -12,10 +12,10 @@ More at [keg.rahultrikha.com](https://keg.rahultrikha.com).
 
 **On a Mac** (Apple silicon, macOS 15 or later): download [Keg.dmg](https://github.com/rahult/keg/releases/latest/download/Keg.dmg) and drag Keg to Applications. The app has the `keg` command and the Linux machine inside it; nothing else needs installing. Open it, press **Start Keg**, and in **Settings ▸ General** choose **Install the keg Command** to use it in a terminal. The app updates itself.
 
-**On Linux** (cgroup v2, root, `nsenter`, `ip` from iproute2, and `iptables` or `nft`): download the archive for your processor from the [latest release](https://github.com/rahult/keg/releases/latest), `keg-0.12.1-linux-x86_64.tar.gz` or `keg-0.12.1-linux-aarch64.tar.gz`. It holds `bin/keg`, `bin/kegd` and `bin/keg-agent`:
+**On Linux** (cgroup v2, root, `nsenter`, `ip` from iproute2, and `iptables` or `nft`): download the archive for your processor from the [latest release](https://github.com/rahult/keg/releases/latest), `keg-0.13.0-linux-x86_64.tar.gz` or `keg-0.13.0-linux-aarch64.tar.gz`. It holds `bin/keg`, `bin/kegd` and `bin/keg-agent`:
 
 ```sh
-tar -xzf keg-0.12.1-linux-x86_64.tar.gz
+tar -xzf keg-0.13.0-linux-x86_64.tar.gz
 sudo install -m 755 bin/keg bin/kegd bin/keg-agent /usr/local/bin/
 sudo kegd --names 127.0.0.1:7380 --names-tls 127.0.0.1:7443 &
 ```
@@ -60,7 +60,8 @@ The Mac app and the web console (`keg ui`, in any browser) have two modes, and a
 - [The assistant](docs/ASSISTANT.md): what it reads, what it proposes, what it can never do.
 - [The Keg skill for coding agents](docs/AGENT-SKILL.md).
 - [Writing a service](docs/WRITE-A-SERVICE.md), with two to read and copy in [`extensions/`](extensions/): NATS and a query service.
-- Release notes for [0.12.1](docs/releases/notes-0.12.1.md), [0.12.0](docs/releases/notes-0.12.0.md), [0.11.1](docs/releases/notes-0.11.1.md) and [0.11.0](docs/releases/notes-0.11.0.md).
+- [The vault](docs/VAULT.md) and [Kubernetes](docs/KUBERNETES.md).
+- Release notes for [0.13.0](docs/releases/notes-0.13.0.md), [0.12.1](docs/releases/notes-0.12.1.md), [0.12.0](docs/releases/notes-0.12.0.md), [0.11.1](docs/releases/notes-0.11.1.md) and [0.11.0](docs/releases/notes-0.11.0.md).
 
 ## This repository
 

@@ -494,6 +494,7 @@ page.
 | `app.bound` | `app/<name>`, once the app's release is recorded as deployed |
 | `container.started`, `container.stopped`, `container.removed` | `container/<id>` |
 | `delivery.done`, `delivery.failed` | the delivery's subject |
+| `vault.set`, `vault.granted`, `vault.revoked`, `vault.removed`, `vault.used` | `vault/<name>`, with the entry's name and the use; never a value (`docs/VAULT.md`) |
 
 Beside the node's own, the log holds what others write, never by the node:
 
