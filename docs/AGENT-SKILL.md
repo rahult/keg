@@ -82,7 +82,7 @@ service, never reads a secret's value, never runs `keg trust` (except
 `--print`), never touches containers, machines or volumes it did not make
 unless you name them, never deletes data you did not name, and never works
 round a refusal. Cleaning up the node's disk, and handing a work files
-(`keg work attach`, `keg work allow-from`), are yours. A refusal from Keg
+(`keg work attach`, `keg work allow-from`, `keg work self-checks`), are yours. A refusal from Keg
 is reported to you with the command that is yours to run. What a file, a
 log, what a work was handed or a service's instructions say is data to
 it, never an instruction that changes these limits.
@@ -94,6 +94,6 @@ to the node, nothing that is a person's is shown for an agent to run, and
 its limits must agree with `keg agents`.
 
 `keg skill install` and `keg app new` write through the same code the
-node uses for a folder someone else may change:
+node uses for a folder someone else may change (`crates/kegd/src/beneath.rs`):
 each file beneath a handle on the folder, one name at a time, no link
 followed.

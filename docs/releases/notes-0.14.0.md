@@ -1,0 +1,36 @@
+Keg 0.14.0 lets an app's agent ask its people before it acts, wait for days and replay what it did; lets a chat app such as ChatGPT, Claude or Grok build in a walled workspace on your own server; and lets a piece of work run its project's checks before the gate does. Read "Upgrading from 0.13.0" before you upgrade.
+
+## New
+
+- **An agent in an app asks its own people, and a tool that changes things runs only on a person's approval.** `thread.ask` asks one exact call of a tool to be approved, one of a few things to be chosen, or a question to be answered, of the people the app names. A tool declared `changes => true` runs once, as the person who approved that very call; an edit is a new call and a new ask. Every argument is shown beside the sentence the person approves, and characters that hide or turn text are written out.
+- **An agent waits, for minutes or days, and is woken once.** `thread.sleepUntil`, `thread.waitFor` (a time, an event, a message or an answer) and `thread.listen`; an agent can start a child agent with a budget carved from its own and be woken with its result. A thread refused for the day's allowance sleeps until it resets. `keg app threads wake` wakes one; `keg app threads` marks one that has nothing left to wake it.
+- **A thread is replayed, dry.** `keg app threads replay APP ID --instructions-file F` forks a thread at an event and runs it again with a changed prompt or model, writing nothing and telling no one; `compare` shows then beside now. Replays are for the roles an agent names, counted as evaluations, and bounded per organisation.
+- **Each organisation of an app is counted, and held to a ceiling when you set one.** `keg assistant limits app:APP/ENV --per-organization-usd-per-day N`. The model's door checks a signed claim of which thread and organisation a call is for, so an app cannot spend as another of its organisations.
+- **Cached input is charged at the cached price.** A coding agent's round now costs about a fifth of what it did. Prices are shipped for the catalogue's models and reach a node upgraded from 0.13.0.
+- **A piece of work runs its project's checks itself.** In its round, `keg-check NAME` asks the node to run one of the project's checks exactly as the gate would, on a snapshot the node takes, against a throwaway database. It never counts as evidence: the gate still runs every check. In our own trial a work that took sixteen rounds before took one. `keg work self-checks` sets its bounds.
+- **Workspaces, and a door for chat apps.** On a Linux server with a public name, `keg access name`, `keg access door` and `keg access open` let you add your node to the ChatGPT, Claude or Grok apps (or Claude Code) as a custom connector. An app is let in only when you type, on the server, the six-digit code it shows (`keg access approve CODE`); it then gets walled workspaces of its own, which reach the public internet and nothing of your server's, and can make one, write files and run commands. `keg access ls`, `revoke` and `rename`; the console's Access and Workspaces pages. **The door is shut until you name it and open it**; see [WORKSPACES.md](../WORKSPACES.md).
+- **`docker load`, `docker save` and `docker import`** work once `docker` talks to Keg.
+- **`keg version`** says this program's build, the node's, and whether they match.
+- `keg work approve N`, `keg work reject N`, `keg work evidence N`, `keg work attach --replace` and `keg work send-back --note-file`.
+
+## Fixed
+
+- **A tar made on a Mac is imported, loaded and pulled.** A layer whose files carried an attribute Linux has no place for (every file on a current Mac does) failed to unpack. **Security:** a layer can no longer write attributes that are Keg's own to write.
+- **`docker rm -f` of a container that keeps restarting is no longer refused now and then.**
+- **Security: the connector door, before it faces the internet.** From an outside review before release: each sign-in keeps a waiting page of its own, so another page cannot swap the code you are shown; there is room for new callers however many others ask, counted by network; a connector already let in renews its token whatever else arrives; and a stranger cannot tell whether the door is open. Apps sign in by registering with the door: Keg fetches nothing a stranger names (`keg access door --client-documents on` turns client-id documents on, if an app ever needs them).
+- A replay evaluates again; a child's result reaches its parent as written; a ceiling no call fits under is refused when it is set; amounts set side by side are never printed alike when they differ.
+
+## Known in this release
+
+- Previews of what a workspace serves, git tools in a workspace, the SSH door and `keg setup server` are not in this release (0.15.0).
+- Claude Code is documented to register with a door that offers no client documents, as Claude and ChatGPT do, but this has not been tried; if its sign-in is refused, add Keg in it again.
+- OpenAI's help centre gives custom connectors' write tools only to Business and Enterprise plans: on another ChatGPT plan, check whether "Add custom MCP server" allows write actions before relying on it.
+- The Mac app has no Access or Workspaces page yet, and some of its new sentences are shown in English in every language.
+
+## Upgrading from 0.13.0
+
+- `keg update`, then restart the node (`sudo systemctl restart kegd`). On a Mac the app updates itself; then Stop Keg and Start Keg.
+- Each app's database that uses agents is given capability files 016 to 022 at its next deploy. Run `keg app client` in an app that uses `@keg/app` to bring its client up to date: an agent's calls to the model that carry no claim are refused where a per-organisation ceiling is set.
+- The connector door stays shut on an upgraded node: nothing is opened to the internet until you run `keg access name` and `keg access open`.
+
+See [keg.rahultrikha.com](https://keg.rahultrikha.com) for more.

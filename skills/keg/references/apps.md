@@ -51,7 +51,10 @@ app's role and is held to what its users may see) and `PORT`.
   is deployed. Tables are made in the schema `app` (`notes` is `app.notes`).
 - **Never edit a migration that has run.** Keg refuses the release
   (`migration 001_init.sql was changed after it was applied; add a new
-  migration instead`). Add `002_...sql`.
+  migration instead`). Add `002_...sql`. In a piece of work this holds
+  from the first time the work reaches its gate: Keg tries the work by
+  deploying it, which runs the migrations it added. Sent back, the work
+  adds a new migration; it never edits one it committed before.
 - A table becomes a tenant table in the same migration that creates it.
 
 ## Tenant tables: the rules that cost rounds
@@ -130,6 +133,24 @@ In a `tx`, `db`:
 - `await db.events({ type, about, limit, before })`: the events this actor
   may read, newest first, and those of one transaction in the order emitted.
 - `await db.enqueue(name, payload, { runAt, asUser })`, `await db.once(key)`.
+
+## What of Keg's an app reads
+
+Keg's own tables are not the app's to read. These views are, each for
+the member who acts (and empty for anyone else), with these columns and
+no others: `SELECT` them by name, and join your tables to them by these.
+There is no `organization_id` on `keg.members`: it lists the members of
+the organization that acts, which `keg.actor_organization()` names.
+
+  `keg.me`: `user_id`, `name`, `email`, `organization_id`, `role`
+  `keg.members`: `user_id`, `name`, `email`, `role`
+  `keg.my_events`: `id`, `type`, `payload`, `at`, `actor`, `about`
+  `keg.my_jobs`: `id`, `name`, `state`, `attempts`, `last_error`, `run_at`
+
+An app that uses agents reads more, listed with their columns in
+`agents.md`. A row-security policy asks who acts with `keg.actor_user()`,
+`keg.actor_organization()` and `keg.actor_role()`, never by reading a
+view of Keg's.
 
 ## Events, jobs, realtime
 
@@ -234,9 +255,28 @@ is given `KEG_SERVICE_<NAME>_URL`, `KEG_SERVICE_<NAME>_TOKEN` and
 to use the service is in `/keg/services/<name>/README.md` in a piece of
 work; read it there rather than guess its API.
 
-You cannot run a `db: true` check yourself: it runs in a piece of work's
-test stage, or a person runs the tests against a deployed app. Before you
-propose the app, try everything else in a machine for its folder:
+In a piece of work, run the check itself before you say you are done:
+
+```sh
+sh /keg/bin/keg-check          # the checks keg.yaml lists
+sh /keg/bin/keg-check e2e      # runs one; exits as it ended
+```
+
+Keg runs it as its gate will: on your tree as it is now (what you have
+not committed among it, what `.gitignore` leaves out left out), against a
+new database made from your migrations, with its services and its
+scripted model if it names them. It prints the end of what the check
+printed, and for a failed check with agents the threads it left. It
+judges nothing: the gate runs every check again on what you commit. A
+round may run a number of them (20 unless a person changed it), one at a
+time; a check that asks for `model: real` is the gate's alone. A check
+you changed is run as you have it, and you are told the gate's rule for
+it: the gate judges by the project's own check unless you only gave it
+more.
+
+Outside a piece of work you cannot run a `db: true` check yourself: a
+person runs the tests against a deployed app. Before you propose the app,
+try everything else in a machine for its folder:
 
 ```sh
 keg machine create notes --image node:22

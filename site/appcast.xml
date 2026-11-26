@@ -3,51 +3,52 @@
     <channel>
         <title>Keg</title>
         <item>
-            <title>0.13.0</title>
-            <pubDate>Wed, 25 Nov 2026 07:00:43 +0000</pubDate>
+            <title>0.14.0</title>
+            <pubDate>Thu, 26 Nov 2026 09:05:47 +0000</pubDate>
             <link>https://keg.rahultrikha.com/</link>
             <sparkle:fullReleaseNotesLink>https://github.com/rahult/keg/releases</sparkle:fullReleaseNotesLink>
-            <sparkle:version>30</sparkle:version>
-            <sparkle:shortVersionString>0.13.0</sparkle:shortVersionString>
+            <sparkle:version>31</sparkle:version>
+            <sparkle:shortVersionString>0.14.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[Keg 0.13.0 adds a vault for passwords and keys, lets an app run an agent of its own on Keg, says how to use the Kubernetes cluster once it runs, and makes container starts steady under load. Read "Upgrading from 0.12.1" before you upgrade.
+            <description sparkle:format="markdown"><![CDATA[Keg 0.14.0 lets an app's agent ask its people before it acts, wait for days and replay what it did; lets a chat app such as ChatGPT, Claude or Grok build in a walled workspace on your own server; and lets a piece of work run its project's checks before the gate does. Read "Upgrading from 0.13.0" before you upgrade.
 
 ## New
 
-- **A vault: one entry for each password or key, given only where you grant it.** `keg vault set NAME` reads a value from the terminal, never from an argument, and seals it with the node's key. `keg vault grant NAME --service S --env E` gives it to one service in one environment, and nothing else is handed it. The console has a Vault page; no value is ever sent to it. `keg secret set` still works and now writes the vault.
-- **One flow gives any node its model key, kept in the vault.** `keg assistant setup --env-file <path to a .env>` reads the key from that file once; after that the file is never read again. The assistant, a piece of work's coding agent and an app's agent all draw on that one entry through Keg's model gateway, and none of them holds a key. **A piece of work no longer reads its project's `.env`.**
-- **An app can run an agent of its own.** `uses: [model]` gives an app a door to the model with no key in the app: it sends its own prompt and gets back text and tool calls as data, with spend held to the app's daily ceiling. `uses: [agents]` gives it threads in its own database: each run of an agent is an append-only list of events under the app's row security, a step happens once however many workers race for it, and a tool's change and its record commit together. `@keg/app` has `keg.agent`, `keg.model` and `keg.tools`; a check can be given a scripted model (`model: fake`) so an agent's tests run at the gate without spending; `keg app threads` shows them to the node's person. Keg writes no prompt and runs no loop: the app owns both.
-- **Kubernetes says what to do once it is set up.** `keg k8s start` ends with next steps; `keg k8s info` prints how to connect at any time; `keg k8s load IMAGE` brings an image Keg has into the cluster; `keg k8s start --publish PORT` makes a port of the cluster reachable from this computer. The console's and the Mac app's Kubernetes pages have a Connect box, and there is a guide, [KUBERNETES.md](../KUBERNETES.md).
-- **`keg docker restore`** puts `docker` back to what it talked to before `keg docker use`, and the Mac app has a button for it.
+- **An agent in an app asks its own people, and a tool that changes things runs only on a person's approval.** `thread.ask` asks one exact call of a tool to be approved, one of a few things to be chosen, or a question to be answered, of the people the app names. A tool declared `changes => true` runs once, as the person who approved that very call; an edit is a new call and a new ask. Every argument is shown beside the sentence the person approves, and characters that hide or turn text are written out.
+- **An agent waits, for minutes or days, and is woken once.** `thread.sleepUntil`, `thread.waitFor` (a time, an event, a message or an answer) and `thread.listen`; an agent can start a child agent with a budget carved from its own and be woken with its result. A thread refused for the day's allowance sleeps until it resets. `keg app threads wake` wakes one; `keg app threads` marks one that has nothing left to wake it.
+- **A thread is replayed, dry.** `keg app threads replay APP ID --instructions-file F` forks a thread at an event and runs it again with a changed prompt or model, writing nothing and telling no one; `compare` shows then beside now. Replays are for the roles an agent names, counted as evaluations, and bounded per organisation.
+- **Each organisation of an app is counted, and held to a ceiling when you set one.** `keg assistant limits app:APP/ENV --per-organization-usd-per-day N`. The model's door checks a signed claim of which thread and organisation a call is for, so an app cannot spend as another of its organisations.
+- **Cached input is charged at the cached price.** A coding agent's round now costs about a fifth of what it did. Prices are shipped for the catalogue's models and reach a node upgraded from 0.13.0.
+- **A piece of work runs its project's checks itself.** In its round, `keg-check NAME` asks the node to run one of the project's checks exactly as the gate would, on a snapshot the node takes, against a throwaway database. It never counts as evidence: the gate still runs every check. In our own trial a work that took sixteen rounds before took one. `keg work self-checks` sets its bounds.
+- **Workspaces, and a door for chat apps.** On a Linux server with a public name, `keg access name`, `keg access door` and `keg access open` let you add your node to the ChatGPT, Claude or Grok apps (or Claude Code) as a custom connector. An app is let in only when you type, on the server, the six-digit code it shows (`keg access approve CODE`); it then gets walled workspaces of its own, which reach the public internet and nothing of your server's, and can make one, write files and run commands. `keg access ls`, `revoke` and `rename`; the console's Access and Workspaces pages. **The door is shut until you name it and open it**; see [WORKSPACES.md](../WORKSPACES.md).
+- **`docker load`, `docker save` and `docker import`** work once `docker` talks to Keg.
+- **`keg version`** says this program's build, the node's, and whether they match.
+- `keg work approve N`, `keg work reject N`, `keg work evidence N`, `keg work attach --replace` and `keg work send-back --note-file`.
 
 ## Fixed
 
-- **Container starts are steady under load.** A start after many containers were removed at once waited up to a second behind the kernel clearing their network links; a start could return before its port passed traffic; and a start could wait on the node's database copying its log. With a hundred containers running, no start in 2,400 took over 100 ms (the worst 62 ms), where the worst had been over a second. The node's database log, which could grow without bound under constant writes, stays under 70 MB, and the kernel's table of neighbours no longer fills after about 900 containers started in quick succession.
-- **Importing from another Docker engine works the same once `docker` talks to Keg.** The import finds each engine by where its socket really leads, says when one is not running and how to start it, and the Mac app lists running engines first. It used to offer a stopped Docker Desktop first and fail without saying why.
-- **Kubernetes.** The settings written for `kubectl` name the port that really leads to this cluster, where another program already had 6443. **Security: the cluster's API is published on the node's loopback only**; on a Linux server it had been reachable on every address of the node. A first start no longer fails at random; `keg save` of an image Keg built is accepted by other tools; `keg k8s kubectl` works at a terminal and with a manifest piped in.
-- **Security: an app can no longer write an event of Keg's.** `keg.emit` refuses a type that begins `keg.`.
-- **Security: a release that no person approved is handed a vault entry only by a person's exact grant.** A piece of work's build deployed to `local` is not given a key granted for another environment.
+- **A tar made on a Mac is imported, loaded and pulled.** A layer whose files carried an attribute Linux has no place for (every file on a current Mac does) failed to unpack. **Security:** a layer can no longer write attributes that are Keg's own to write.
+- **`docker rm -f` of a container that keeps restarting is no longer refused now and then.**
+- **Security: the connector door, before it faces the internet.** From an outside review before release: each sign-in keeps a waiting page of its own, so another page cannot swap the code you are shown; there is room for new callers however many others ask, counted by network; a connector already let in renews its token whatever else arrives; and a stranger cannot tell whether the door is open. Apps sign in by registering with the door: Keg fetches nothing a stranger names (`keg access door --client-documents on` turns client-id documents on, if an app ever needs them).
+- A replay evaluates again; a child's result reaches its parent as written; a ceiling no call fits under is refused when it is set; amounts set side by side are never printed alike when they differ.
 
 ## Known in this release
 
-- Eleven new sentences in the Mac app are shown in English in every language.
-- The vault's uses for a container run by hand, a Compose file, a build and a registry login are not built yet; nor are the agent's ask of a person and replaying a thread.
-- A node keeps the address it may open for a local model server only in memory. (Choosing your own model provider and address is not in this release.)
+- Previews of what a workspace serves, git tools in a workspace, the SSH door and `keg setup server` are not in this release (0.15.0).
+- Claude Code is documented to register with a door that offers no client documents, as Claude and ChatGPT do, but this has not been tried; if its sign-in is refused, add Keg in it again.
+- OpenAI's help centre gives custom connectors' write tools only to Business and Enterprise plans: on another ChatGPT plan, check whether "Add custom MCP server" allows write actions before relying on it.
+- The Mac app has no Access or Workspaces page yet, and some of its new sentences are shown in English in every language.
 
-## Upgrading from 0.12.1
+## Upgrading from 0.13.0
 
 - `keg update`, then restart the node (`sudo systemctl restart kegd`). On a Mac the app updates itself; then Stop Keg and Start Keg.
-- **Every secret already set moves into the vault by itself** at the node's first start, with the grant it had; nothing is typed again. If a value cannot be read back, nothing is moved and the node says so and does not start: nothing is lost, and going back to 0.12.1 then works. Once the vault has been written to, going back to 0.12.1 is not supported.
-- **A piece of work on a node with no model key set up is refused**, saying to run `keg assistant setup --env-file <path>`: it no longer reads a key from the project's `.env`.
-- **A vault grant names one environment.** `keg vault grant` without `--env` is refused.
-- **On a Linux server, the Kubernetes API is no longer reachable from other machines.** Reach it through SSH (`ssh -L 6443:127.0.0.1:6443 …`).
-- Each app's database is given two new capability files at its next deploy. An app that emitted an event type beginning `keg.` must rename it.
-- Upgrade every node before using `uses: [model]` or `uses: [agents]` in a `keg.yaml`: an older node refuses them.
+- Each app's database that uses agents is given capability files 016 to 022 at its next deploy. Run `keg app client` in an app that uses `@keg/app` to bring its client up to date: an agent's calls to the model that carry no claim are refused where a per-organisation ceiling is set.
+- The connector door stays shut on an upgraded node: nothing is opened to the internet until you run `keg access name` and `keg access open`.
 
 See [keg.rahultrikha.com](https://keg.rahultrikha.com) for more.
 ]]></description>
-            <enclosure url="https://github.com/rahult/keg/releases/download/v0.13.0/Keg-0.13.0.zip" length="39546463" type="application/octet-stream" sparkle:edSignature="0ml2FrYdp/fToo6EPr0/aAJHwwEY4oRVxseu4KAy4/GtZsS7huf0lwk4Zm/Bkv1bfPiq4TYaNSIze4ShTDT1Dg=="/>
+            <enclosure url="https://github.com/rahult/keg/releases/download/v0.14.0/Keg-0.14.0.zip" length="40362973" type="application/octet-stream" sparkle:edSignature="xVHpa0PPBg1wJ7kDxHuYS40Jl+rL1quqNb5uzBUOclKAvc4lv8xdh458omrhzYOT7BpqPGq1SWwdOahvVOCsCg=="/>
         </item>
     </channel>
 </rss>

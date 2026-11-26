@@ -1,7 +1,7 @@
 # Keg's events: one protocol, two stores
 
 Keg keeps events in two places: in each app's own database (the app layer,
-`keg.*` in Postgres)
+`keg.*` in Postgres, `crates/kegd/src/capabilities/003_events_jobs.sql`)
 and on the node (`keg.db`, for Keg's own services and the workflow).
 
 The two share a shape, not every word. What is the same in both:
@@ -533,7 +533,19 @@ reads, and counts as the node's.
   `@keg/app` (`GET /v1/app-client`) and Go client (`GET /v1/app-client/go`)
   are a person's: an agent and a service
   are refused them. A work's agent reads what it was handed, read only, at
-  `/keg` in its machine.
+  `/keg` in its machine. What a round may run of its project's checks
+  itself (`GET` and `POST /v1/work-self-checks`) is a person's to set.
+- **A work's own run of a check** is asked for at the round's door, the
+  socket at `/keg/model/door.sock` in the work's machine, with the round's
+  token as a Bearer token: `GET /keg/checks` lists the checks the work's
+  `keg.yaml` has, and `POST /keg/check`, its body the check's name as
+  plain text and nothing else, runs one. The answer is plain text, with
+  `Keg-Exit` the code `keg-check` ends with. The node takes its own
+  snapshot of the work's tree, into a store that is removed when the run
+  ends and never into the project's repository, and reads the check from
+  it; the run is the
+  gate's own, waits at most 30 s for a database, gives way to the gate's
+  checks, and judges nothing. It reaches nothing of the node's API.
 - `GET /v1/work/<id>/base-tests` (`work:read`, as its evidence): what the
   branch the work merges into was last checked with, `{base, work, tests:
   [{check, passed, failed}]}`, the checks service's last count of each
@@ -605,6 +617,26 @@ they stay as the app writes them, and these differences remain:
 - A person retries a failed delivery on the node with `keg events retry`
   (and fails a waiting one sooner with `keg events skip`), and a failed job of an app with `keg app jobs retry`; only the node has
   keeping and withdrawing.
+
+## An app's threads, for a person
+
+The threads of an app's agents, of every organization, are a person's to
+read, start, stop and wake; an agent, a service and the assistant are
+refused each route.
+
+- `GET /v1/apps/<app>/threads?env=&state=&agent=&before=` lists them,
+  newest first, at most 100 an environment. `stranded: true` marks one
+  that is `ready` with nothing to wake it (its step ended without a next,
+  a wait or an end).
+- `GET /v1/apps/<app>/threads/<id>?env=&after=&wait=` is one thread, its
+  events and its model calls' requests, every secret the node holds hidden.
+- `POST /v1/apps/<app>/threads?env=` starts one; `.../<id>/stop` stops it
+  and its children.
+- `POST /v1/apps/<app>/threads/<id>/wake?env=` wakes one that has not
+  ended: `{id, was}`. One that waits is woken whatever it waits for, and
+  its next step reads `wake {why: "person"}`. An app deployed before
+  threads could wait is told to be deployed again (400); an ended thread
+  is `wrong_state`.
 
 ## An app's jobs, for a person
 
@@ -809,3 +841,32 @@ takes a session only as `Authorization: Bearer`. An app that keeps a
 session in a cookie should not count on its name being its own when two
 nodes run on one computer.
 
+## The app door's claim (`Keg-Claim`)
+
+`POST {KEG_DOOR_URL}/v1/model/calls` takes an optional `Keg-Claim` header:
+`v1.<thread>.<organization>.<0|1>.<expires>.<mac>`, as
+`keg.thread_door_claim(thread, token)` returns it to the worker that holds
+the thread (capability 021). `<0|1>` is whether the thread is a dry run,
+`<expires>` seconds since 1970 (five minutes from when it was made), and
+`<mac>` the HMAC-SHA256, in hex, of `keg-door-claim|<database>|` followed
+by everything before the last dot, under a key the node puts in the app's
+database (`keg.door_key`, readable by `<db>_keg` alone). The key is made
+anew at each deploy; the door takes a claim signed with the key before it
+for six minutes after, which is as long as such a claim can still be
+good, so a step under way across a deploy is not refused. The node gives
+the key to `psql` in the Postgres container as a setting of the
+connection, in that process's environment, as it gives the role's
+password: Keg's driver runs a command with arguments and an environment
+and no input.
+
+The door refuses with 403 `forbidden` a claim that is not of that shape,
+whose MAC does not check for that app and environment's database, whose
+time has passed or is more than six minutes off, or that is for another
+thread or organization than the call's `Keg-Thread` or `Keg-Organization`
+names. A call with a claim is counted for the claim's organization and
+held to its ceiling where one is set; a dry run's is counted as an
+evaluation. A call with no claim is counted under no organization:
+`Keg-Organization` alone is never counted.
+
+The `done` line's `usage` may carry `cached_input_tokens`: how many of
+`input_tokens` the provider read from its cache.

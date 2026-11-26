@@ -142,6 +142,74 @@ keg assistant limits service:assistant --resume        # after a call cost more 
 keg assistant usage [--day YYYY-MM-DD] [--json]       # what each caller spent and has held
 ```
 
+### Input the provider read from its cache
+
+A call is HELD, before it is sent, at the model's full input price: that
+is an upper bound and stays one. It is SETTLED at what the provider
+counted, and the input tokens the provider says it read from its cache
+are counted at the model's cached price, when it has one:
+
+```sh
+keg assistant model                                               # each model and its prices
+keg assistant model openai/gpt-5.6-luna --cached-input-usd-per-mtok 0.02
+```
+
+A cached price is above nothing and at most the input price. A model
+with none counts cached input at the input price, as before. The models
+Keg ships with have OpenAI's published cached prices (standard tier,
+short context, 2026-11-25): gpt-5.6-luna $0.02, gpt-6-luna $0.01,
+gpt-5.6-terra $0.20, gpt-5.6-sol $0.40 a million tokens. A provider that
+says it read more from its cache than it was sent is believed for the
+input and no more. `keg assistant usage` says how many input tokens were
+read from the cache.
+
+A node that kept its own table of models before cached prices were known
+(one upgraded from 0.13.0, where a person had set a model) has the
+shipped cached price for each model whose prices in and out are still
+the shipped ones. A model a person priced otherwise is left as it is, and
+`keg assistant model` says so under the list, with the command that sets
+its cached price. A cached price a person set is never replaced; to be
+charged in full for cached input, set it to the input price.
+
+Not counted: a provider's prices for a context past 272K input tokens,
+and for writing to a cache it keeps 30 minutes or 12 hours.
+
+### Each organization of an app
+
+A call an app's agent makes as a step of a thread carries a claim, signed
+by Keg's SQL in the app's database with a key the node put there for
+Keg's role alone, of which thread and organization it is for. The node
+checks it (403 if it is forged, stale, or contradicted by the call's own
+headers) and counts the call under that organization, always: `keg
+assistant usage` lists each organization under its app. An organization
+the app only names, with no claim, is counted under none.
+
+```sh
+keg assistant limits app:desk/local --per-organization-usd-per-day 1
+```
+
+holds EACH organization of that app's environment to that much a day. A
+call past it is refused (429 `over_limit`) in words the app can show that
+organization's administrator, which name no command of the node's; the
+app's other organizations are answered. `keg assistant limits` lists the
+ceiling beside the app's own, and `keg assistant usage` shows each
+organization's spend against it.
+
+A call is held, before it is sent, for the most it may cost, and the hold
+counts toward the ceiling. So a ceiling below what the least call is held
+for would refuse every organization: it is refused when set, saying the
+least that lets a call through. One above that and below what a call is
+held for when it does not say how much it may answer (4,000 tokens of
+output) is taken, and `keg assistant limits` says under it that such
+calls are refused.
+A call outside any thread (`keg.model()`) carries no claim and is for no
+organization: it is held to the app's ceiling alone, and `keg assistant
+usage` shows such calls on a line of their own under the app whenever a
+ceiling for organizations is set. A call that names a thread and carries
+no claim is refused (403) while such a ceiling is set: the app's copy of
+the client predates claims, and `keg app client` brings it up to date. What an app's
+dry replays of its threads spent is said as evaluations.
+
 Over a limit a call is refused (429 `over_limit`), saying which limit and
 when it resets. At most 16 calls run at once on a node, 4 kept for the
 assistant.
