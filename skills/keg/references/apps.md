@@ -118,12 +118,26 @@ With `@keg/app` (`import { connect } from "@keg/app"`; `connect()` reads
   an email that has signed up and a role (lowercase word, not `system`);
   `SELECT keg.set_role($1, $2)`. `keg.join(token, organization)` joins one
   that is open.
+- A member may hold more roles beside that one, their primary role
+  (experimental: `member-roles`, off until a person turns it on, and
+  refused in the node's words while it is off). An administrator grants
+  one with `await db.grantRole(userId, 'agent')` (`SELECT
+  keg.grant_role($1, $2)`) and takes it with `db.takeRole` (`SELECT
+  keg.take_role($1, $2)`); each returns the member's roles, the primary
+  first. The primary is changed with `keg.set_role`, never taken. Who an
+  event, a thread or an ask is for, who approves a tool, who replays and
+  who uploads an organisation's tools is asked of every role a member
+  holds: a supervisor granted `agent` reads what is for agents and still
+  answers what is for supervisors. An app that grants none behaves as
+  before. `keg app members <app>` lists who holds what.
 
 In a `tx`, `db`:
 
 - `await db.query(sql, params)` returns **the rows** (an array), not a pg
   result: no `.rows`.
-- `db.actor`: `{ user, organization, role }`.
+- `db.actor`: `{ user, organization, role }`, `role` the primary one;
+  `db.roles` is every role the actor holds, the primary first, and
+  `db.hasRole('agent')` asks it.
 - `await db.emit(type, payload, { to, about })`: `to` is `'organization'`,
   `{ roles: [...] }`, `{ users: [...] }`, or both in one
   (`{ roles: ['agent'], users: [customerId] }`: whoever is in either); left out, every member may
@@ -142,15 +156,18 @@ no others: `SELECT` them by name, and join your tables to them by these.
 There is no `organization_id` on `keg.members`: it lists the members of
 the organization that acts, which `keg.actor_organization()` names.
 
-  `keg.me`: `user_id`, `name`, `email`, `organization_id`, `role`
-  `keg.members`: `user_id`, `name`, `email`, `role`
+  `keg.me`: `user_id`, `name`, `email`, `organization_id`, `role`, `roles`
+  `keg.members`: `user_id`, `name`, `email`, `role`, `roles`
   `keg.my_events`: `id`, `type`, `payload`, `at`, `actor`, `about`
   `keg.my_jobs`: `id`, `name`, `state`, `attempts`, `last_error`, `run_at`
 
 An app that uses agents reads more, listed with their columns in
 `agents.md`. A row-security policy asks who acts with `keg.actor_user()`,
 `keg.actor_organization()` and `keg.actor_role()`, never by reading a
-view of Keg's.
+view of Keg's. `role` and `keg.actor_role()` are the primary role; `roles`
+is every role held, the primary first. A policy for a role asks
+`keg.actor_has_role('agent')`, which a member granted that role passes
+too; `keg.actor_role() = 'agent'` asks for the primary role alone.
 
 ## Events, jobs, realtime
 
@@ -274,9 +291,14 @@ you changed is run as you have it, and you are told the gate's rule for
 it: the gate judges by the project's own check unless you only gave it
 more.
 
-Outside a piece of work you cannot run a `db: true` check yourself: a
-person runs the tests against a deployed app. Before you propose the app,
-try everything else in a machine for its folder:
+Outside a piece of work you cannot run a `db: true` check yourself. The
+node's person can: `keg app check NAME` in the app's folder (the
+experimental feature `app-check`) runs it as the gate would, with a
+database and a fake model of its own, on a copy of the folder as it is
+(uncommitted changes in, `.git` and `node_modules` out), which it reads
+and never writes; a check with `services:` or `model: real` runs only in
+a piece of work. Ask them to, and say which check. Before you propose
+the app, try everything else in a machine for its folder:
 
 ```sh
 keg machine create notes --image node:22

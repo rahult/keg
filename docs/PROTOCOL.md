@@ -911,7 +911,16 @@ The `done` line's `usage` may carry `cached_input_tokens`: how many of
 At the node's own public name (`--public-domain`), on its TLS listener:
 `POST https://<name>/.keg/hooks/<tag>.<secret>`, where `tag` is 16
 lowercase hex (the node's HMAC of the app's database name, so it names
-no app to anyone) and `secret` is 48 lowercase hex. The node:
+no app to anyone) and `secret` is 48 lowercase hex.
+
+A node with no public name (a Mac's, say) takes the same deliveries on
+its own names, over plain HTTP: `POST http://hooks.keg.localhost/.keg/hooks/<token>`
+(on the names' port, which a Mac forwards to its own `localhost`), or at
+any name that is none of Keg's, as a tunnel pointed at
+`http://localhost:<names port>` sends. Never at an app's or a container's
+name, whose paths are theirs; never on a node that has a public name.
+Every sender there counts as one network, `127.0.0.1`'s. `keg app hooks`
+says where its node takes them. The node:
 
 Every count below is reserved when it is reached, under one lock: all
 of a step's counts go up at once, or none does, and a refused request
@@ -1017,8 +1026,19 @@ the sender is connected.
   The database writes it once (`keg.mail_receive`): an event
   `keg.mail.<word>` of the address's organization, for its
   administrators, `from_outside: true`, `sender: "unverified"` (no SPF or
-  DKIM is checked), with the envelope, eight headers, the text (at most
-  16 KiB, every control and direction character written out) and the
+  DKIM is checked) or, with the `mail-verdict` feature on, `sender` the
+  node's verdict: SPF of the connecting address for the envelope
+  sender's domain, each DKIM signature (the first five), DMARC of the
+  From's domain, and `from_verified` (capability 029; the agents guide
+  has its shape). Each DNS query waits 2 s at most and the whole verdict
+  10 s, within the conversation's time; a message makes at most 64
+  lookups; 30 verdicts a minute from one network and 600 in all; answers
+  are kept for their TTL, an hour at most. What runs out is `temperror`,
+  and the message is taken all the same. It is written with the envelope, eight headers (`from`, `to`, `cc`
+  as lists of `{name, address}`; `in_reply_to`, `references` as lists of
+  ids without `<>`; `subject`, `date`, `message_id` as text), the text (at
+  most 16 KiB, its CRLFs read as LF, every other control and direction
+  character written out) and the
   attachments listed; one of at most 4 MiB, and 8 MiB of a message's in all,
   is kept in `keg.mail_attachments`. A message is written once: the same
   bytes, received for the same address, are not written again while it

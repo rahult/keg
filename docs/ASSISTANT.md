@@ -185,7 +185,7 @@ keg assistant model add ollama/llama3.2 --free
 
 ## The gateway is part of the node
 
-Since 0.16.0 the node answers model calls itself: it holds each call
+Since 0.15.0 the node answers model calls itself: it holds each call
 against its caller's allowance, reads the key of the call's provider from
 the vault for that one call, reaches the provider at the one address a
 person gave it, and settles what the provider counted. A node that ran an

@@ -36,8 +36,11 @@ mail is experimental and off on this node: a person turns it on with `keg settin
 | `model-gateway` | Model providers of your own, OpenAI- and Anthropic-shaped endpoints at an app's and a work's door, and the model for a workspace | |
 | `vault` | The vault's uses for what you run by hand: `keg run --secret`, a Compose file's external secrets, a build's secrets, `keg login`, and `keg vault show`, `export`, `import`, `stale` and `restart` | |
 | `mail` | Mail in, to an app's addresses | |
+| `mail-verdict` | A verdict on each mailed message's sender (SPF, DKIM, DMARC), written with its event | `mail` |
 | `hooks` | Webhooks in, to an app | |
 | `org-tools` | An organisation's own tools, run walled for it | |
+| `member-roles` | A member of an app's organisation holds more than one role, as an administrator grants them | |
+| `app-check` | `keg app check`: a person runs a project's check, with a database and a fake model of its own, outside a piece of work | |
 
 Not experimental, and always on: the vault itself (entries, and grants to
 an app's or a work's service, since 0.13.0), Keg's own model gateway that

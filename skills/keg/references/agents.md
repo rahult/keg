@@ -60,6 +60,20 @@ SELECT keg.start_on('ticket.created', 'triage');   -- one thread per such event
   `max_errors_in_a_row` errors (a `tool.error`, or a `model.output` with
   an error), its next model call is refused; a `tool.result` resets the
   count. A failed model call is spent too, and on the thread.
+- **An agent may ask no model.** A follow-up timer, an intake that files
+  what came, a router: its steps are its tools and its waits. Declare it
+  with `max_usd => 0` (it spends nothing; a `model.call`, were one made,
+  fails the thread "The thread spent $0.00 of its budget of $0.00") and
+  `max_steps => 1` (a step is a model call: with none it is never
+  reached). Its real bounds are then `max_tool_calls` (a child it starts
+  counts as one) and `max_minutes`. Such a thread is begun by its event,
+  and started as a child, with nothing given it, even by a thread with
+  nothing left. But what it begins is given only what it has: a thread
+  with no budget starts no child that would spend, and an event its tool
+  emits begins no thread of an agent that would (no word is said; the
+  event is written). An intake with `max_usd => 0` that emits
+  `ticket.created` for an agent that asks a model begins nothing: give
+  it, as `max_usd`, what the threads it begins may spend in all.
 - A tool declared with `changes => true` runs only on a person's
   approval of that very call (same tool, same arguments), once, as that
   person: see "Asking people" below. Its `says` is what the person is
@@ -72,13 +86,30 @@ SELECT keg.start_on('ticket.created', 'triage');   -- one thread per such event
   `keg.start_on(type, agent, "to" => '{"roles": [...]}')`, by default its
   administrators; `'{"organization": true}'` keeps the event's audience as
   it is. `keg.start_off(type, agent)` stops it.
-- A thread started from inside a thread (by a tool's `thread_start`, or by
-  an event a tool emits that `start_on` takes) is its child: `parent` is
-  set, its budget is carved from what the parent has left, a tree is at
-  most 5 threads deep (4 below its root; past it a start is refused, and
-  an event starts nothing). A thread outlives none of its own: when it
-  ends, however it ends, every thread below it is stopped, and its parent
-  is given back only what neither it nor they spent.
+- A thread started from inside a thread by a tool's `thread_start` (or
+  `spawn`) is its child: `parent` is set, its budget is carved from what
+  the parent has left, a tree is at most 5 threads deep (4 below its
+  root; past it a start is refused). A thread outlives none of its own:
+  when it ends, however it ends, every thread below it is stopped, and
+  its parent is given back only what neither it nor they spent.
+- A thread begun by an event a tool emits (that `start_on` takes) is NOT
+  the emitter's child: it has no parent, its `trigger` is `{event,
+  thread}` (the emitter), and it outlives the emitter's end. So an intake
+  agent that files a ticket and emits `ticket.created` may end at once,
+  and the agents that event begins go on. It is held to the bounds of the
+  emitter's **lineage** (the root of the emitter's tree, and every thread
+  its events, and theirs, began): the lineage gives them, in all, at most
+  its root's budget (each gets its agent's `max_usd`, or what is left if
+  less); it begins at most 100; each counts in the organization's
+  `threads_a_day` (below); and stopping the root stops the lineage,
+  whether or not the root has ended: it begins nothing more, and
+  `keg app threads stop` (the node's person) stops every thread of it,
+  from its root or from any thread of it, while `keg.thread_stop` (a
+  member or a tool, on the root) stops only those of its threads the
+  caller may read. An event a job emits is of the lineage of the thread
+  whose tool enqueued the job (or the job that enqueued it), and held to
+  the same bounds. Past any bound the event is written and begins
+  nothing.
 - A thread's audience is its organization's administrators unless
   started with `to`. Members read three views, with these columns and no
   others (`SELECT` them by name; nobody writes them but Keg's functions):
@@ -89,22 +120,33 @@ SELECT keg.start_on('ticket.created', 'triage');   -- one thread per such event
   role: what a migration declared, and the asks a member may read.
   `keg.agents`: `name`, `max_steps`, `max_tool_calls`, `max_minutes`, `max_usd_micro`, `max_errors_in_a_row`, `replay_roles`
   `keg.tools`: `name`, `says`, `schema`, `changes`, `undoable`, `confirm_roles`, `source`
-  `keg.my_asks`: `id`, `thread`, `agent`, `kind`, `question`, `says`, `choices`, `tool`, `arguments`, `state`, `answer`, `answered_by`, `answered_at`, `expires`, `made`, `mine`
+  `keg.my_asks`: `id`, `thread`, `agent`, `kind`, `question`, `says`, `choices`, `tool`, `arguments`, `state`, `answer`, `answered_by`, `answered_at`, `expires`, `made`, `mine`, `arguments_shown`
   A thread's `state` is `ready`, `running`, `waiting`, `done`, `failed` or
   `stopped`. Its first event is Keg's `start`; the app writes `model.call`,
   `model.output`, `tool.call`, `tool.result`, `tool.error`, `note`, and
-  types of its own beginning `app.`. Keg writes `wake` (`why`: time,
-  event, person, child, missed), `message`, `ask`, `answer`,
-  `ask.expired`, `spawn`, and the thread's end. On a `tool.call`, `ask`
+  types of its own beginning `app.`. Keg writes `wait` (what a step that
+  ended waiting waits for, below), `wake` (`why`: time, event, person,
+  child, missed), `message`, `ask`, `answer`, `ask.expired`, `spawn`, and
+  the thread's end. On a `tool.call`, `ask`
   and `approved_by` are Keg's: written by you, they are dropped.
 - A tool runs as the organization's system actor, with
   `keg.actor_thread()` set to the thread: a policy can admit what the
   agent writes, e.g. `WITH CHECK (keg.actor_thread() IS NOT NULL)`.
-  `keg.actor_thread_input()` is that thread's input and
+  `keg.actor_thread_input()` is that thread's input,
   `keg.actor_thread_about()` its input's `about` (a thread an event began
-  has the event's), both null when no thread acts: a policy holds a
-  tool's read to what its thread is about with, e.g.,
-  `USING (keg.actor_thread() IS NULL OR 'ticket/' || id = keg.actor_thread_about())`.
+  has the event's) and `keg.actor_thread_agent()` its agent, all null
+  when no thread acts: a policy holds a tool's read to what its thread is
+  about with, e.g.,
+  `USING (keg.actor_thread() IS NULL OR 'ticket/' || id = keg.actor_thread_about())`,
+  and a write to one agent with
+  `WITH CHECK (keg.actor_thread_agent() = 'intake')`.
+- The system actor reads in `keg.my_events` only events for the whole
+  organization. A tool reads the event that started its thread, or one
+  that woke it (a `wake` with `event`), with
+  `SELECT keg.actor_thread_event($1)`: `{id, type, about, payload, at}`,
+  a mail's or a hook's among them (those are for administrators), and no
+  other event; `keg.my_mail_attachments` gives such a tool the mail's
+  attachments.
   A policy never reads `keg.my_threads`: that view answers for a member,
   and `keg.tenant_table` and `keg.tenant_ref` fail on a policy that does
   ("permission denied for view my_threads").
@@ -184,15 +226,41 @@ agent that asks a person and may wait three days needs
 most); with the default, 1440, every wait and every ask ends within a
 day of the thread's start.
 
-- `thread.sleepUntil(time)`: woken then, with `wake {why: 'time'}`.
-- `thread.waitFor({ until, event, about, message: true })`: until the
-  time, an event of that type (about that, if said), or a message,
-  whichever comes first; two at once make one step that reads both.
+- A step that ends with the thread waiting writes a `wait` event, Keg's,
+  of everything it then waits for: `{until, events: [{type, about,
+  match}], message, asks, children}`, each there only when it waits for
+  one (`events` holds what it listened for too). `until` is when it is
+  woken at the latest: the time asked for, or the end of its own time if
+  that is sooner. `keg app threads show` shows it, so a person can see
+  why a thread has not moved. (A wait that is woken at once, because
+  what it waits for had come, writes none.) It counts among the thread's
+  1,000 events, as each wake does.
+- `thread.sleepUntil(time)`: woken then, with `wake {why: 'time', until}`.
+  A time is a `Date` or an ISO text; `until`, in `wait` and in the wake,
+  is written as `Date.prototype.toISOString` writes it
+  (`2026-11-28T10:00:00.123Z`), so the very text given back is the
+  `toISOString()` of the Date you gave. Keep a time you will find rows by
+  to the millisecond: a tool's result is JSON, and a `timestamptz` read
+  into it becomes a JS Date, which has no microseconds
+  (`date_trunc('milliseconds', now() + interval '3 days')`, or compare
+  `until` as text).
+- `thread.waitFor({ until, event, about, match, message: true })`: until
+  the time, an event of that type (about that, if said, and whose payload
+  holds `match`, if said), or a message, whichever comes first; two at
+  once make one step that reads both. `match` is an object the payload
+  must contain, as Postgres's `@>` reads it (a list matches if it holds
+  each item named), at most 4 KiB: a wait for one thing among many of a
+  type, e.g. the reply to one ticket's mail (see "Mail"). Without it,
+  every event of the type wakes the thread, and each wake is a step.
 - An event wakes a thread only if everyone who may read the thread may
   read the event (an event for the whole organization wakes any). The
   wake says its id, type and `about`, never its payload: read the event
-  in a tool. To hear an event your own step may cause, call
-  `thread.listen(event, about)` before causing it.
+  in a tool with `keg.actor_thread_event(id)`. To hear an event your own
+  step may cause, call `thread.listen(event, about, match)` before
+  causing it.
+- A thread waiting for an ask (`waitFor({ ask })`) is woken too by the
+  end of a child it started: read the last events, and wait again while
+  the ask is open.
 - A member who may read the thread sends it a message, an object:
   `db.query('SELECT keg.thread_message($1, $2::jsonb)', [thread, '{"text": "..."}'])`.
   It is a `message` event at the thread's next step, and wakes only a
@@ -200,6 +268,9 @@ day of the thread's start.
   within a minute from one sender; past either the sender is refused,
   in words to show them. Messages never keep out an answer, an event, a
   child's end or a person's wake.
+- The node's person wakes a thread with `keg app threads wake APP ID`,
+  whatever it waits for: `wake {why: 'person', person: "the node's
+  person"}`.
 - If more events a thread waits for come than it keeps unread (100), the
   rest are not kept and its next step also reads
   `wake {why: 'missed', what: 'event'}`: read what changed in a tool
@@ -222,7 +293,10 @@ if (ran.error?.code === 'needs_approval') return thread.ask({ kind: 'approve', c
   same name and arguments runs `fn` once as that person (`db.actor` is
   them, so a policy can require `keg.actor_user() IS NOT NULL`); a second
   run, other arguments, an expired approval or an approver who lost the
-  role is `needs_approval` or refused.
+  role is `needs_approval` or refused. A member who holds more than one
+  role (`keg.grant_role`, in `apps.md`) is asked, answers, approves and
+  reads by any of them; the approved run acts in their primary role
+  (`db.actor.role`), with `db.roles` all of them.
 - `thread.ask({ kind: 'choose', question, choices, to })` and
   `thread.ask({ kind: 'answer', question, to })`: `to` is `{ roles }`,
   `{ users }` or both, of the thread's organization. Answers are
@@ -233,19 +307,39 @@ if (ran.error?.code === 'needs_approval') return thread.ask({ kind: 'approve', c
 - With `wait: false` the step goes on; `thread.waitFor({ ask })` waits
   later, and for an ask already answered or expired returns `ready` at
   once. `thread.asks()` lists the thread's asks as they stand.
-- **On the page where a person approves, show `says` and every argument
-  in full beside it**, as text. `says` is the tool author's sentence: it
-  names the arguments its author chose to, cuts each at 200 characters
-  (a cut ends with `…`), and writes characters that turn or hide text as
-  `\u{202E}`. `arguments` is the whole call, and what is approved.
+- **On the page where a person approves, show `says` and
+  `arguments_shown` in full beside it**, as text. `says` is the tool
+  author's sentence: it names the arguments its author chose to, cuts
+  each at 200 characters (a cut ends with `…`), and writes characters
+  that turn, hide or break text as `\u{202E}`. `arguments` is the whole
+  call, and what is approved, as it is: a real newline or U+202E in it
+  is there, and a browser's `textContent` still turns the text after a
+  U+202E. `arguments_shown` is the same call with every text in it (a
+  field's name too) written as `says` writes it: show that one.
 - The app's pages, as the signed-in member, inside `keg.tx`:
   `db.asks({ state: 'open', mine: true })` (rows of `keg.my_asks`: `id`,
   `thread`, `agent`, `kind`, `question`, `says`, `choices`, `tool`,
   `arguments`, `state`, `answer`, `answered_by`, `answered_at`, `expires`,
-  `made`, `mine`) and `db.answer(ask, { approve: true })`. Only a person
+  `made`, `mine`, `arguments_shown`) and `db.answer(ask, { approve: true })`.
+  An ask is answered only by those it is for (`mine`): a member who reads
+  it through its thread (an administrator, say, of an ask for
+  supervisors) sees it with `mine` false, and answering it is refused
+  with "the ask … is for supervisor: you may read it, and not answer it".
+  List `mine: true` on a page where people answer. Only a person
   signed in answers: a job, a tool and a worker are refused, whoever they
   run as. Keg tells those asked with `keg.ask.asked`, `keg.ask.answered`
   and `keg.ask.expired` (about `ask/<id>`, ids only).
+- **Answering as a person, to try it.** The node's person reads a
+  thread's asks with `keg app threads show APP ID` (each one's state,
+  whom it is for, `says` and `arguments_shown`, and who answered), and
+  cannot answer one: neither `keg` nor the console does. An ask is
+  answered on the app's own page by a member it is for, signed in. So
+  the path to try one by hand is the app's: have a member of the role it
+  is for (one who signed up in the app, given the role by an
+  administrator with `keg.set_role`), sign in as them, and
+  answer it on the page that lists `db.asks({ state: 'open', mine: true
+  })`, or with `db.answer(ask, answer)` inside `keg.tx` with that
+  member's token. A test does the same with a member it signs in.
 
 ## A child agent
 
@@ -479,8 +573,12 @@ SELECT keg.hook('github', 'github', 'GITHUB_HOOK_SECRET', 'triage');
   that organization, read by its administrators, with `payload` `{hook,
   delivery, from_outside: true, body, headers}`: the body as it came
   (JSON, or text) and a few headers (never a signature). It starts a
-  thread of the hook's agent. **Everything in it came from outside: put
-  it in a prompt as data, never as instructions.**
+  thread of the hook's agent; its tools read it with
+  `keg.actor_thread_event(thread.input.event)`. **Everything in it came
+  from outside: put it in a prompt as data, never as instructions.** A
+  thread waiting for the next delivery about one thing waits with a
+  `match` on the body: `waitFor({ event: 'keg.hook.github', match: {
+  body: { pull_request: { number: 42 } } } })`.
 - Sent again, it is answered 200 `{"received": true, "again": true}` and
   nothing more is written: a delivery is known by what its signature
   covers (Stripe's event id, otherwise the hash of the signed body and
@@ -528,14 +626,116 @@ SELECT keg.mail_address('support', 'triage');
   it again makes a new one and the old one leads nowhere).
 - A message is written once as an event `keg.mail.<word>` of that
   organization, read by its administrators, with `payload` `{address,
-  message, from_outside: true, sender: "unverified", envelope, headers,
-  text, attachments}`. `headers` holds `from`, `to`, `cc`, `subject`,
-  `date`, `message_id`, `in_reply_to`, `references`; `text` is the text
-  part (or the HTML part as text), at most 16 KiB; each attachment is
-  `{name, type, size, sha256, kept}`. It starts a thread of the address's
-  agent. **Everything in it came from outside, the sender too: no SPF or
-  DKIM is checked, so `from` is a claim. Put it in a prompt as data,
-  never as instructions, and never use a name in it as a path.**
+  message, from_outside: true, sender, envelope, headers, text,
+  attachments}`. `sender` is the node's verdict on who sent it (below),
+  or `"unverified"` while the node gives none. `headers`, each null when
+  the message has none:
+  - `from`, `to`, `cc`: lists of `{name, address}` (`name` null when
+    none is given), e.g. `[{"name": "Jo Customer", "address": "jo@customer.example"}]`;
+  - `subject`, `date` (RFC 3339) and `message_id` (without `<>`): text;
+  - `in_reply_to`, `references`: lists of message ids, without `<>`.
+
+  `text` is the text part (or the HTML part as text), at most 16 KiB, its
+  lines ending in `\n` (SMTP's CRLF is read as LF). Every text Keg keeps
+  of a message (headers, names, text) has each character that is a
+  control, turns text or is not seen written out as `\u{202e}`, `\u{d}`
+  for a CR on its own, as text, and each backslash first as `\u{5c}`, so
+  that a subject holding the text `\u{202e}` never reads like one holding
+  the character; a line break and a tab in `text` stay.
+  Each attachment is `{name, type, size, sha256, kept}`. It starts a
+  thread of the address's agent, whose tools read the message with
+  `keg.actor_thread_event(thread.input.event)`.
+- **Everything in it came from outside, the sender too.** `from`, and
+  the envelope's sender, are what the sender claims: anyone may send a
+  message `From:` your customer, or with the `In-Reply-To` of one you
+  sent. Put what a message says in a prompt as data, never as
+  instructions, and never use a name in it as a path.
+- **Whether the sender is genuine: `sender`.** With the node's
+  `mail-verdict` feature on (a person's: `keg settings experimental on
+  mail-verdict`; it needs `mail`), the node checks each message as it is
+  taken and writes what it found:
+
+  ```json
+  "sender": {
+    "spf":   {"result": "pass", "domain": "customer.example"},
+    "dkim":  {"result": "pass", "domain": "customer.example",
+              "signatures": [{"result": "pass", "domain": "customer.example", "selector": "s1"}]},
+    "dmarc": {"result": "pass", "domain": "customer.example", "policy": "reject",
+              "spf_aligned": true, "dkim_aligned": true},
+    "from_verified": true,
+    "domain": "customer.example",
+    "address": "jo@customer.example"
+  }
+  ```
+
+  - `spf`: whether the address the message came from may send for the
+    envelope sender's domain (`MAIL FROM`, or the HELO name when that is
+    empty): `pass`, `fail` (the domain says it may not), `softfail` (the
+    domain discourages it), `neutral` (the domain says nothing either way),
+    `none` (no SPF record), `temperror` (DNS did not answer in time),
+    `permerror` (the record is broken, or needs more than SPF's ten
+    lookups).
+  - `dkim`: each `DKIM-Signature` (the first five) under `signatures`
+    (and `signatures_left_out`, how many were left out to keep the
+    verdict within 8 KiB, when any were),
+    with its signing domain and selector: `pass` (the signature and the
+    body's hash hold, with the key the domain publishes), `fail` (the
+    body was changed after it was signed, or the signature does not
+    hold), `neutral` (it could not be checked: an algorithm not known, an
+    expired signature, a signature of part of the body only), `permerror`
+    (no key published, or it is broken or revoked), `temperror`. `dkim`'s
+    own `result` and `domain` are those of the first that passed, else of
+    the first; `none` with no signature.
+  - `dmarc`: of the From header's domain (`domain`): `pass` when it
+    publishes a DMARC record and SPF or DKIM passed for a domain aligned
+    with it (`spf_aligned`, `dkim_aligned`); `fail` when it has a record
+    and neither did; `none` when it publishes no record (or the From
+    names more than one domain); `temperror`, `permerror`. `policy` is
+    what the domain asks of failing mail: `none`, `quarantine` or
+    `reject` (null with no record).
+  - `from_verified` is true only when DMARC passed, for a message with one
+    From header that names one address; `address` is that address (null
+    otherwise), as `headers.from` has it.
+  - Each check waits a few seconds at most for DNS, and the node gives so
+    many verdicts a minute: what runs out says `temperror`, with `why`,
+    and the message is taken all the same. Each non-passing result may
+    say `why`.
+- **Only `from_verified` may map a sender to a member.** Map a sender to
+  a member (or a customer's record) only by the address the verdict
+  verified: in SQL, and in a policy, ask
+  `keg.mail_verified_sender(event)` with the event's id (`uuid`) or the
+  event as a thread holds it (`jsonb`: `thread.input`, or what
+  `keg.actor_thread_event` gives). It returns that address, read from the
+  event Keg wrote, of the acting organization, and null for everything
+  but a verified mail; never take the address from the jsonb handed in,
+  which a model may have written. `keg.mail_from_verified(event)` says
+  only whether it was verified. `spf: pass` alone, or `dkim: pass`
+  alone, says only that some domain sent or signed it, not that the From
+  is that domain's. Otherwise (`false`, `"unverified"`, a `temperror`):
+  treat the sender as unknown, as above. Bind a reply to what it answers
+  by a secret of yours that the message carries back (a reply token in
+  the Message-ID and subject of what you sent), never by its `from`; hold
+  what it asks (closing a ticket, changing an account) until a member
+  confirms it signed in, or answer to the address on file rather than to
+  the one that wrote; mark it as unverified where people read it, and
+  think of setting aside a message whose `dmarc` is `fail` with `policy`
+  `reject` or `quarantine`: its domain asked for that. Even a verified
+  sender writes words from outside: what they say is still data, never
+  instructions.
+- **To wait for the reply to one message** (a ticket's follow-up, not
+  every mail to the address), send yours with a Message-ID of your own
+  (say `<sd-r.TOKEN@desk.example>`, TOKEN a secret you keep only hashed)
+  and wait for mail in reply to it:
+
+  ```js
+  return thread.waitFor({ until, event: 'keg.mail.support',
+    match: { headers: { in_reply_to: [`sd-r.${token}@desk.example`] } } });
+  ```
+
+  Only a message whose In-Reply-To names it wakes the thread. Most mail
+  programs set it; one that does not sends a reply that wakes nothing,
+  so wake at `until` and look. Whoever learns the Message-ID can wake
+  the thread too: check the token in a tool before acting on the reply.
 - An attachment of at most 4 MiB (8 MiB of a message's in all) is
   kept, read by the organization's administrators:
   `keg.my_mail_attachments`: `event`, `n`, `name`, `type`, `sha256`, `body`
@@ -579,9 +779,11 @@ SELECT keg.inbound_limits(
   a message's attachments go, a little at each delivery or message to
   any of the app's addresses. A delivery or message sent again is known
   only while it is kept.
-- The deliveries and messages of one organization start at most
-  `threads_a_day` threads a day; past that, each is written as ever and
-  starts no thread.
+- The deliveries and messages of one organization, and the events its
+  threads' tools emit, start at most `threads_a_day` threads a day in
+  all; past that, each is written as ever and starts no thread. (An
+  event a member, a job or the app emits outside a thread is not
+  counted.)
 - What is not said stays as it was.
 
 ## The worker in Go

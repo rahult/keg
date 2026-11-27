@@ -3,75 +3,57 @@
     <channel>
         <title>Keg</title>
         <item>
-            <title>0.15.0</title>
-            <pubDate>Fri, 27 Nov 2026 08:20:05 +0000</pubDate>
+            <title>0.15.1</title>
+            <pubDate>Fri, 27 Nov 2026 23:50:30 +0000</pubDate>
             <link>https://keg.rahultrikha.com/</link>
             <sparkle:fullReleaseNotesLink>https://github.com/rahult/keg/releases</sparkle:fullReleaseNotesLink>
-            <sparkle:version>33</sparkle:version>
-            <sparkle:shortVersionString>0.15.0</sparkle:shortVersionString>
+            <sparkle:version>35</sparkle:version>
+            <sparkle:shortVersionString>0.15.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[Keg 0.15.0 lets an app's agent be reached from outside, by mail and by webhooks, and run an organisation's own tools walled; makes the model gateway part of the node, with providers of your own and the SDKs' own endpoints; gives what you run by hand entries of the vault; and adds previews, git and an SSH door to workspaces. Everything new is **experimental and off** until you turn it on: see "Experimental" below. Read "Upgrading from 0.14.0" before you upgrade.
+            <description sparkle:format="markdown"><![CDATA[Keg 0.15.1 tells an app's agent whether a mailed sender is genuine, lets a member of an app's organisation hold more than one role, shows an app's agents' threads in the console, and makes `docker run --init` work as it does with Docker. It fixes what a full or failing disk did to a node, and what an outside review found before release. Everything new is **experimental and off** until you turn it on: see "Experimental" below.
 
 ## New
 
-- **Mail in.** An app declares an address in a migration, `keg.mail_address(word, agent)`; a message to it starts a thread of that agent, with its attachments kept. Keg receives only: it relays, sends and bounces nothing.
-- **Webhooks in.** `keg.hook(name, scheme, secret, agent)` takes deliveries signed as GitHub, Stripe or Slack sign, or by a shared secret, and can start a thread of an agent.
-- **An organisation's own tools.** A member of a role the app names uploads a tool of JavaScript; the node runs each call in a container of its own that reaches nothing, under that organisation's limits.
-- **The model gateway is part of the node.** Apps and works call `POST /v1/chat/completions`, `/v1/responses` and `/v1/messages` at their door, so standard SDKs and agent frameworks reach the model through Keg, counted for their thread and organisation. `keg assistant provider add` adds a provider of your own, its key kept in the vault. `keg workspace model NAME on --usd-per-day N` gives a workspace the model.
-- **The vault for what you run by hand.** `keg run --secret NAME`, a Compose file's external secrets, a build's `--secret`, and `keg login` take entries of the vault, each use written down as `vault.used`.
-- **Workspaces grow.** Previews of what a workspace serves, at a private address of their own; git in a workspace (`git_status`, `git_commit`, a remote you give it, a release proposed from it); and an SSH door (`keg access ssh on`) that lands in a workspace and nowhere else, through a helper with no rights.
-- **`keg setup server`** walks a Linux server with Keg on it to a door an app can be let in at, as a checklist.
-- **Containers that run containers.** A privileged container on Keg can run Docker or Keg inside it: it is given its own cgroup tree and the node's devices, as Docker gives them, under the node's limits. A Keg inside a Keg container chooses a network range of its own.
-- **The Mac app** has Access, Workspaces, Agents, Models and Settings › Experimental pages, and every sentence of it is translated; a release of the app now refuses any sentence left untranslated.
-- The Go client runs an app's agents (`k.Agent`, `k.Work`).
+- **Whether a mailed sender is genuine.** Mail-in checks SPF, DKIM and DMARC as a message arrives and writes the verdict with it: each check's result, and `from_verified`, true only when DMARC passes. An agent asks `keg.mail_from_verified(event)` or `keg.mail_verified_sender(event)`, and is answered only of mail it may read. Map a sender to a member only when it is verified.
+- **A member may hold more than one role.** Each keeps the one role they had; an administrator grants more (`keg.grant_role`, `keg.take_role`), and every check of a role reads the whole set: asks, approvals, organisations' tools, audiences, replays, and `keg.actor_has_role(R)` in a policy. A supervisor who is also an agent can read the ticket they decide on. `keg app members`, the console and the Mac app show them.
+- **An app's agents' threads, in the console.** Apps → an app → an environment → Threads: each thread's agent, organisation, state, what it waits for and until when, and spend; its events, labelled by who wrote each; its asks, their arguments as Keg writes them out; and Wake, Stop and a dry Replay.
+- **`docker run --init` and `keg run --init`.** PID 1 is Keg's own small init, as Docker's is: it reaps orphans, passes signals on and ends with the command's status. It runs from a sealed copy in memory and holds nothing of the node's.
+- **Webhooks on a Mac node**, or any node with no public name: deliveries are taken at the node's local names port, which the Mac forwards to its own localhost. `keg app hooks` says where to point a tunnel.
+- **`keg app check [NAME]`** runs a project's check as a piece of work's gate does, with its own database and a fake model, on a read-only copy of your folder.
+- **Agents wait for what is theirs.** `thread.waitFor` and `thread.listen` take `match`, so a thread waits for the reply to its own message and nothing else wakes it. A thread's own tools read the event that started or woke it. A thread an emitted event starts outlives the agent that emitted it, held to that agent's lineage: one budget, at most 100 threads, all stopped with it. A wait is written on the thread, and a wake says who woke it.
+- **A node's disk sync mode**, `keg vm disk --sync full|fsync|none`, for a throwaway node such as one tests run on. `full` stays every node's default.
 
 ## Fixed
 
-- **Security: what arrives from outside cannot fill the disk or spend an organisation's money.** Each mail or hook address, and each app, takes so many bytes a day (64 MiB and 256 MiB by default, `keg.inbound_limits`), and is then told to try later; what was received is kept 30 days by default and then removed; threads started from outside are capped per organisation per day (200 by default). From an outside review before release, with fairer mail connections (15 s to name a recipient, `421` when busy) and verified senders such as GitHub no longer held by the limit meant for strangers.
-- **Security: previews live under a domain of their own.** A preview's page could set cookies for the node's public name, and so for every app you share and the connector door. Previews now need a domain that shares no parent with the node's public name, and the door refuses form posts from other sites.
-- **Security: an entry of the vault handed by hand is handed at the node's own socket only**, as `keg vault show` is: a build's or a run's `--secret` from the console or another machine is refused. `docker build --secret id=NAME` takes the vault's entry only when the client offers it empty (`src=/dev/null`), and says so.
-- **Security: an organisation's tool cannot reach past its call.** The wrapper reads only plain values of what a tool returns or throws, writes one line and ends; tools run by their image's pinned digest; one organisation takes at most a share of an environment's tool time; `keg sandbox` is walled to the internet.
-- A workspace given the model stops when an identity it was shared with loses it; a late `detach` no longer removes the next container's allowance; a hook's body and a message's attachments reach the app whole.
+- **A full or failing disk.** A disk path given before a node's first start is used, never replaced by a new file on the Mac's internal disk. The Mac's free space is checked before a start and while the node runs. A node whose disk failed or went read-only says so plainly and takes no new work, instead of answering every write with a raw I/O error.
+- **Security: from an outside review before release.** A lineage of threads stops whatever state its first thread is in, and only as far as the person stopping it may read; a job's events count against its lineage; turning a feature off reaches every app's database, or the node names the one it could not tell; every invisible character in what an ask shows is written out, and a secret is hidden before anything is; one sender or a web page cannot stop webhook deliveries at a node with no public name; `keg app check` reads only inside its project.
+- Mail sent to a Mac node from the Mac itself arrives. Every certificate the node signs is accepted by strict clients such as Python 3.13. Keg services no longer offer the old models service to install. `keg vm` acts on the node its `--socket` names. A firewall rule is no longer put back for a node that is gone, and a container's network allowance is checked before its image is fetched.
 
 ## Experimental
 
-Each of these is off on a node until a person turns it on, with `keg settings experimental on NAME` or in Settings › Experimental in the console or the Mac app; turned off, what it made is kept and what it runs stops. `keg settings experimental` lists them. See [EXPERIMENTAL.md](../EXPERIMENTAL.md).
+New in this release, each off until you turn it on with `keg settings experimental on NAME` or in Settings › Experimental. The switches of 0.15.0 are as they were. See [EXPERIMENTAL.md](../EXPERIMENTAL.md).
 
-- `workspaces`: workspaces, lasting walled machines to build in.
-- `door`: the connector door, for ChatGPT, Claude or Grok (needs `workspaces`).
-- `previews`: previews of what a workspace serves (needs `workspaces`).
-- `workspace-git`: git remotes, pushes and a project in a workspace (needs `workspaces`).
-- `ssh-door`: the SSH door to a workspace (needs `workspaces`).
-- `setup-server`: `keg setup server`'s checklist.
-- `model-gateway`: providers of your own, the OpenAI- and Anthropic-shaped endpoints at a door, and the model for a workspace.
-- `vault`: the vault's uses for what you run by hand, and `keg vault show`, `export`, `import`, `stale` and `restart`.
-- `mail`: mail in, to an app's addresses.
-- `hooks`: webhooks in, to an app.
-- `org-tools`: an organisation's own tools, run walled for it.
+- `mail-verdict`: SPF, DKIM and DMARC for mail in (needs `mail`).
+- `member-roles`: members with more than one role.
+- `app-check`: `keg app check`.
 
 ## Known in this release
 
-- Previews need a second domain of your own, with a wildcard DNS name pointing at the server. Previews can still set cookies on their shared domain and so overload one another's requests. Two domains under a private suffix such as `duckdns.org` are refused as sharing a parent.
-- The SSH door starts without its `keg-sshd` user; the setup check fails on it and the log says so.
-- An agent's machine and its backing service run on the node's own network, the machine as root, so an agent reaches what the node serves on its loopback. The node's wall lets in any root process on the node's network, not only Keg's own.
-- A hook signed with no time (`github`, or `hmac-sha256` without a timestamp) can be replayed once its record is gone (30 days by default). Old records of an app are removed only when something new arrives for it. A sender with many networks can still hold every mail place; real mail servers are told `421` and retry.
-- A privileged container can stop its own exec commands through their cgroup.
-- The Mac app does not yet say why previews were turned off.
+- The console's and the Mac app's own escaping, used where a node gives no escaped form, still writes out fewer invisible characters than the node does.
+- A vault entry set before 0.15.1 is hidden in its written-out form only once it is set again.
+- On a Mac, `--sync fsync` and `none` can lose what the VM wrote last if the power goes or an external disk is cut off: use them only for a node nothing on is worth keeping.
 - The translations were made by machine and checked for completeness and their blanks only.
-- A Keg node used as an engine for Keg's own tests is slow under the whole suite at once (kegd and the shared database start late); in smaller groups it is not.
 
-## Upgrading from 0.14.0
+## Upgrading from 0.15.0
 
 - `keg update`, then restart the node (`sudo systemctl restart kegd`). On a Mac the app updates itself; then Stop Keg and Start Keg.
-- Each app's database that uses agents is given capability files 023 to 025 at its next deploy. Run `keg app client` in an app that uses `@keg/app` to bring its client up to date.
-- A node that already used the connector door or workspaces keeps them on, and says so once; everything else new is off until you turn it on.
-- Previews answered under the node's own public name are turned off at the upgrade, every preview closed, with the reason in `keg access`. Give them a domain of their own with `keg access previews DOMAIN`.
-- `keg build --secret`, `keg run --secret` and `keg compose up` with entries of the vault are refused over `--node-url`: run them on the node. `docker build --secret id=NAME` takes the vault's entry only with `src=/dev/null`.
+- Each app's database that uses agents is given capability files 026 to 031 at its next deploy. Run `keg app client` in an app that uses `@keg/app` to bring its client up to date.
+- Everything new is off until you turn it on; a node's disk stays synced `full`.
 
 See [keg.rahultrikha.com](https://keg.rahultrikha.com) for more.
 ]]></description>
-            <enclosure url="https://github.com/rahult/keg/releases/download/v0.15.0/Keg-0.15.0.zip" length="43456150" type="application/octet-stream" sparkle:edSignature="zCF7hXqyVF6mWCQM1+R/rcnFJ7vL/dSdvyhQ74KY28tVE0VaWjXOhWWNI6ARvnXw1mFSD8ow6JIpjajo/WXPCQ=="/>
+            <enclosure url="https://github.com/rahult/keg/releases/download/v0.15.1/Keg-0.15.1.zip" length="45099905" type="application/octet-stream" sparkle:edSignature="q/yTQpfs5tHaLZgrltk3d2tL8v0A+465xB0P2xYSxF9Dm1j/4KZ6klwGZLXemc5Vl0nxXqm7VgXXl9QReJ1SAQ=="/>
         </item>
     </channel>
 </rss>
