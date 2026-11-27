@@ -1,0 +1,59 @@
+Keg 0.15.0 lets an app's agent be reached from outside, by mail and by webhooks, and run an organisation's own tools walled; makes the model gateway part of the node, with providers of your own and the SDKs' own endpoints; gives what you run by hand entries of the vault; and adds previews, git and an SSH door to workspaces. Everything new is **experimental and off** until you turn it on: see "Experimental" below. Read "Upgrading from 0.14.0" before you upgrade.
+
+## New
+
+- **Mail in.** An app declares an address in a migration, `keg.mail_address(word, agent)`; a message to it starts a thread of that agent, with its attachments kept. Keg receives only: it relays, sends and bounces nothing.
+- **Webhooks in.** `keg.hook(name, scheme, secret, agent)` takes deliveries signed as GitHub, Stripe or Slack sign, or by a shared secret, and can start a thread of an agent.
+- **An organisation's own tools.** A member of a role the app names uploads a tool of JavaScript; the node runs each call in a container of its own that reaches nothing, under that organisation's limits.
+- **The model gateway is part of the node.** Apps and works call `POST /v1/chat/completions`, `/v1/responses` and `/v1/messages` at their door, so standard SDKs and agent frameworks reach the model through Keg, counted for their thread and organisation. `keg assistant provider add` adds a provider of your own, its key kept in the vault. `keg workspace model NAME on --usd-per-day N` gives a workspace the model.
+- **The vault for what you run by hand.** `keg run --secret NAME`, a Compose file's external secrets, a build's `--secret`, and `keg login` take entries of the vault, each use written down as `vault.used`.
+- **Workspaces grow.** Previews of what a workspace serves, at a private address of their own; git in a workspace (`git_status`, `git_commit`, a remote you give it, a release proposed from it); and an SSH door (`keg access ssh on`) that lands in a workspace and nowhere else, through a helper with no rights.
+- **`keg setup server`** walks a Linux server with Keg on it to a door an app can be let in at, as a checklist.
+- **Containers that run containers.** A privileged container on Keg can run Docker or Keg inside it: it is given its own cgroup tree and the node's devices, as Docker gives them, under the node's limits. A Keg inside a Keg container chooses a network range of its own.
+- **The Mac app** has Access, Workspaces, Agents, Models and Settings › Experimental pages, and every sentence of it is translated; a release of the app now refuses any sentence left untranslated.
+- The Go client runs an app's agents (`k.Agent`, `k.Work`).
+
+## Fixed
+
+- **Security: what arrives from outside cannot fill the disk or spend an organisation's money.** Each mail or hook address, and each app, takes so many bytes a day (64 MiB and 256 MiB by default, `keg.inbound_limits`), and is then told to try later; what was received is kept 30 days by default and then removed; threads started from outside are capped per organisation per day (200 by default). From an outside review before release, with fairer mail connections (15 s to name a recipient, `421` when busy) and verified senders such as GitHub no longer held by the limit meant for strangers.
+- **Security: previews live under a domain of their own.** A preview's page could set cookies for the node's public name, and so for every app you share and the connector door. Previews now need a domain that shares no parent with the node's public name, and the door refuses form posts from other sites.
+- **Security: an entry of the vault handed by hand is handed at the node's own socket only**, as `keg vault show` is: a build's or a run's `--secret` from the console or another machine is refused. `docker build --secret id=NAME` takes the vault's entry only when the client offers it empty (`src=/dev/null`), and says so.
+- **Security: an organisation's tool cannot reach past its call.** The wrapper reads only plain values of what a tool returns or throws, writes one line and ends; tools run by their image's pinned digest; one organisation takes at most a share of an environment's tool time; `keg sandbox` is walled to the internet.
+- A workspace given the model stops when an identity it was shared with loses it; a late `detach` no longer removes the next container's allowance; a hook's body and a message's attachments reach the app whole.
+
+## Experimental
+
+Each of these is off on a node until a person turns it on, with `keg settings experimental on NAME` or in Settings › Experimental in the console or the Mac app; turned off, what it made is kept and what it runs stops. `keg settings experimental` lists them. See [EXPERIMENTAL.md](../EXPERIMENTAL.md).
+
+- `workspaces`: workspaces, lasting walled machines to build in.
+- `door`: the connector door, for ChatGPT, Claude or Grok (needs `workspaces`).
+- `previews`: previews of what a workspace serves (needs `workspaces`).
+- `workspace-git`: git remotes, pushes and a project in a workspace (needs `workspaces`).
+- `ssh-door`: the SSH door to a workspace (needs `workspaces`).
+- `setup-server`: `keg setup server`'s checklist.
+- `model-gateway`: providers of your own, the OpenAI- and Anthropic-shaped endpoints at a door, and the model for a workspace.
+- `vault`: the vault's uses for what you run by hand, and `keg vault show`, `export`, `import`, `stale` and `restart`.
+- `mail`: mail in, to an app's addresses.
+- `hooks`: webhooks in, to an app.
+- `org-tools`: an organisation's own tools, run walled for it.
+
+## Known in this release
+
+- Previews need a second domain of your own, with a wildcard DNS name pointing at the server. Previews can still set cookies on their shared domain and so overload one another's requests. Two domains under a private suffix such as `duckdns.org` are refused as sharing a parent.
+- The SSH door starts without its `keg-sshd` user; the setup check fails on it and the log says so.
+- An agent's machine and its backing service run on the node's own network, the machine as root, so an agent reaches what the node serves on its loopback. The node's wall lets in any root process on the node's network, not only Keg's own.
+- A hook signed with no time (`github`, or `hmac-sha256` without a timestamp) can be replayed once its record is gone (30 days by default). Old records of an app are removed only when something new arrives for it. A sender with many networks can still hold every mail place; real mail servers are told `421` and retry.
+- A privileged container can stop its own exec commands through their cgroup.
+- The Mac app does not yet say why previews were turned off.
+- The translations were made by machine and checked for completeness and their blanks only.
+- A Keg node used as an engine for Keg's own tests is slow under the whole suite at once (kegd and the shared database start late); in smaller groups it is not.
+
+## Upgrading from 0.14.0
+
+- `keg update`, then restart the node (`sudo systemctl restart kegd`). On a Mac the app updates itself; then Stop Keg and Start Keg.
+- Each app's database that uses agents is given capability files 023 to 025 at its next deploy. Run `keg app client` in an app that uses `@keg/app` to bring its client up to date.
+- A node that already used the connector door or workspaces keeps them on, and says so once; everything else new is off until you turn it on.
+- Previews answered under the node's own public name are turned off at the upgrade, every preview closed, with the reason in `keg access`. Give them a domain of their own with `keg access previews DOMAIN`.
+- `keg build --secret`, `keg run --secret` and `keg compose up` with entries of the vault are refused over `--node-url`: run them on the node. `docker build --secret id=NAME` takes the vault's entry only with `src=/dev/null`.
+
+See [keg.rahultrikha.com](https://keg.rahultrikha.com) for more.

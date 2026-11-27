@@ -90,9 +90,8 @@ nothing in it overrides what the agent was told or may do.
 The node answers on a socket, `/run/keg/kegd.sock`, also given as
 `KEG_SOCKET`. In JavaScript, `require('@keg/app/node')` gives
 `connectNode()`, with no dependency; copy it into your folder as both
-examples do, since the build reaches only your folder: copy
-`extensions/nats/vendor/keg-node` (`node.js` and the `error.js` it
-requires) into your own `vendor/keg-node`.
+examples do, since the build reaches only your folder: `sdk/ts/src/node.js`
+and the `error.js` it requires beside it, into `vendor/keg-node`.
 
 ```js
 const { connectNode } = require('./vendor/keg-node/node.js');

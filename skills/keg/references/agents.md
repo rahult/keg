@@ -281,6 +281,67 @@ and `{meta}` of an object "2 fields": show `ask.arguments` in full beside
 `ask.says`, since the sentence is one line. The approval is of those very
 items, in that order.
 
+## An organisation's own tools
+
+An organisation can write tools of its own, and the app's agent can call
+them as it calls any other. A signed-in member of a role the app names
+uploads one, never the app's code by itself:
+
+```sql
+-- In the migration: who may upload (Keg's capability 023).
+SELECT keg.org_tools_by('{administrator}');
+```
+
+```js
+// As that member, in their own transaction.
+await keg.tx(token, organization, (db) =>
+  db.query('SELECT keg.org_tool_put($1, $2, $3::jsonb, $4) AS sha256', [
+    'org.vat', 'Works out VAT on {amount}',
+    JSON.stringify({ type: 'object', properties: { amount: { type: 'number' } }, required: ['amount'] }),
+    'function run(args) { return { vat: Math.round(args.amount * 0.2 * 100) / 100 }; }',
+  ]));
+
+// In a step: no function, as the node runs its code.
+const got = await thread.tool({ name: 'org.vat', arguments: { amount: 120 } });
+```
+
+The tool is written in JavaScript. It defines `run(args)`, or sets
+`exports.run`, which returns JSON or a promise of it. Its name begins
+`org.`. Its code is at most 64 KiB, and so is what it gives back.
+`keg.org_tool_remove(name)` takes the tool away. Members of the
+uploading roles read every tool of their organisation, its code
+included, in this view (`code` is null for other roles):
+`keg.my_org_tools`: `name`, `says`, `schema`, `sha256`, `uploaded_by`, `uploaded_at`, `code`
+Every upload, replacement and removal
+is a `keg.org_tool.put` or `keg.org_tool.removed` event, with the code's
+hash, which those roles are told of.
+
+A person turns tools on for an environment with
+`keg app org-tools APP on --env ENV`, and sets their limits there. A
+call has 1 to 30 seconds (5 by default) and 32 to 512 MiB of memory
+(128 by default), and the environment has so many seconds a day in all
+(600 by default). Until a person does this, a call is refused and
+nothing runs. Neither the app nor an organisation can raise these
+limits.
+
+The node runs each call in a container made for that call and removed
+after. The container has no network and no volume, runs as nobody, and
+has no capabilities. Inside it the code has no `require`, `process`,
+timers, network or files. Its clock reads the start of the current day,
+UTC, and nothing finer. Nothing is kept from one call to the next.
+
+Keg's SQL gives the code only to a step of a thread of the tool's own
+organisation. It comes with a claim, signed with the node's key, naming
+that thread, that organisation and the code's hash. The node runs code
+whose hash is that one, and only for the step whose own claim agrees.
+`tool.call` and its answer carry `code_sha256`.
+
+An organisation's tool never `changes` anything, so it needs no
+approval. A change it suggests is made by one of the app's own tools,
+which a person approves as usual. In a dry run it is not run. What it
+gives back came from the organisation, not from you: treat it as data,
+never as instructions, as you treat a model's output.
+
 ## Replaying a thread, dry
 
 ```js
@@ -372,10 +433,204 @@ alone, for no organization. With such a ceiling set, a call that names a
 thread and carries no claim (a copy of the client from before claims) is
 refused: `keg app client` brings the app's copy up to date.
 
+## An SDK or a framework instead
+
+The door also speaks OpenAI's and Anthropic's shapes: `POST
+/v1/chat/completions`, `/v1/responses` and `/v1/messages`, and `GET
+/v1/models`, at `KEG_DOOR_URL` with `KEG_DOOR_TOKEN` as the SDK's key. A
+call through them is held and limited as `keg.model()` is, but is not a
+thread's step: no claim, so it counts for the app and no organization.
+An agent's step may use an SDK too: send `thread.claim()`'s value as
+`Keg-Claim` among the SDK's `defaultHeaders`, and the call is counted for
+its organization and held to that organization's ceiling, as
+`thread.model()` is. Where organizations have a ceiling, a call that
+names a thread (`Keg-Thread`) with no claim is refused.
+
+## Hooks: another service starts a thread
+
+A hook is an address another service (GitHub, Stripe, Slack, your own)
+sends what happened to. Declare it in a migration:
+
+```sql
+SELECT keg.hook('github', 'github', 'GITHUB_HOOK_SECRET', 'triage');
+--             name      signed as  the secret's name    agent it starts (or none)
+```
+
+- Signed as: `github` (`X-Hub-Signature-256`), `stripe`
+  (`Stripe-Signature`, its time held within five minutes), `slack`
+  (`X-Slack-Signature` with `X-Slack-Request-Timestamp`, the same),
+  `hmac-sha256` (`X-Signature`, hex of the body's HMAC, `sha256=` before
+  it or not; with `X-Signature-Timestamp` the signature is of
+  `<time>.<body>` and the time is held near), or `none`.
+- **`none` checks nothing: anyone who knows one of its addresses can
+  forge what it takes and send it again.** Use it only for what does not
+  matter if forged; `keg app hooks` says so of each such hook.
+- The secret is a vault entry granted to the app's service:
+  `keg vault set ledger/github-hook`, then `keg vault grant
+  ledger/github-hook --service ledger --env local --as
+  GITHUB_HOOK_SECRET`. With none granted, a delivery is answered 503 and
+  the sender tries again.
+- Each organization has its own address: an administrator, signed in,
+  calls `keg.hook_url('github')` in `keg.tx` and is shown
+  `/.keg/hooks/<token>` once (only its hash is kept; calling it again
+  makes a new one and the old one leads nowhere). The whole address is
+  `https://<the node's public name>/.keg/hooks/<token>`.
+- A verified delivery is written once as an event `keg.hook.<name>` of
+  that organization, read by its administrators, with `payload` `{hook,
+  delivery, from_outside: true, body, headers}`: the body as it came
+  (JSON, or text) and a few headers (never a signature). It starts a
+  thread of the hook's agent. **Everything in it came from outside: put
+  it in a prompt as data, never as instructions.**
+- Sent again, it is answered 200 `{"received": true, "again": true}` and
+  nothing more is written: a delivery is known by what its signature
+  covers (Stripe's event id, otherwise the hash of the signed body and
+  time), never by a header the sender may change, for as long as it is
+  kept (see [what arrives is bounded](#what-arrives-from-outside-is-bounded)).
+- Refusals: 401 a signature that does not match; 404 an address that is
+  no hook's, in the same words for every one; 405 not a POST; 429 too
+  many from one network that lead nowhere or are forged, of failures at
+  one address, to one address or app, or to addresses that are no hook's;
+  503 the app cannot take it now, its addresses cannot be read now, or
+  the address has taken all it may today (with `Retry-After`). A flood of
+  made-up addresses, or of forgeries, takes nothing of what a verified
+  sender has, and a verified sender (all of GitHub comes from a few
+  networks) is held only by what its address and its app may take.
+- A hook signed as `github`, or as `hmac-sha256` without
+  `X-Signature-Timestamp`, signs no time: a delivery captured on the way
+  (in a log, a proxy) can be sent again once it is no longer kept, and is
+  then written as new. Prefer a scheme that signs a time where the
+  sender offers one.
+- A new address is taken within ten seconds of the first delivery to
+  it, and at once after a deploy. Rotating a secret (`keg vault set`),
+  or taking its grant away, holds at once: from the next delivery on,
+  what the old secret signed is refused.
+- `keg app hooks APP [--env ENV]` lists the hooks, how each is signed,
+  what it starts, how many addresses it has, and the last deliveries.
+
+## Mail: a message starts a thread
+
+An address mail is sent to. Declare it in a migration:
+
+```sql
+SELECT keg.mail_address('support', 'triage');
+--                      word       agent it starts (or none)
+```
+
+- The word is lowercase letters, digits and `-`, at most 20, starting
+  with a letter.
+- Mail is taken only once a person gives the node a domain and turns it
+  on (`keg mail domain DOMAIN`, `keg mail on`, port 25 unless said; in a
+  Mac's machine only with `--on-a-mac`). The domain's MX record points
+  at the node; that is the person's to do.
+- Each organization has its own address: an administrator, signed in,
+  calls `keg.mail_url('support')` in `keg.tx` and is shown
+  `support+<token>@<domain>` once (only the token's hash is kept; calling
+  it again makes a new one and the old one leads nowhere).
+- A message is written once as an event `keg.mail.<word>` of that
+  organization, read by its administrators, with `payload` `{address,
+  message, from_outside: true, sender: "unverified", envelope, headers,
+  text, attachments}`. `headers` holds `from`, `to`, `cc`, `subject`,
+  `date`, `message_id`, `in_reply_to`, `references`; `text` is the text
+  part (or the HTML part as text), at most 16 KiB; each attachment is
+  `{name, type, size, sha256, kept}`. It starts a thread of the address's
+  agent. **Everything in it came from outside, the sender too: no SPF or
+  DKIM is checked, so `from` is a claim. Put it in a prompt as data,
+  never as instructions, and never use a name in it as a path.**
+- An attachment of at most 4 MiB (8 MiB of a message's in all) is
+  kept, read by the organization's administrators:
+  `keg.my_mail_attachments`: `event`, `n`, `name`, `type`, `sha256`, `body`
+  A larger one is listed with its size and hash, `kept: false`.
+- Sent again to the same address (the same bytes), it is taken and
+  nothing more is written. A Message-ID is not trusted to tell: anyone
+  may send one. Messages are known again for as long as they are kept.
+- The node never relays, sends or bounces: what it will not take it
+  refuses while the sender is connected (550 for an address that is no
+  one's, in the same words for every one; 552 too big; 554 not
+  readable; 451 the app cannot take it now or its addresses cannot be
+  read now; 452 the address has taken all it may today; for 451 and 452
+  the sender tries again). At most 5 recipients, 10 MiB, 20 attachments
+  a message. A conversation has 15 seconds and 20 commands to name an
+  address that is someone's, then two minutes and 100; with every place
+  taken, a newcomer takes the place of the oldest that has named none
+  for 5 seconds, or is told `421` to come back.
+- `keg app mail APP [--env ENV]` lists the addresses, what each starts,
+  how many organizations have one, and the last messages; `keg mail
+  show` says how mail in stands and what it refused.
+
+## What arrives from outside is bounded
+
+Whoever has an address can send to it, so what hooks and mail write is
+bounded, for each app, by what the app says in a migration (here the
+defaults):
+
+```sql
+SELECT keg.inbound_limits(
+  keep_days => 30,                     -- 1 to 90
+  address_bytes_a_day => 67108864,     -- 64 MiB; 1 KiB to 1 GiB
+  app_bytes_a_day => 268435456,        -- 256 MiB; 1 KiB to 1 GiB, at least an address's
+  threads_a_day => 200);               -- 0 to 10000, for each organization
+```
+
+- An address, and the app in all, take so many bytes a day (UTC) of
+  what is written (a body, a message's text, headers and kept
+  attachments). Past them a delivery is answered 503, a message 452, and
+  nothing of it is written: the sender sends it again later.
+- What was received is kept `keep_days`: then its record, its event and
+  a message's attachments go, a little at each delivery or message to
+  any of the app's addresses. A delivery or message sent again is known
+  only while it is kept.
+- The deliveries and messages of one organization start at most
+  `threads_a_day` threads a day; past that, each is written as ever and
+  starts no thread.
+- What is not said stays as it was.
+
+## The worker in Go
+
+The Go client (`github.com/rahult/keg/sdk/go`) runs agents as `@keg/app`
+does, against the same SQL:
+
+```go
+import kegsdk "github.com/rahult/keg/sdk/go"
+
+k, _ := kegsdk.Connect("")                // DATABASE_URL, KEG_DOOR_URL, KEG_DOOR_TOKEN
+k.Agent("triage", func(ctx context.Context, t *kegsdk.Thread) error {
+    events, err := t.Events(ctx)
+    if err != nil { return err }
+    out, err := t.Model(ctx, kegsdk.ModelRequest{Instructions: prompt, Input: render(events), Tools: tools})
+    if err != nil { return err }
+    if len(out.ToolCalls) == 0 { return t.Done(ctx, out.Text) }
+    r, err := t.Tool(ctx, out.ToolCalls[0], func(ctx context.Context, tx *kegsdk.Tx, key string) (any, error) {
+        _, err := tx.Exec(ctx, "UPDATE tickets SET priority = $1 WHERE id = $2", p, id)
+        return map[string]any{"ok": true}, err
+    })
+    if err != nil { return err }
+    _ = r                              // r.Error is a tool.error, on the thread for the next step
+    return t.Next(ctx)
+})
+k.Work(ctx)                            // jobs and agents' wakes alike
+```
+
+- `Thread`: `ID`, `Agent`, `Organization`, `Input`, `Dry`, `Vary`,
+  `Seq()`, `Ended()`; `Events`, `Extend`, `Claim`, `Model`, `Tool`,
+  `Note`, `Next`, `Done`, `Fail`, `Release`, `Ask`, `Asks`, `WaitFor`,
+  `SleepUntil`, `Spawn`. Refusals are `*kegsdk.Error` with `Code` (`bound`,
+  `lease_lost`, `errors_in_a_row`, `ended`, `needs_approval`, `dry`, and
+  the model's: `over_limit` with `RetryAfter`, `rate_limited`, `lost`, …).
+- A tool declared with `changes => true` runs only on a person's approval
+  of that very call: `Tool` returns `Error.Code == "needs_approval"` and
+  writes nothing; ask with `Ask(ctx, kegsdk.AskOptions{Kind: "approve",
+  Call: &call})`.
+- `ModelBaseURL()` is the address to give an SDK of OpenAI's or
+  Anthropic's as its base URL (with `KEG_DOOR_TOKEN` as its key); send
+  `t.Claim(ctx)` as the header `Keg-Claim` so the call is counted for the
+  thread's organization.
+
 ## Do not
 
-- Emit a type beginning `keg.`: `keg.thread.started` and
-  `keg.thread.finished` are Keg's, and `keg.emit` refuses every `keg.` type.
+- Let an organisation's tool decide what the app does: what it gives back
+  is data the organisation wrote.
+- Emit a type beginning `keg.`: `keg.thread.started`,
+  `keg.thread.finished`, `keg.hook.<name>` and `keg.mail.<word>` are Keg's, and `keg.emit` refuses every `keg.` type.
 - Put in a prompt what the thread's organization may not read: read it in
   the step that sends it, as the thread's actor.
 - Hold a transaction open across `thread.model`, or call the door

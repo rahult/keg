@@ -23,8 +23,9 @@ node gets a model key: the owner's Mac, a Linux server and a stranger's
 laptop alike. It reads the `.env` once, prints the names it found and
 never a value, and puts each key in the vault (`docs/VAULT.md`) as the
 entry `keg/model/<provider>` (`keg/model/openai`, `keg/model/anthropic`),
-given to Keg's model gateway (`models`) alone. It installs and starts the
-gateway and the assistant, and makes one call to check them. The file is
+given to Keg's model gateway alone. The gateway is part of the node: there
+is nothing to install or start for it. Setup starts the assistant and
+makes one call to check it. The file is
 never read again and may be deleted. No part of Keg reads a project's
 `.env` by itself: not the assistant, not a piece of work (below), not an
 app's `model` binding. Each reaches models through the gateway, holds no
@@ -39,8 +40,208 @@ Nothing but Keg's own gateway may be granted an entry under `keg/`.
 A node upgraded from 0.12 carries the keys it had into the vault at its
 first start, with nothing typed again.
 
-The provider is OpenAI (its Responses API); `ANTHROPIC_API_KEY` is kept
-for a later version.
+OpenAI (its Responses API) is built in. Any other provider is one a
+person adds: see below. `ANTHROPIC_API_KEY`, which setup puts in the vault
+as `keg/model/anthropic`, is the key of a provider named `anthropic` once
+a person adds it (below).
+
+## Using another provider
+
+A provider is a name, the address of its API, the shape it speaks, and
+its key (or none, for a server of your own). The gateway speaks
+`openai-compatible` (the Chat Completions shape, streamed with tool calls:
+what OpenRouter, Azure OpenAI, Together, Groq, vLLM, LM Studio and
+Ollama's OpenAI-compatible endpoint speak; also named `openai-chat`),
+`openai` (OpenAI's Responses API; also `openai-responses`) and `anthropic`
+(Anthropic's Messages API, its key in `x-api-key`). What each provider
+said it read from its cache is counted at the model's cached price.
+
+```sh
+keg assistant setup                                  # asks: OpenAI, or another provider, its model and price, then tests it
+keg assistant provider add NAME --url URL [--kind openai-compatible|openai|anthropic] [--key-from-env VAR | --key-from-env-file PATH | --no-key]
+keg assistant provider ls                            # each, its key set or not, what it was allowed
+keg assistant provider default NAME                  # its first model is the one asked when a call names none
+keg assistant provider test NAME [--model M]         # one small call, as you, said plainly
+keg assistant provider rm NAME                       # its models, its key and what it was allowed go with it
+keg assistant model add PROVIDER/MODEL --input-usd-per-mtok 0.15 --output-usd-per-mtok 0.60
+keg assistant model add ollama/llama3.2 --free       # a model of your own: it costs nothing
+keg assistant model ls | rm PROVIDER/MODEL
+keg assistant model PROVIDER/MODEL                   # the default; --works for pieces of work
+```
+
+- **The key** is typed unseen when `provider add` asks, read from a
+  variable of yours (`--key-from-env`), or from a `.env` once
+  (`--env-file`, as `KEG_MODEL_KEY`); never an argument. It is the vault's
+  `keg/model/<name>`, given to Keg's gateway alone, which asks the node for
+  it for each call it has claimed. Headers a provider needs are given with
+  `--header NAME` (the value asked unseen) or `--header NAME=VALUE` (seen
+  by other users of the computer in its command line), and kept in the
+  vault as `keg/model-headers/<name>`. `--key-header api-key` sends the key
+  in that header rather than `Authorization: Bearer`.
+- **A price, or `--free`.** What a call may cost is held before it is sent,
+  as an upper bound; a model with no price would hold nothing and count
+  nothing, so it is refused unless it is said free. A free model's calls
+  still count toward calls a minute and show in `keg assistant usage`, at
+  $0. `--max-output N` holds every call of it to N tokens out; `--context
+  N` is kept and shown. `keg assistant usage` says what each model cost,
+  its provider in its name.
+- **Where the gateway may reach.** `https` to a public address. `http`
+  only with `--allow-plain-http`, which says the key and what is asked
+  would travel unprotected. A local or private address (`localhost`, a
+  LAN address, a name with no dot or under `.local`, `.internal`, `.lan`)
+  only with `--allow-private`: the node finds the address once, and that
+  one address and port is allowed for that provider and nothing else. On
+  a Linux server that may be the server's own loopback, where a local
+  model server usually listens; in Keg's Linux machine on a Mac it may not,
+  for that loopback is the machine's, never the Mac's (name the Mac as
+  `mac.keg.internal`). No caller ever names an address: a call names a
+  model, the model its provider, and the provider the one address a
+  person gave it. A server of
+  your own with no key may be reached over `http` with `--allow-private`
+  alone. These are checked when a provider is added and again at each
+  call: a name is looked up once and connected to only at a public address
+  it gave (a public name that turns into a private address is refused), no
+  redirect is followed, and the answer is bounded in size and time as
+  every call is.
+- **A person's alone**: adding, changing, testing and removing a provider
+  are refused to an agent, the assistant, an app and a service, and none
+  of it is a tool. The console's Vault page does the same in a form (Model
+  providers), its key field sent once and never shown again.
+
+Everything downstream is unchanged: the assistant, a piece of work's
+agent through its door (Chat Completions, whatever the provider speaks),
+and the ledger, each through the gateway.
+
+Setup reads another provider from a `.env` too, once: `KEG_MODEL_URL`,
+`KEG_MODEL_KEY`, `KEG_MODEL_NAME` (the model), and optionally
+`KEG_MODEL_KIND`, `KEG_MODEL_PROVIDER` (its name; the host's otherwise),
+`KEG_MODEL_INPUT_USD_PER_MTOK`, `KEG_MODEL_OUTPUT_USD_PER_MTOK` and
+`KEG_MODEL_FREE`. With `--allow-private` or `--allow-plain-http` when its
+address needs them.
+
+### OpenRouter
+
+```sh
+keg assistant provider add openrouter --url https://openrouter.ai/api/v1 --header HTTP-Referer=https://example.com --header X-Title=Keg
+keg assistant model add openrouter/meta-llama/llama-4-scout --input-usd-per-mtok 0.15 --output-usd-per-mtok 0.60
+keg assistant model openrouter/meta-llama/llama-4-scout
+keg assistant provider test openrouter
+```
+
+Use the model's price as OpenRouter's page gives it, or more.
+
+### Anthropic
+
+```sh
+keg assistant provider add anthropic --kind anthropic --url https://api.anthropic.com/v1
+keg assistant model add anthropic/MODEL --input-usd-per-mtok N --output-usd-per-mtok N
+```
+
+The key typed is the vault's `keg/model/anthropic`, the same entry setup
+writes from `ANTHROPIC_API_KEY`. Use the model's name and prices as
+Anthropic's pages give them.
+
+### Azure OpenAI
+
+Azure's v1 API takes the deployment's name as the model, and its key in
+the `api-key` header:
+
+```sh
+keg assistant provider add azure --url https://RESOURCE.openai.azure.com/openai/v1 --key-header api-key
+keg assistant model add azure/DEPLOYMENT --input-usd-per-mtok 2.50 --output-usd-per-mtok 10
+```
+
+An address with `?api-version=` is not taken: use the v1 address.
+
+### Ollama on a Mac
+
+Keg's node runs in a VM on a Mac; the Mac itself is reached from it as
+`mac.keg.internal`, which the node finds as its VM's way out (the
+address macOS's network for VMs gives the Mac, often `192.168.64.1`).
+Ollama listens on the Mac's loopback alone unless told otherwise, so start
+it on every address of the Mac first, and note that anything on the
+networks the Mac is on can then reach it too:
+
+```sh
+OLLAMA_HOST=0.0.0.0:11434 ollama serve
+keg assistant provider add ollama --url http://mac.keg.internal:11434/v1 --no-key --allow-private
+keg assistant model add ollama/llama3.2 --free
+keg assistant model ollama/llama3.2
+keg assistant provider test ollama
+```
+
+If the Mac's address for its VMs changes, add the provider again.
+
+### Ollama on Linux
+
+On a Linux node, name the computer Ollama is on by its address on your
+network, or the server itself by its loopback (the gateway is part of the
+node, so on a Linux server `127.0.0.1` is that server):
+
+```sh
+keg assistant provider add ollama --url http://127.0.0.1:11434/v1 --kind openai-compatible --no-key --allow-private
+keg assistant model add ollama/llama3.2 --free
+```
+
+## The gateway is part of the node
+
+Since 0.16.0 the node answers model calls itself: it holds each call
+against its caller's allowance, reads the key of the call's provider from
+the vault for that one call, reaches the provider at the one address a
+person gave it, and settles what the provider counted. A node that ran an
+earlier Keg's `models` service stops and removes it at its first start,
+keeps its keys for the node, and says so once in its log, an event and
+`keg assistant model`. `keg system install models` says there is nothing
+to install.
+
+## Using a standard SDK, or an agent framework
+
+An app's door (`KEG_DOOR_URL`, its token `KEG_DOOR_TOKEN`) and a work's
+door also answer in the shapes OpenAI's and Anthropic's SDKs speak, so an
+agent written with either, or with a framework on them, needs only its
+base URL and key changed:
+
+| Shape | Path |
+|---|---|
+| OpenAI Chat Completions | `POST /v1/chat/completions` |
+| OpenAI Responses | `POST /v1/responses` |
+| Anthropic Messages | `POST /v1/messages` |
+| The models it may ask | `GET /v1/models` |
+
+```js
+import OpenAI from "openai";
+const openai = new OpenAI({ baseURL: `${process.env.KEG_DOOR_URL}/v1`, apiKey: process.env.KEG_DOOR_TOKEN });
+const answer = await openai.chat.completions.create({ model: "gpt-5.6-luna", messages: [{ role: "user", content: "Hello" }] });
+```
+
+```python
+import anthropic, os
+client = anthropic.Anthropic(base_url=os.environ["KEG_DOOR_URL"], api_key=os.environ["KEG_DOOR_TOKEN"])
+answer = client.messages.create(model="claude-x", max_tokens=200, messages=[{"role": "user", "content": "Hello"}])
+```
+
+- A model is named by Keg's id (`openai/gpt-5.6-luna`) or by its
+  provider's own name (`gpt-5.6-luna`); it must be one a person offers
+  to apps (`keg assistant model --apps`), or, at a work's door, the one
+  set for works. Another is refused in the SDK's own error shape.
+- Streamed or whole, with tool calls both ways and output schemas
+  (`response_format` / `text.format`); what was read from the cache is
+  said as each shape says it.
+- Every call is Keg's own underneath: held, settled and limited exactly as
+  `POST /v1/model/calls` is, the app's or work's ceiling and the node's
+  alike. The provider's key never reaches the caller.
+- What Keg does not carry is refused plainly: images, audio, files, and
+  tools the provider would run itself (web search and the like).
+  Sampling settings (`temperature` and the like) are not passed on.
+- A caller that goes away, or stops reading, stops its call: it is ended
+  at the provider and settled at what it used.
+- A per-organization ceiling needs Keg's claim. `@keg/app`'s
+  `thread.model()` sends it; an SDK sends it as a default header,
+  `Keg-Claim`, and is then counted for that organization and held to its
+  ceiling. Without one, a call is the app's; one that names a thread with
+  no claim is refused where organizations have a ceiling.
+- A workspace a person gave the model (`keg workspace model NAME on
+  --usd-per-day N`) is given these variables itself: `docs/WORKSPACES.md`.
 
 ## Pieces of work reach their model through the gateway
 
@@ -117,8 +318,9 @@ keg assistant limits work:12 --usd-per-day 5     # one work's allowance; default
   project's `.env`; that is gone.)
 
 The gateway is the one thing on the node that holds a model's key and
-reaches a provider. It runs walled, with the public internet only. The
-assistant runs walled with no network at all and nothing but its socket.
+reaches a provider. It runs walled, with the public internet only, and
+besides it the one address and port of each provider a person allowed
+with `--allow-private`. The assistant runs walled with no network at all and nothing but its socket.
 
 ## What it may spend
 

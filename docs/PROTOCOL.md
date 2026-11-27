@@ -638,6 +638,41 @@ refused each route.
   threads could wait is told to be deployed again (400); an ended thread
   is `wrong_state`.
 
+## An organisation's own tools
+
+Capability 023. These are tools an app's organisations write in
+JavaScript, which the node runs for a step of a thread of that
+organisation.
+
+- `GET /v1/apps/<app>/org-tools?env=` returns `{app, env, on, seconds,
+  memory_mb, day_seconds, used_today_ms}`. `POST /v1/apps/<app>/org-tools`
+  with `{env, on, seconds?, memory_mb?, day_seconds?}` sets it. Both are a
+  person's: an agent, a service and the assistant are refused. The limits
+  are bounded: a call has 1 to 30 seconds and 32 to 512 MiB, and an
+  environment has at most 86400 seconds a day.
+- `POST {KEG_DOOR_URL}/v1/org-tools/run` takes the app's door token, the
+  step's `Keg-Thread`, `Keg-Organization` and `Keg-Claim` (required), and
+  `{claim, code, arguments}`. `claim` is the one `keg.thread_org_tool`
+  gave: `t1.<thread>.<organization>.<sha256>.<expires>.<mac>`, where the
+  MAC is HMAC-SHA256 of `keg-org-tool|<database>|<body>` under the node's
+  key for that database. The call is refused (403) when:
+  - the environment is off;
+  - either claim does not check;
+  - the two claims name another thread or organisation;
+  - the code's SHA-256 is not the claim's.
+
+  It is also refused when sizes are passed (400), or when the day's
+  seconds are used or four calls are running (429). Organisations are each
+  other's untrusted tenants, so one organisation may use a quarter of the
+  day's seconds (at least one call's) and two of the four calls at once,
+  and is refused (429) past that while the others go on. Otherwise the answer
+  is `{result, sha256, ms}`, or `{error: {code: "tool_failed", message}}`
+  where the tool itself failed. The code runs in a container made for the
+  call and removed after: image `node:22-alpine` pinned to its digest,
+  network `bridge` with egress `none`, user 65534, no capabilities, no
+  new privileges, 32 processes, a writable layer of 8 MiB, and the
+  person's memory and time.
+
 ## An app's jobs, for a person
 
 A person, or the console, reads and retries an app's jobs; an agent and a
@@ -870,3 +905,132 @@ evaluation. A call with no claim is counted under no organization:
 
 The `done` line's `usage` may carry `cached_input_tokens`: how many of
 `input_tokens` the provider read from its cache.
+
+## Hooks (`/.keg/hooks/<token>`)
+
+At the node's own public name (`--public-domain`), on its TLS listener:
+`POST https://<name>/.keg/hooks/<tag>.<secret>`, where `tag` is 16
+lowercase hex (the node's HMAC of the app's database name, so it names
+no app to anyone) and `secret` is 48 lowercase hex. The node:
+
+Every count below is reserved when it is reached, under one lock: all
+of a step's counts go up at once, or none does, and a refused request
+moves no count.
+
+1. Its sender's network is held to 120 a minute (`/24` for IPv4, `/48`
+   for IPv6), looked at before anything is read or worked out; it pays
+   one for each request not sent with POST, to an address that is no
+   hook's, or forged, never for a verified delivery (a busy sender, such
+   as GitHub, comes from a few networks).
+2. The node looks, in memory, for the hash of the whole token among the
+   addresses of the app its tag names. It knows every app's addresses and
+   each hook's secret (the vault entry granted to the app's service in its
+   environment under the hook's secret name), read again after every
+   deploy, removal and write of the vault (what was read while one of
+   those came is thrown away, and a delivery checked against what changed
+   before it is written is answered 503), each minute, and again for one app at most each ten seconds when an address
+   it does not know is asked for under that app's tag (an administrator
+   may have just made one). They are read by one request at a time: the
+   others answer from what was known, or, with nothing known, wait for
+   that read. A read that fails keeps what was known; with nothing known,
+   the request is answered 503, never 404. Nothing is read from a database or the vault
+   for a request. An address that is not there is answered at once and
+   pays only the node's count for such addresses (20,000 a minute, for
+   everyone): no app's count is touched.
+3. The signature is checked against the secret in memory (`github`,
+   `stripe`, `slack`, `hmac-sha256`; `none` checks nothing). One that
+   does not match pays that address's count of failures (60 a minute),
+   which only someone who knows that address can reach.
+4. A verified delivery pays its address's count (600 a minute) and its
+   app's (1,200; a hook that checks nothing pays a count of its app's of
+   its own, 600, so it takes nothing of signed senders), and then the
+   database writes it once (`keg.hook_receive`): an event
+   `keg.hook.<name>` of the address's organization, for its
+   administrators, `from_outside: true`, unless the address or its app
+   has taken its bytes for the day (`503` with `Retry-After: 3600`, and
+   nothing written). It starts the hook's agent's thread unless the
+   organization has had its threads from outside for the day. What the
+   app says of these, and how long what was received is kept, is
+   [`keg.inbound_limits`](../skills/keg/references/agents.md#what-arrives-from-outside-is-bounded).
+   A body Postgres's JSON refuses (a `\u0000`, half a surrogate pair) is
+   written as text.
+
+Answers, JSON: `200 {"received": true}` (`"again": true` when it was
+written before), `401` signature, `404 {"error": "there is nothing at
+this address"}` for every address that is no hook's, `405` not POST
+(with `Allow: POST`), `429` a budget, `503` the app cannot take it now
+(no secret granted, or its database is down): senders retry. A body is at
+most 4 MiB, read only once its head has passed the cheap checks (the
+sender's rate, the address a hook's) and held as it arrives in the hooks'
+own 64 MiB, of which one network or one address holds at most 16 MiB;
+past that, `503`. `GET /v1/apps/{app}/hooks?env=`
+is a person's (the node's socket, not an agent's): the hooks and the last
+fifty deliveries, never a token or a secret.
+
+## Mail in (SMTP)
+
+Off until a person gives the node a domain and turns it on
+(`POST /v1/mail` `{"domain"}`, then `{"on": true, "port"?}`; in a Mac's
+machine also `"on_a_mac": true`). `GET /v1/mail` says how it stands and
+the last fifty refusals (when, from which network, why; never what was
+sent). Both are a person's: the node's socket, not an agent's.
+
+On, the node listens on `0.0.0.0:<port>` (25 by default) and takes mail
+for one kind of address only: `<word>+<tag>.<secret>@<domain>`, where
+`word` is an address an app declared (`keg.mail_address`), `tag` is the
+16-hex tag of the app's database (as a hook's) and `secret` 24 lowercase
+hex; only the SHA-256 of `<tag>.<secret>` is kept. It speaks ESMTP with
+`SIZE 10485760`, `8BITMIME`, `ENHANCEDSTATUSCODES`, and `STARTTLS` only
+where the node holds a certificate for the domain. No `PIPELINING`,
+`AUTH`, `VRFY`, `EXPN`, `ETRN` or `BDAT` (`502`). It never relays, never
+sends and never bounces: everything it will not take is refused while
+the sender is connected.
+
+- `RCPT` to another domain or with a source route: `550 5.7.1`. To an
+  address at the domain that is no one's, however it is wrong: `550
+  5.1.1 no such mailbox here`, the same words for every one. At most 5
+  `RCPT` a message, taken or not (`452 4.5.3`).
+- A line is at most 1,000 bytes with its CRLF (`500`, and the
+  conversation ends); a command or a line of a message that does not end
+  in CRLF, or holds a bare CR, is refused (`500` for a command; `554
+  5.6.0` for the whole message, so nothing after a bare `\n.\n` is read as
+  another message). Anything sent after `STARTTLS` before TLS begins ends
+  the conversation (`501`).
+- Until it names an address that is someone's, 20 commands and 15
+  seconds a conversation; then at most 100 commands, 10 lines too long
+  (`421 4.7.0`) and two minutes (every read waits at most what is left of
+  it; past it, `421 4.4.2`, and the socket is shut a second later
+  whatever is under way, a TLS handshake too), 30 seconds a line; 4
+  conversations at once from one network (`door::wide`: `/24`, `/48`),
+  64 in all (each may hold a 10 MiB message), placed before a thread is
+  given to one. With every place held, a newcomer takes the place of the
+  oldest conversation that has named no one's address for 5 seconds (its
+  socket is shut); with none such, it is told `421 4.3.2` and the
+  connection closed.
+- Per minute, reserved all or none under one lock as hooks' are: 30
+  messages from one network (`MAIL`, `421`), 2,000 recipients that are no
+  one's for everyone (`421`), 60 messages to one address and 600 to one
+  app (`452`).
+- A message is at most 10 MiB as sent (`552 5.3.4`, read to its end
+  first), its headers 64 KiB, 20 attachments. It is read whole by
+  `mail-parser` (Keg reads no MIME); one it cannot read is `554 5.6.0`.
+  The database writes it once (`keg.mail_receive`): an event
+  `keg.mail.<word>` of the address's organization, for its
+  administrators, `from_outside: true`, `sender: "unverified"` (no SPF or
+  DKIM is checked), with the envelope, eight headers, the text (at most
+  16 KiB, every control and direction character written out) and the
+  attachments listed; one of at most 4 MiB, and 8 MiB of a message's in all,
+  is kept in `keg.mail_attachments`. A message is written once: the same
+  bytes, received for the same address, are not written again while it
+  is kept. `250 2.0.0 taken`; `451
+  4.3.0` when the app cannot take it now, its addresses cannot be read
+  now (at `RCPT`, never a `550`), or what the address was found against
+  changed while it came; `452 4.3.1` when the address or its app has
+  taken its bytes for the day (the sender tries again). The day's bytes,
+  threads and keeping are as hooks' (`keg.inbound_limits`). A message is
+  held as it arrives, once a recipient is taken, in mail's own 128 MiB, of
+  which one network or one mailbox holds at most 32 MiB; past that, `451
+  4.3.0` too.
+
+`GET /v1/apps/{app}/mail?env=` is a person's: the addresses, how many
+organizations have each, and the last fifty messages, never a token.

@@ -183,7 +183,7 @@ computer by itself. These ways reach one:
 | A container on Keg (`keg run`) | a published port | `http://127.0.0.1:8088`: such a container shares the node's network. |
 | A container on Keg (`keg run`) | a LoadBalancer or NodePort Service | the address the Service shows as `EXTERNAL-IP` (the `keg-k8s` container's address, for example `10.88.143.41`), on the Service's port or its NodePort. This address changes each time the cluster is started from stopped; a published port does not. |
 | A pod | another Service | its name: `http://web` in the same namespace, `http://web.keg-guide.svc.cluster.local` from anywhere in the cluster. |
-| A pod | a port Keg publishes on the node (another app, a database) | `10.88.0.1:PORT`, the node's address on Keg's container network. |
+| A pod | a port Keg publishes on the node (another app, a database) | `10.88.0.1:PORT`, the node's address on Keg's container network. A node whose own networks overlap `10.88.0.0/16` (a Keg inside a container on another Keg, say) gives its containers the first free range of 10.96, 10.104, 10.112, 10.120, 10.128, 172.18 and 172.24.0.0/16 instead, and `keg system ls` says which; `KEG_CONTAINER_NETWORK=A.B.0.0/16` in the node's environment sets one, refused if it overlaps. |
 
 About `--publish`:
 

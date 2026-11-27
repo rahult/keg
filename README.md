@@ -12,10 +12,10 @@ More at [keg.rahultrikha.com](https://keg.rahultrikha.com).
 
 **On a Mac** (Apple silicon, macOS 15 or later): download [Keg.dmg](https://github.com/rahult/keg/releases/latest/download/Keg.dmg) and drag Keg to Applications. The app has the `keg` command and the Linux machine inside it; nothing else needs installing. Open it, press **Start Keg**, and in **Settings ▸ General** choose **Install the keg Command** to use it in a terminal. The app updates itself.
 
-**On Linux** (cgroup v2, root, `nsenter`, `ip` from iproute2, and `iptables` or `nft`): download the archive for your processor from the [latest release](https://github.com/rahult/keg/releases/latest), `keg-0.14.0-linux-x86_64.tar.gz` or `keg-0.14.0-linux-aarch64.tar.gz`. It holds `bin/keg`, `bin/kegd` and `bin/keg-agent`:
+**On Linux** (cgroup v2, root, `nsenter`, `ip` from iproute2, and `iptables` or `nft`): download the archive for your processor from the [latest release](https://github.com/rahult/keg/releases/latest), `keg-0.15.0-linux-x86_64.tar.gz` or `keg-0.15.0-linux-aarch64.tar.gz`. It holds `bin/keg`, `bin/kegd` and `bin/keg-agent`:
 
 ```sh
-tar -xzf keg-0.14.0-linux-x86_64.tar.gz
+tar -xzf keg-0.15.0-linux-x86_64.tar.gz
 sudo install -m 755 bin/keg bin/kegd bin/keg-agent /usr/local/bin/
 sudo kegd --names 127.0.0.1:7380 --names-tls 127.0.0.1:7443 &
 ```
